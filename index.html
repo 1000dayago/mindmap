@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
 <style>
 :root{
@@ -6235,6 +6238,11 @@ refreshSyncUI();
 if(syncOn() && syncCfg.auto) setTimeout(() => syncNow({ silent:true }), 1600);
 
 })();
+
+/* PWA: 설치 가능하게 서비스워커 등록 (https 또는 localhost 에서만) */
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+  window.addEventListener('load', () => { try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} });
+}
 </script>
 </body>
 </html>
