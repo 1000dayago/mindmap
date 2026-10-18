@@ -756,6 +756,9 @@ table.sheet th.ch .rz:hover{background:color-mix(in srgb,var(--accent) 45%,trans
 
 .inl.dock{text-align:left;border-radius:14px;padding:10px 12px;font-weight:600;box-shadow:0 -4px 22px rgba(90,50,20,.28);z-index:8}
 .inl.dock::placeholder{color:#aaa}
+#inlBar .micbtn{width:26px;height:26px;flex:0 0 auto;padding:0}
+#inlBar .micbtn svg{width:15px;height:15px}
+@media (max-width:820px){#inlBar .micbtn{width:32px;height:32px}#inlBar .micbtn svg{width:17px;height:17px}}
 
 </style>
 </head>
@@ -1625,7 +1628,7 @@ function micBtn(ta){
       const m = { 'not-allowed':'마이크 권한을 허용해 주세요', 'service-not-allowed':'마이크 권한을 허용해 주세요', 'no-speech':'음성이 들리지 않았어요', 'network':'음성 인식에는 인터넷 연결이 필요해요', 'audio-capture':'마이크를 찾지 못했어요' }[e.error];
       if(m) toast(m);
     };
-    r.onend = () => { b.classList.remove('on'); if(recog===r){ recog = null; recogBtn = null; } };
+    r.onend = () => { b.classList.remove('on'); if(recog===r){ recog = null; recogBtn = null; } try{ b.dispatchEvent(new Event('micend')); }catch(_){} };
     recog = r; recogBtn = b; b.classList.add('on');
     try{ r.start(); toast('듣고 있어요… 말씀하세요'); }catch(e){ b.classList.remove('on'); recog = null; recogBtn = null; }
   });
@@ -1774,10 +1777,19 @@ function startInline(id, o){
   ta.addEventListener('input', () => { placeInline(); placeInlBar(); });
   ta.addEventListener('blur', () => {
     if(!inl || inl.ta!==ta) return;
+    if(recog && recogBtn && inlBar.contains(recogBtn)) return;   // 음성 입력 중에는 닫지 않음
     // 열자마자 생기는 가짜 blur 는 무시하고 다시 잡는다
     if(performance.now() - inl.t0 < 350){ setTimeout(() => { try{ if(inl && inl.ta===ta) ta.focus(); }catch(e){} }, 0); return; }
     setTimeout(() => { if(inl && inl.ta===ta && document.activeElement!==ta) commitInline(); }, 0);
   });
+  // 🎤 음성 입력 (막대 맨 앞)
+  try{ const oldMic = inlBar.querySelector('.micbtn'); if(oldMic) oldMic.remove(); }catch(e){}
+  stopMic();
+  const mb = micBtn(ta);
+  if(mb){
+    inlBar.insertBefore(mb, inlBar.firstChild);
+    mb.addEventListener('micend', () => { if(inl && inl.ta===ta){ try{ ta.focus({ preventScroll:true }); }catch(e){} placeInline(); placeInlBar(); } });
+  }
   ensureVisible(id);
   placeInline();
   try{ ta.focus({ preventScroll:true }); ta.select(); }catch(e){}
@@ -1841,14 +1853,14 @@ if(window.visualViewport) visualViewport.addEventListener('resize', () => { setT
 function commitInline(){
   if(!inl || inl.done) return; inl.done = true;
   const { id, isNew, ta, orig } = inl; const v = ta.value;
-  inl = null; ta.remove(); placeInlBar();
+  stopMic(); inl = null; ta.remove(); placeInlBar();
   if(N()[id] && (isNew || v!==orig)){
     mutate(m => { m.nodes[id].text = v; if(isNew && S().auto) tidyMap(m); }, isNew ? { noUndo:true } : null);
   }else render();
   placeCtl();
 }
 function cancelInline(){
-  if(!inl) return; const { id, isNew, ta } = inl; inl.done = true; inl = null; ta.remove(); placeInlBar();
+  if(!inl) return; const { id, isNew, ta } = inl; inl.done = true; stopMic(); inl = null; ta.remove(); placeInlBar();
   if(isNew) undo();
   placeCtl();
 }
