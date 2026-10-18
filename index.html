@@ -759,6 +759,12 @@ table.sheet th.ch .rz:hover{background:color-mix(in srgb,var(--accent) 45%,trans
 #inlBar .micbtn{width:26px;height:26px;flex:0 0 auto;padding:0}
 #inlBar .micbtn svg{width:15px;height:15px}
 @media (max-width:820px){#inlBar .micbtn{width:32px;height:32px}#inlBar .micbtn svg{width:17px;height:17px}}
+#dragGuide{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:hidden}
+#dragGuide line{stroke:var(--accent);stroke-opacity:.22;stroke-width:1.2;stroke-dasharray:4 5}
+#dragGuide line.on{stroke-opacity:.8;stroke-width:2;stroke-dasharray:none}
+#inlBar button[data-k=nl]{display:none;padding:5px 11px;background:var(--panel-solid);border:1px solid var(--line)}
+#inlBar button[data-k=nl] i.nlg{font-size:15px;font-weight:900;line-height:1;color:var(--text)}
+@media (max-width:820px){#inlBar button[data-k=nl]{display:flex;align-items:center;min-height:32px}}
 
 </style>
 </head>
@@ -1018,7 +1024,7 @@ function toast(msg, act){
 }
 
 /* ===================== 데이터 ===================== */
-function defaultSettings(){ return { theme:'auto', pen:false, yesNoColor:true, snap:false, gap:'normal', dim:true, overrideBranches:true, auto:true }; }
+function defaultSettings(){ return { dropMode:'free', noOverlap:true, theme:'auto', pen:false, yesNoColor:true, snap:false, gap:'normal', dim:true, overrideBranches:true, auto:true }; }
 
 function mkNode(o){
   return Object.assign({ id:uid(), parent:null, children:[], text:'', x:0, y:0, shape:'rounded', color:null, colorOnly:false, dashed:false, collapsed:false, layout:null, label:'', kind:'', w:80, h:36, memo:'', checks:[], hideDone:false, urls:[], evId:'', evRole:'', table:null, tag:'', bold:false, fsz:'', lw:'', ldash:false, pin:false }, o);
@@ -2131,7 +2137,7 @@ svg.addEventListener('pointermove', e => {
   gest.lx = e.clientX; gest.ly = e.clientY;
 });
 function endPointer(e, cancelled){
-  pts.delete(e.pointerId); cancelLongPress();
+  pts.delete(e.pointerId); cancelLongPress(); guideHide();
   if(pinch){ if(pts.size<2) pinch = null; gest = null; return; }
   const g = gest; gest = null; nbTrashShow(false); if(!g) return;
   if(g.lp) return;
@@ -2157,6 +2163,12 @@ function endPointer(e, cancelled){
         msg = '“'+short(m.nodes[g.drop].text)+'” 하위로 연결했어요';
       }
       dropId = null;
+      if(!cancelled && m.nodes[g.id]){
+        const par2 = angleParentOf(m, m.nodes[g.id]);
+        const ang = dropMode()==='angle' && par2 && !msg;
+        const moved = settleNoOverlap(m, g.orig.map(o => o.id), { ray: ang ? { x:m.nodes[g.id].x-par2.x, y:m.nodes[g.id].y-par2.y } : null });
+        if(moved && !msg) msg = '겹치지 않게 옆으로 옮겼어요';
+      }
       ctlGuardUntil = performance.now() + 500;
       if(snap(m)!==g.before){ pushUndo(g.before); saveSoon(); }
       render();
@@ -2209,6 +2221,7 @@ function addFloatingNodeAt(clientX, clientY){
     fitNode(n);
     m.nodes[n.id] = n;
     id = n.id;
+    settleNoOverlap(m, [n.id]);
   });
   sel = id; selLink = null; render();
   toast('독립 노드를 만들었어요. 내용을 입력하세요.');
@@ -2256,22 +2269,27 @@ function beginDrag(e){
 function doDrag(e){
   const m = cur();
   let dx = (e.clientX-gest.sx0)/view.k, dy = (e.clientY-gest.sy0)/view.k;
-  if(S().snap){ dx = Math.round((gest.ox+dx)/20)*20 - gest.ox; dy = Math.round((gest.oy+dy)/20)*20 - gest.oy; }
-  for(const o of gest.orig){ const q = m.nodes[o.id]; q.x = Math.round(o.x+dx); q.y = Math.round(o.y+dy); }
-  gest.drop = null;
   const dn = m.nodes[gest.id];
+  const par = angleParentOf(m, dn);
+  const useAngle = dropMode()==='angle' && !!par;
+  if(S().snap && !useAngle){ dx = Math.round((gest.ox+dx)/20)*20 - gest.ox; dy = Math.round((gest.oy+dy)/20)*20 - gest.oy; }
+  const rx = gest.ox + dx, ry = gest.oy + dy;      // 손가락이 가리키는 위치
+  gest.drop = null;
   if(gest.id!==m.rootId){
     const forbid = new Set([gest.id, ...desc(gest.id)]);
     const mg = clamp(18/view.k, 10, 60);
     let best = null, bd = 1e9;
     for(const c of visibleList()){
       if(forbid.has(c.id)) continue;
-      if(Math.abs(dn.x-c.x) <= c.w/2+mg && Math.abs(dn.y-c.y) <= c.h/2+mg){
-        const d = Math.hypot(dn.x-c.x, dn.y-c.y); if(d<bd){ bd = d; best = c.id; }
+      if(Math.abs(rx-c.x) <= c.w/2+mg && Math.abs(ry-c.y) <= c.h/2+mg){
+        const d = Math.hypot(rx-c.x, ry-c.y); if(d<bd){ bd = d; best = c.id; }
       }
     }
     if(best && best!==dn.parent) gest.drop = best;
   }
+  if(useAngle && !gest.drop){ const sp = snapAngleAround(par, rx, ry); dx = sp.x - gest.ox; dy = sp.y - gest.oy; }
+  for(const o of gest.orig){ const q = m.nodes[o.id]; q.x = Math.round(o.x+dx); q.y = Math.round(o.y+dy); }
+  if(useAngle && !gest.drop) guideShow(par, dn.x, dn.y); else guideHide();
   dropId = gest.drop;
   nbTrashUpdate(e);
   renderSoon();
@@ -2351,7 +2369,8 @@ function openLayoutSheet(){
     b.append(seg);
     b.append(toggleRow('하위 가지의 개별 레이아웃도 덮어쓰기', S().overrideBranches, v => { S().overrideBranches = v; saveSoon(); }));
     b.append(toggleRow('새 노드를 만들면 자동 정렬', S().auto, v => { S().auto = v; saveSoon(); }));
-    b.append(toggleRow('격자 맞춤 (드래그 시 20px)', S().snap, v => { S().snap = v; saveSoon(); }));
+    dropModeRows(b);
+    b.append(toggleRow('격자 맞춤 (드래그 시 20px, 자유 배치일 때)', S().snap, v => { S().snap = v; saveSoon(); }));
     b.append(toggleRow('단독 이동 (하위 노드는 두고 이 노드만)', singleMove, v => { singleMove = v; }));
     b.append(h('p',{class:'note'},'자유 배치는 노드를 드래그하면 돼요. 부모를 끌면 하위 노드가 함께 움직이고, Shift+드래그로 단독 이동할 수 있어요.'));
   });
@@ -2471,7 +2490,8 @@ function openSettings(){
     b.append(toggleRow('새 노드를 만들면 자동 정렬 (드래그하면 그 위치로 이동)', S().auto, v => { S().auto = v; saveSoon(); }));
     b.append(toggleRow('S펜 구분 (손가락은 화면 이동만, S펜은 노드 이동)', S().pen, v => { S().pen = v; saveSoon(); }));
     b.append(toggleRow('YES/NO 연결선 색 구분 (초록/빨강)', S().yesNoColor, v => { S().yesNoColor = v; saveSoon(); render(); }));
-    b.append(toggleRow('격자 맞춤 (드래그 시 20px)', S().snap, v => { S().snap = v; saveSoon(); }));
+    dropModeRows(b);
+    b.append(toggleRow('격자 맞춤 (드래그 시 20px, 자유 배치일 때)', S().snap, v => { S().snap = v; saveSoon(); }));
     b.append(toggleRow('하위 보기 시 나머지 노드 흐리게', S().dim, v => { S().dim = v; saveSoon(); render(); }));
     b.append(toggleRow('빠른 서식 막대 (모양·색상을 상단에서 바로 변경)', quickBarOn(), v => { S().quickbar = v; saveSoon(); render(); requestAnimationFrame(ensureView); }));
     b.append(toggleRow('편집 잠금 (실수로 고치지 않게 · 위쪽 자물쇠로도 전환)', !!S().lock, v => { S().lock = v; saveSoon(); updateLockUI(); render(); }));
@@ -2824,6 +2844,7 @@ function addChildAt(pid, wx, wy){
     const c = mkNode({ parent:pid, shape:'rounded' });
     p.collapsed = false; c.x = Math.round(wx); c.y = Math.round(wy);
     m.nodes[c.id] = c; p.children.push(c.id); newId = c.id;
+    settleNewNode(m, c.id);
   });
   if(!newId) return null;
   sel = newId; render(); openEdit(newId, { isNew:true });
@@ -2944,9 +2965,9 @@ function outlineToTabs(text){
 
 /* ---------- 연속 입력 막대 (글자 입력 중 바로 하위 · 형제 · 완료) ---------- */
 const inlBar = h('div',{ id:'inlBar', class:'hidden' });
-[['child','하위 노드로 (Tab)','child'],['sibling','같은 레벨로 (Enter)','sibling'],['done','입력 완료','check']].forEach(([k,t,icn]) => {
+[['nl','줄바꿈 (PC: Shift+Enter)','nl'],['child','하위 노드로 (Tab)','child'],['sibling','같은 레벨로 (Enter)','sibling'],['done','입력 완료','check']].forEach(([k,t,icn]) => {
   const b = h('button',{ type:'button', 'data-k':k, title:t, 'aria-label':t });
-  b.innerHTML = nbSvgIc(icn, 14, 2.2)+'<i>'+(k==='child' ? '하위' : k==='sibling' ? '형제' : '완료')+'</i>';
+  b.innerHTML = k==='nl' ? '<i class="nlg">↵</i>' : nbSvgIc(icn, 14, 2.2)+'<i>'+(k==='child' ? '하위' : k==='sibling' ? '형제' : '완료')+'</i>';
   inlBar.append(b);
 });
 $('#stage').append(inlBar);
@@ -2955,6 +2976,7 @@ inlBar.addEventListener('mousedown', e => e.preventDefault());
 inlBar.addEventListener('click', e => {
   const b = e.target.closest('button[data-k]'); if(!b || !inl) return;
   const id = inl.id, k = b.dataset.k;
+  if(k==='nl'){ const ta = inl.ta; try{ ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input',{ bubbles:true })); ta.focus({ preventScroll:true }); }catch(_){} return; }
   commitInline();
   if(k==='child') addChild(id);
   else if(k==='sibling'){ const q = N()[id]; if(q) addChild(q.parent && N()[q.parent] ? q.parent : id); }
@@ -2971,6 +2993,130 @@ function placeInlBar(){
   const limit = vv ? Math.min(SH, vv.offsetTop + vv.height - r.top - 8) : SH - 8;
   if(T + hgt > limit) T = ta.offsetTop - hgt - 6;
   inlBar.style.left = clamp(L, 6, Math.max(6, SW-w-6))+'px'; inlBar.style.top = Math.max(4, T)+'px';
+}
+
+/* ===================== 손으로 놓을 때: 45° 맞춤 / 자유 배치 + 겹침 방지 ===================== */
+const dropMode = () => (S().dropMode === 'angle' ? 'angle' : 'free');
+const keepApart = () => S().noOverlap !== false;
+const ANG_STEP = Math.PI / 4;
+
+// 부모를 중심으로 8방향(45°)에 맞춘 위치. 거리는 그대로 둔다.
+function snapAngleAround(p, x, y){
+  const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy);
+  if(d < 1) return { x, y };
+  const a = Math.round(Math.atan2(dy, dx) / ANG_STEP) * ANG_STEP;
+  return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
+}
+function angleParentOf(m, n){
+  if(!n || n.id === m.rootId || !n.parent) return null;
+  return m.nodes[n.parent] || null;
+}
+
+// 화면에 실제로 그려지는 노드 (접힌 가지의 안쪽은 제외)
+function shownNodes(m){
+  const out = [], seen = new Set();
+  const walk = id => {
+    const n = m.nodes[id]; if(!n || seen.has(id)) return;
+    seen.add(id); out.push(n);
+    if(!n.collapsed) n.children.forEach(walk);
+  };
+  walk(m.rootId);
+  for(const id in m.nodes){ const n = m.nodes[id]; if(!seen.has(id) && !n.parent) walk(id); }
+  return out;
+}
+const rectOfNode = (n, ex, ey) => ({
+  l: n.x + ex - n.w / 2, r: n.x + ex + n.w / 2,
+  t: n.y + ey - n.h / 2, b: n.y + ey + n.h / 2 + (n.shape === 'bubble' ? 11 : 0)
+});
+const OV_GAP = 10;
+function hitsAny(grp, others, ex, ey){
+  for(const g of grp){
+    const a = rectOfNode(g, ex, ey);
+    for(const o of others){
+      if(a.l < o.r + OV_GAP && a.r + OV_GAP > o.l && a.t < o.b + OV_GAP && a.b + OV_GAP > o.t) return true;
+    }
+  }
+  return false;
+}
+
+// 옮겨 놓은 노드들(ids)이 다른 노드와 겹치면, 가장 가까운 빈자리로 함께 밀어낸다.
+// 반환: 실제로 옮겼으면 true
+function settleNoOverlap(m, ids, o){
+  o = o || {};
+  if(!keepApart()) return false;
+  const set = new Set(ids);
+  const shown = shownNodes(m);
+  const grp = shown.filter(n => set.has(n.id));
+  const others = shown.filter(n => !set.has(n.id)).map(n => rectOfNode(n, 0, 0));
+  if(!grp.length || !others.length) return false;
+  if(!hitsAny(grp, others, 0, 0)) return false;
+  let found = null;
+  // 45° 모드: 부모에서 뻗은 방향 그대로 바깥으로 밀어낸다
+  if(o.ray){
+    const L = Math.hypot(o.ray.x, o.ray.y) || 1, ux = o.ray.x / L, uy = o.ray.y / L;
+    for(let t = 8; t <= 1600 && !found; t += 8){
+      if(!hitsAny(grp, others, ux * t, uy * t)) found = { x: ux * t, y: uy * t };
+    }
+  }
+  // 자유 모드: 놓은 자리에서 가장 가까운 빈자리 (나선형 탐색)
+  for(let r = 12; r <= 900 && !found; r += 12){
+    const cnt = Math.max(16, Math.min(72, Math.ceil(2 * Math.PI * r / 20)));
+    const a0 = o.ray ? Math.atan2(o.ray.y, o.ray.x) : 0;
+    for(let k = 0; k < cnt && !found; k++){
+      const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (2 * Math.PI / cnt);
+      const ex = Math.cos(a) * r, ey = Math.sin(a) * r;
+      if(!hitsAny(grp, others, ex, ey)) found = { x: ex, y: ey };
+    }
+  }
+  if(!found) return false;
+  ids.forEach(id => { const q = m.nodes[id]; if(q){ q.x = Math.round(q.x + found.x); q.y = Math.round(q.y + found.y); } });
+  return true;
+}
+
+// 새 노드를 손으로 놓은 자리(wx, wy)에 맞춰 최종 위치를 정한다. (＋ 점 끌어서 만들기)
+function settleNewNode(m, nid){
+  const n = m.nodes[nid]; if(!n) return;
+  fitNode(n);
+  const p = angleParentOf(m, n);
+  if(p && dropMode() === 'angle'){
+    const s = snapAngleAround(p, n.x, n.y); n.x = Math.round(s.x); n.y = Math.round(s.y);
+  }
+  settleNoOverlap(m, [nid], { ray: p && dropMode() === 'angle' ? { x: n.x - p.x, y: n.y - p.y } : null });
+}
+
+/* 끄는 동안 보이는 방향 안내선 (45° 모드) */
+const dragGuide = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const sv = document.createElementNS(NS, 'svg');
+  sv.id = 'dragGuide'; sv.classList.add('hidden');
+  $('#stage').append(sv);
+  return sv;
+})();
+function guideHide(){ dragGuide.classList.add('hidden'); dragGuide.innerHTML = ''; }
+function guideShow(p, nx, ny){
+  const k = view.k, ox = p.x * k + view.x, oy = p.y * k + view.y;
+  const nxs = nx * k + view.x, nys = ny * k + view.y;
+  const len = Math.max(120, Math.hypot(nxs - ox, nys - oy) + 80);
+  const act = Math.round(Math.atan2(nys - oy, nxs - ox) / ANG_STEP);
+  let s = '';
+  for(let i = 0; i < 8; i++){
+    const a = i * ANG_STEP, on = ((i - act) % 8 + 8) % 8 === 0;
+    s += '<line x1="'+ox.toFixed(1)+'" y1="'+oy.toFixed(1)+'" x2="'+(ox + Math.cos(a) * len).toFixed(1)+'" y2="'+(oy + Math.sin(a) * len).toFixed(1)+'" class="'+(on ? 'on' : '')+'"/>';
+  }
+  dragGuide.innerHTML = s; dragGuide.classList.remove('hidden');
+}
+
+/* 설정 화면 공통 행: 정렬 시트 · 설정 시트에서 같이 쓴다 */
+function dropModeRows(b){
+  b.append(h('div',{class:'lbl'},'손으로 노드를 놓을 때'));
+  const seg = h('div',{class:'seg'});
+  [['free','자유 배치'],['angle','45° 자동 맞춤']].forEach(([v, l]) => {
+    const bt = h('button',{ class: dropMode() === v ? 'on' : '', onclick: () => { S().dropMode = v; saveSoon(); [...seg.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); } }, l);
+    seg.append(bt);
+  });
+  b.append(seg);
+  b.append(h('p',{class:'note',style:'margin:6px 2px 2px'},'자유 배치는 놓은 자리 그대로, 45° 맞춤은 부모 기준 8방향(→ ↘ ↓ ↙ ← ↖ ↑ ↗)으로 딱 맞춰요.'));
+  b.append(toggleRow('겹치면 자동으로 비켜 놓기', keepApart(), v => { S().noOverlap = v; saveSoon(); }));
 }
 
 /* ===================== 2단계: 공통 (정리 / 실시간 편집) ===================== */
