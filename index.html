@@ -2219,7 +2219,7 @@ function endPointer(e, cancelled){
   if(mode){ if(g.kind==='node') modeTap(g.id); return; }
   if(g.kind==='toggle') toggleCollapse(g.id);
   else if(g.kind==='elabel'){ sel = N()[g.id] ? g.id : sel; render(); editLabel(g.id); }
-  else if(g.kind==='badge'){ sel = N()[g.id] ? g.id : sel; selLink = null; render(); openPanel(g.id, g.bt); }
+  else if(g.kind==='badge'){ ctlGuardUntil = performance.now() + 600; sel = N()[g.id] ? g.id : sel; selLink = null; render(); openPanel(g.id, g.bt); }
   else if(g.kind==='link'){ sel = null; selLink = g.id; render(); }
   else if(g.kind==='group'){ const gg = cur().groups[g.id]; if(gg){ if(gg.collapsed) toggleGroupCollapse(g.id); else openGroupSheet(g.id); } }
   else if(g.kind==='lh'){ /* 가운데 점만 탭: 변화 없음 */ }
@@ -2837,16 +2837,21 @@ function nbPlace(n){
   const dir = n.id===rid ? 1 : dirOf(n);
   // ＋ 점: 하위가 생길 쪽 가장자리
   const off = mob ? 20 : 16;   // 노드를 잡는 손가락이 ＋ 에 닿지 않도록 충분히 띄운다
+  const hasBadge = !!((n.memo||'').trim() || (n.checks && n.checks.length) || (n.urls && n.urls.length) || n.table);
   let hx, hy;
-  if(vert){ hx = cx; hy = cy+hh+off; } else { hx = cx + (dir>=0?1:-1)*(hw+off); hy = cy; }
+  // 배지(메모·체크·링크·표)가 노드 아래쪽에 있으면 ＋ 가 배지와 멀어지도록 위로(세로 배치는 더 아래로) 비킨다
+  if(vert){ hx = cx; hy = cy+hh+off+(hasBadge ? 16 : 0); } else { hx = cx + (dir>=0?1:-1)*(hw+off); hy = cy - (hasBadge ? Math.min(14, hh*0.7) : 0); }
   nbPlus.style.left = hx+'px'; nbPlus.style.top = hy+'px';
   // 막대: ＋ 점 반대편(보통 아래)
   const gap = mob ? 14 : 9;
   const bw = nbBar.offsetWidth || 150, bh = nbBar.offsetHeight || 30;
-  let below = !vert;
-  if(below && cy+hh+gap+bh > SH-4 && cy-hh-gap-bh > 4) below = false;
+  // 노드 아래에 걸친 배지(메모·체크·링크·표)가 있으면 막대는 위쪽에 띄워 서로 안 겹치게 한다
+  let below = !vert && !hasBadge;
+  if(!below && !vert && hasBadge && cy-hh-gap-bh < 4) below = true;   // 위에 자리가 없으면 아래로, 배지 높이만큼 더 띄운다
+  const gapB = (below && hasBadge) ? gap + 16 : gap;
+  if(below && cy+hh+gapB+bh > SH-4 && cy-hh-gap-bh > 4) below = false;
   const bl = clamp(cx - bw/2, 6, Math.max(6, SW-bw-6));
-  const bt = below ? cy+hh+gap : cy-hh-gap-bh;
+  const bt = below ? cy+hh+gapB : cy-hh-gap-bh;
   nbBar.style.left = bl+'px'; nbBar.style.top = bt+'px';
   // 하위 메뉴
   if(!nb.open){ nbFly.classList.add('hidden'); nbFly.classList.remove('show'); return; }
@@ -3908,12 +3913,14 @@ function chipsSvg(n, dark){
   if(!parts.length) return '';
   let x = -n.w/2+6, s = '';
   const y = n.h/2-2;
+  const mobB = (typeof isMobile==='function') && isMobile();
+  const gapB = mobB ? 9 : 7, hp = gapB/2 - .5, ht = mobB ? 2 : 2, hb = mobB ? 9 : 6;   // 보이는 크기는 그대로, 누르는 영역만 넓힘
   for(const p of parts){
     const tw = p.t ? textW(p.t,9,true) : 0, w = p.t ? 19+tw : 16;
-    s += `<g data-badge="${n.id}" data-bt="${p.bt}" transform="translate(${x},${y})" style="cursor:pointer"><rect width="${w}" height="15" rx="7.5" fill="${dark?'#171b2a':'#fff'}" stroke="${p.c}" stroke-width="1.2"/>`+
+    s += `<g data-badge="${n.id}" data-bt="${p.bt}" transform="translate(${x},${y})" style="cursor:pointer"><rect x="${-hp}" y="${-ht}" width="${w+hp*2}" height="${15+ht+hb}" rx="6" fill="transparent"/><rect width="${w}" height="15" rx="7.5" fill="${dark?'#171b2a':'#fff'}" stroke="${p.c}" stroke-width="1.2"/>`+
       `<g transform="translate(2.6,2.4) scale(.42)" fill="none" stroke="${p.c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none">${ICONS[p.ic]}</g>`+
       (p.t ? `<text x="14.5" y="8" font-size="9" font-weight="700" dominant-baseline="central" fill="${p.c}" font-family='${FONT}' style="pointer-events:none">${p.t}</text>` : '')+`</g>`;
-    x += w+3;
+    x += w+gapB;
   }
   return s;
 }
