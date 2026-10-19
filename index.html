@@ -1147,6 +1147,8 @@ Object.assign(ICONS, {
   pin:'<path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 14v7"/>',
   today:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  sigma:'<path d="M18 5H7l6 7-6 7h11"/>',
+  calc:'<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
   task:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
   send:'<path d="M21 3L10 14M21 3l-7 18-4-8-8-4z"/>',
   lineThin:'<path d="M3 12h18" stroke-width="1.2"/>', lineThick:'<path d="M3 12h18" stroke-width="4.5"/>', dash:'<path d="M3 12h4M10 12h4M17 12h4"/>'
@@ -1166,6 +1168,7 @@ function initIcons(){ document.querySelectorAll('[data-ic]').forEach(el => { el.
 const SHADOW_DEFS = '<filter id="sh" x="-40%" y="-40%" width="180%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="#1a2340" flood-opacity=".18"/><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#3b5bff" flood-opacity=".08"/></filter>';
 
 let toastTimer;
+let aggNow = null;
 let progNow = null;   // 현재 맵의 노드별 하위 할 일 진행률
 function toast(msg, act){
   let t = $('#toast');
@@ -1184,7 +1187,7 @@ function toast(msg, act){
 function defaultSettings(){ return { dropMode:'free', noOverlap:true, edgeMarks:true, theme:'auto', pen:false, yesNoColor:true, snap:false, gap:'normal', dim:true, overrideBranches:true, auto:true }; }
 
 function mkNode(o){
-  return Object.assign({ id:uid(), parent:null, children:[], text:'', x:0, y:0, shape:'rounded', color:null, colorOnly:false, dashed:false, collapsed:false, layout:null, label:'', kind:'', w:80, h:36, memo:'', memoH:'', checks:[], hideDone:false, urls:[], evId:'', evRole:'', table:null, tag:'', bold:false, fsz:'', lw:'', ldash:false, pin:false, due:'', inbox:false }, o);
+  return Object.assign({ id:uid(), parent:null, children:[], text:'', x:0, y:0, shape:'rounded', color:null, colorOnly:false, dashed:false, collapsed:false, layout:null, label:'', kind:'', w:80, h:36, memo:'', memoH:'', checks:[], hideDone:false, urls:[], evId:'', evRole:'', table:null, tag:'', bold:false, fsz:'', lw:'', ldash:false, pin:false, due:'', inbox:false, val:null, unit:'', agg:'' }, o);
 }
 function newMap(name){
   const root = mkNode({ text:name, shape:'rounded' });
@@ -1202,7 +1205,7 @@ function normalizeMap(raw, keepId){
       color:/^#[0-9a-f]{6}$/i.test(r.color||'')?r.color:null, colorOnly:!!r.colorOnly, dashed:!!r.dashed, collapsed:!!r.collapsed,
       layout:LAYOUT_IDS.includes(r.layout)?r.layout:null, label:String(r.label||''), kind:(r.kind==='yes'||r.kind==='no')?r.kind:'',
       memo:String(r.memo||'').slice(0,20000), memoH:cleanMemoH(r.memoH, String(r.memo||'').slice(0,20000)), hideDone:!!r.hideDone,
-      tag:TAG_IDS.includes(r.tag)?r.tag:'', bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox,
+      tag:TAG_IDS.includes(r.tag)?r.tag:'', bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox, val:(typeof r.val==='number' && isFinite(r.val)) ? r.val : null, unit:String(r.unit||'').slice(0,8), agg:['sum','avg','max','min','cnt'].includes(r.agg)?r.agg:'',
       checks:(Array.isArray(r.checks)?r.checks:[]).slice(0,500).map(c => ({ id:String((c&&c.id)||uid()), t:String((c&&c.t)||'').slice(0,500), d:!!(c&&c.d) })),
       urls:(Array.isArray(r.urls)?r.urls:[]).slice(0,100).map(u => ({ id:String((u&&u.id)||uid()), name:String((u&&u.name)||'').slice(0,100), url:cleanUrl(u&&u.url), path:String((u&&u.path)||'').slice(0,500), k:String((u&&u.k)||'').slice(0,12) })).filter(u => u.url || u.path),
       evId:String(r.evId||''), evRole:['root','title','date','body'].includes(r.evRole)?r.evRole:'',
@@ -1545,6 +1548,7 @@ function buildWorld(opt){
   linkMid.clear();
   cutSetNow = (cutPending && cutPending.mapId===cur().id && nodes[cutPending.id]) ? new Set([cutPending.id, ...desc(cutPending.id)]) : null;
   progNow = computeProg(cur());
+  aggNow = computeAgg(cur());
   let s = groupsSvg(m, visSet, dark, opt);
   for(const n of vis){ if(n.parent && nodes[n.parent]) s += edgeSvg(nodes[n.parent], n, dark, focusSet, opt); }
   const LK = linksSvg(m, visSet, vis, dark, focusSet, opt); s += LK.s;
@@ -2879,7 +2883,7 @@ nbFly.addEventListener('mousedown', e => e.preventDefault());
 
 /* ---------- 하위 메뉴(플라이아웃) ---------- */
 function nbSig(n){
-  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.bold, n.fsz, n.lw, n.ldash, n.pin, n.due, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
+  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.bold, n.fsz, n.lw, n.ldash, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
 }
 function nbChip(cls, icon, label, act, o){
   o = o || {};
@@ -2938,8 +2942,8 @@ function nbRenderFly(n){
     // 태그
     const tg = h('div',{class:'nbrow'});
     TAGS.forEach(([k,emo,label]) => { const b = nbChip('tag', null, '', 'tag', { html:'<b>'+emo+'</b>', on:n.tag===k, title:label }); b.onclick = act(() => mutate(mm => { mm.nodes[id].tag = (mm.nodes[id].tag===k) ? '' : k; })); tg.append(b); });
-    { const bDue = nbChip('', 'flag', '', 'due', { dot:!!n.due, title:n.due ? '기한 '+n.due+' (바꾸기)' : '기한 정하기' }); bDue.onclick = act(() => openDueSheet(id)); tg.append(h('span',{class:'ssep'}), bDue); }
-    nbFly.append(nbSection('태그 · 기한'), tg);
+    { const bDue = nbChip('', 'flag', '', 'due', { dot:!!n.due, title:n.due ? '기한 '+n.due+' (바꾸기)' : '기한 정하기' }); bDue.onclick = act(() => openDueSheet(id)); const bVal = nbChip('', 'sigma', '', 'val', { dot:n.val!=null, title:'값 · 하위 합계' }); bVal.onclick = act(() => openValSheet(id)); tg.append(h('span',{class:'ssep'}), bDue, bVal); }
+    nbFly.append(nbSection('태그 · 기한 · 값'), tg);
     // 글자 · 선
     const tx = h('div',{class:'nbrow'});
     const bB = nbChip('', null, '', 'bold', { html:'<b class="tb">B</b>', on:n.bold, title:'굵게' }); bB.onclick = set(q => { q.bold = !q.bold; });
@@ -2994,7 +2998,7 @@ function nbPlace(n){
   const dir = n.id===rid ? 1 : dirOf(n);
   // ＋ 점: 하위가 생길 쪽 가장자리
   const off = mob ? 20 : 16;   // 노드를 잡는 손가락이 ＋ 에 닿지 않도록 충분히 띄운다
-  const hasBadge = !!((n.memo||'').trim() || (n.checks && n.checks.length) || (n.urls && n.urls.length) || n.table || n.due || (progNow && progNow[n.id] && progNow[n.id].t));
+  const hasBadge = !!((n.memo||'').trim() || (n.checks && n.checks.length) || (n.urls && n.urls.length) || n.table || n.due || n.val!=null || (aggNow && aggNow[n.id]) || (progNow && progNow[n.id] && progNow[n.id].t));
   let hx, hy;
   // 배지(메모·체크·링크·표)가 노드 아래쪽에 있으면 ＋ 가 배지와 멀어지도록 위로(세로 배치는 더 아래로) 비킨다
   if(vert){ hx = cx; hy = cy+hh+off+(hasBadge ? 16 : 0); } else { hx = cx + (dir>=0?1:-1)*(hw+off); hy = cy - (hasBadge ? Math.min(14, hh*0.7) : 0); }
@@ -4415,6 +4419,8 @@ function chipsSvg(n, dark){
   if(n.table) parts.push({ ic:'table', t:n.table.cells.length+'×'+n.table.cells[0].length, c:'#16a34a', bt:'table' });
   { const pr = progNow && progNow[n.id]; if(pr && pr.t) parts.push({ ic:'task', t:pr.d+'/'+pr.t, c:pr.d===pr.t ? '#10b981' : '#f97316', bt:'prog' }); }
   if(n.due){ const di = dueInfo(n); parts.push({ ic:'flag', t:di.label, c:di.color, bt:'due' }); }
+  if(n.val!=null) parts.push({ ic:'calc', t:fmtVal(n.val)+(n.unit||''), c:'#0d9488', bt:'val' });
+  { const ag = aggNow && aggNow[n.id]; if(ag) parts.push({ ic:'sigma', t:AGG_LABEL[ag.k]+' '+fmtVal(ag.v)+(ag.unit||''), c:'#0891b2', bt:'val' }); }
   if(!parts.length) return '';
   let x = -n.w/2+6, s = '';
   const y = n.h/2-2;
@@ -7282,8 +7288,64 @@ function openDueSheet(id){
 }
 function badgeAct(id, bt){
   if(bt==='due') return openDueSheet(id);
+  if(bt==='val') return openValSheet(id);
   if(bt==='prog'){ const pr = progNow && progNow[id]; toast('하위 할 일 '+(pr ? pr.d+'/'+pr.t : '')+' 완료'); return; }
   openPanel(id, bt);
+}
+
+
+/* ---------- 값 · 합계 (하위 노드 값을 모아 부모에 표시) ---------- */
+const AGG_LABEL = { sum:'합', avg:'평균', max:'최대', min:'최소', cnt:'개수' };
+const fmtVal = v => (Math.round(v*100)/100).toLocaleString('ko-KR', { maximumFractionDigits:2 });
+// 각 노드의 "하위 집계": 자식의 유효값(자기 값이 있으면 그 값, 없으면 자식의 집계)을 모은다
+function computeAgg(m){
+  const out = {}, seen = new Set();
+  const walk = id => {
+    const n = m.nodes[id]; if(!n || seen.has(id)) return null;
+    seen.add(id);
+    const vs = []; let unit = '';
+    for(const c of n.children){ const e = walk(c); if(e){ vs.push(e.v); if(!unit) unit = e.unit; } }
+    let ag = null;
+    if(vs.length){
+      const k = n.agg || 'sum', sum = vs.reduce((a, b) => a+b, 0);
+      let v = k==='avg' ? sum/vs.length : k==='max' ? Math.max.apply(null, vs) : k==='min' ? Math.min.apply(null, vs) : k==='cnt' ? vs.length : sum;
+      v = Math.round(v*1e6)/1e6;
+      ag = { v, unit: k==='cnt' ? '개' : unit, k };
+      out[id] = ag;
+    }
+    if(n.val!=null) return { v:n.val, unit:n.unit||'' };
+    return ag ? { v:ag.v, unit:ag.unit } : null;
+  };
+  walk(m.rootId);
+  for(const id in m.nodes){ if(!seen.has(id) && !m.nodes[id].parent) walk(id); }
+  return out;
+}
+function openValSheet(id){
+  const n = N()[id]; if(!n) return;
+  if(lockedMsg()) return;
+  openSheet('값 · 합계', b => {
+    const vi = h('input',{ class:'field', type:'text', inputmode:'decimal', placeholder:'숫자 (예: 30000)', value:n.val==null ? '' : String(n.val), 'aria-label':'값' });
+    const ui = h('input',{ class:'field', type:'text', placeholder:'단위 (원, 시간, 개 …)', value:n.unit||'', maxlength:'8', 'aria-label':'단위', style:'margin-top:8px' });
+    const chips = h('div',{ class:'row', style:'flex-wrap:wrap;margin:8px 0 0' }, ['원','시간','개','건','명','kg','%'].map(u => h('button',{ class:'chipbtn', type:'button', onclick:() => { ui.value = u; } }, u)));
+    let agg = n.agg || 'sum';
+    const seg = h('div',{ class:'seg' });
+    const draw = () => { seg.innerHTML = ''; Object.keys(AGG_LABEL).forEach(k => seg.append(h('button',{ type:'button', class:k===agg ? 'on' : '', onclick:() => { agg = k; draw(); } }, AGG_LABEL[k]))); };
+    draw();
+    const save = () => {
+      const t = vi.value.replace(/[,\s]/g, ''), v = t==='' ? null : Number(t);
+      if(v!==null && !isFinite(v)){ toast('숫자만 입력해 주세요'); return; }
+      mutate(m => { const q = m.nodes[id]; if(!q) return; q.val = v; q.unit = ui.value.trim().slice(0,8); q.agg = agg==='sum' ? '' : agg; });
+      closeSheet(true);
+    };
+    vi.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); save(); } });
+    b.append(vi, ui, chips,
+      n.children.length ? h('div',{}, h('p',{ class:'lbl' }, '하위 노드 값을 모아 이 노드에 보여줘요'), seg) : h('p',{ class:'note', style:'margin:10px 2px 0' }, '이 노드에 하위 노드가 생기면, 하위 값의 합계가 여기에 표시돼요.'),
+      h('div',{ class:'row end' },
+        n.val!=null ? h('button',{ class:'btn', style:'margin-right:auto', onclick:() => { mutate(m => { if(m.nodes[id]){ m.nodes[id].val = null; } }); closeSheet(true); } }, '값 지우기') : null,
+        h('button',{ class:'btn', onclick:() => closeSheet() }, '취소'),
+        h('button',{ class:'btn primary', onclick:save }, '저장')));
+    setTimeout(() => { vi.focus(); vi.select(); }, 40);
+  });
 }
 
 /* ---------- 최근 본 노드 ---------- */
