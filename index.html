@@ -4420,7 +4420,7 @@ function chipsSvg(n, dark){
   { const pr = progNow && progNow[n.id]; if(pr && pr.t) parts.push({ ic:'task', t:pr.d+'/'+pr.t, c:pr.d===pr.t ? '#10b981' : '#f97316', bt:'prog' }); }
   if(n.due){ const di = dueInfo(n); parts.push({ ic:'flag', t:di.label, c:di.color, bt:'due' }); }
   if(n.val!=null) parts.push({ ic:'calc', t:fmtVal(n.val)+(n.unit||''), c:'#0d9488', bt:'val' });
-  { const ag = aggNow && aggNow[n.id]; if(ag) parts.push({ ic:'sigma', t:AGG_LABEL[ag.k]+' '+fmtVal(ag.v)+(ag.unit||''), c:'#0891b2', bt:'val' }); }
+  { const ag = aggNow && aggNow[n.id]; if(ag && !(n.val!=null && Math.abs(n.val-ag.v)<1e-6)) parts.push({ ic:'sigma', t:AGG_LABEL[ag.k]+' '+fmtVal(ag.v)+(ag.unit||''), c:'#0891b2', bt:'val' }); }
   if(!parts.length) return '';
   let x = -n.w/2+6, s = '';
   const y = n.h/2-2;
@@ -7297,27 +7297,18 @@ function badgeAct(id, bt){
 /* ---------- 값 · 합계 (하위 노드 값을 모아 부모에 표시) ---------- */
 const AGG_LABEL = { sum:'합', avg:'평균', max:'최대', min:'최소', cnt:'개수' };
 const fmtVal = v => (Math.round(v*100)/100).toLocaleString('ko-KR', { maximumFractionDigits:2 });
-// 각 노드의 "하위 집계": 자식의 유효값(자기 값이 있으면 그 값, 없으면 자식의 집계)을 모은다
+// 각 노드의 "하위 집계": 바로 아래 자식 중 자기 값이 있는 노드만 모은다 (한 단계만, 위로 계속 쌓이지 않음)
 function computeAgg(m){
-  const out = {}, seen = new Set();
-  const walk = id => {
-    const n = m.nodes[id]; if(!n || seen.has(id)) return null;
-    seen.add(id);
-    const vs = []; let unit = '';
-    for(const c of n.children){ const e = walk(c); if(e){ vs.push(e.v); if(!unit) unit = e.unit; } }
-    let ag = null;
-    if(vs.length){
-      const k = n.agg || 'sum', sum = vs.reduce((a, b) => a+b, 0);
-      let v = k==='avg' ? sum/vs.length : k==='max' ? Math.max.apply(null, vs) : k==='min' ? Math.min.apply(null, vs) : k==='cnt' ? vs.length : sum;
-      v = Math.round(v*1e6)/1e6;
-      ag = { v, unit: k==='cnt' ? '개' : unit, k };
-      out[id] = ag;
-    }
-    if(n.val!=null) return { v:n.val, unit:n.unit||'' };
-    return ag ? { v:ag.v, unit:ag.unit } : null;
-  };
-  walk(m.rootId);
-  for(const id in m.nodes){ if(!seen.has(id) && !m.nodes[id].parent) walk(id); }
+  const out = {};
+  for(const id in m.nodes){
+    const n = m.nodes[id], kids = n.children.map(c => m.nodes[c]).filter(c => c && c.val!=null);
+    if(!kids.length) continue;
+    const vs = kids.map(c => c.val), k = n.agg || 'sum', sum = vs.reduce((a, b) => a+b, 0);
+    let v = k==='avg' ? sum/vs.length : k==='max' ? Math.max.apply(null, vs) : k==='min' ? Math.min.apply(null, vs) : k==='cnt' ? vs.length : sum;
+    v = Math.round(v*1e6)/1e6;
+    const unit = k==='cnt' ? '개' : ((kids.find(c => c.unit) || {}).unit || '');
+    out[id] = { v, unit, k };
+  }
   return out;
 }
 function openValSheet(id){
@@ -7339,7 +7330,7 @@ function openValSheet(id){
     };
     vi.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); save(); } });
     b.append(vi, ui, chips,
-      n.children.length ? h('div',{}, h('p',{ class:'lbl' }, '하위 노드 값을 모아 이 노드에 보여줘요'), seg) : h('p',{ class:'note', style:'margin:10px 2px 0' }, '이 노드에 하위 노드가 생기면, 하위 값의 합계가 여기에 표시돼요.'),
+      n.children.length ? h('div',{}, h('p',{ class:'lbl' }, '바로 아래 노드의 값을 모아 이 노드에 보여줘요 (한 단계만)'), seg) : h('p',{ class:'note', style:'margin:10px 2px 0' }, '이 노드에 하위 노드가 생기면, 하위 값의 합계가 여기에 표시돼요.'),
       h('div',{ class:'row end' },
         n.val!=null ? h('button',{ class:'btn', style:'margin-right:auto', onclick:() => { mutate(m => { if(m.nodes[id]){ m.nodes[id].val = null; } }); closeSheet(true); } }, '값 지우기') : null,
         h('button',{ class:'btn', onclick:() => closeSheet() }, '취소'),
