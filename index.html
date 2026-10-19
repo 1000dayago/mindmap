@@ -777,6 +777,54 @@ table.sheet th.ch .rz:hover{background:color-mix(in srgb,var(--accent) 45%,trans
 .lkrow .lka b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lkrow .lka small{display:block;color:var(--sub);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* 메모 서식 편집기 */
+.mtb{display:flex;flex-wrap:wrap;align-items:center;gap:2px 2px;position:sticky;top:0;z-index:3;background:var(--panel-solid,var(--bg));padding:2px 0 6px}
+.mtb .sep{width:1px;height:18px;background:var(--line);margin:0 4px;flex:none}
+.mtbtn{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:var(--text);flex:none;font-size:15px}
+.mtbtn:active{background:color-mix(in srgb,var(--accent,#5b6cff) 16%,transparent)}
+.mtbtn.ok{color:var(--accent,#5b6cff)}
+.mtbtn .dot{width:17px;height:17px;border-radius:50%;display:block}
+.mtbtn .hlp{background:#fde68a;color:#1f2937;border-radius:5px;padding:0 4px;font-weight:800;font-size:14px}
+.mtb .micbtn{width:34px;height:34px;background:none;color:#ef4444}
+.mtb .micbtn.on{background:#ef4444;color:#fff}
+.mtb .micbtn svg{width:18px;height:18px}
+.mpop{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:4px 2px 8px}
+.mpop.hidden{display:none}
+.mpop .sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--line)}
+.mpop .sw.none{background:linear-gradient(135deg,transparent 46%,#ef4444 46%,#ef4444 54%,transparent 54%),var(--bg)}
+.mpop .sz{width:40px;height:34px}
+.field.memoed{min-height:200px;resize:none;overflow:auto;white-space:pre-wrap;word-break:break-word;user-select:text;-webkit-user-select:text;-webkit-user-modify:read-write;cursor:text}
+.memoed:empty::before{content:attr(data-ph);color:var(--sub);pointer-events:none}
+.memoed ul,.memoed ol{margin:2px 0;padding-left:1.5em}
+.memoed ul.dash{list-style:none;padding-left:1.4em}
+.memoed ul.dash>li::marker{content:'—  '}
+.memoed a{color:#2563eb;text-decoration:underline}
+.memoed .mck{display:inline-block;font-size:1.1em;line-height:1;cursor:pointer;user-select:none;-webkit-user-select:none}
+.memoed .mck.on{color:#16a34a}
+
+/* 달력: 휴일 · 주 번호 */
+.cgrid.wk{grid-template-columns:20px repeat(7,minmax(0,1fr))}
+.cwn{display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-size:10px;font-weight:700;color:var(--sub);opacity:.75}
+.cdow.cwn0{font-size:10px;opacity:.7}
+.cday .hn{font-size:9.5px;line-height:1.1;font-weight:700;color:#ef4444;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;align-self:stretch;text-align:center}
+.cday .dn.sun{color:#ef4444}
+.yd.hol{color:#ef4444;font-weight:800}
+.yd.has.hol{color:#fff}
+.wkh.sun{color:#ef4444}
+
+/* 모바일: 하단 탭 · 도구줄 높이 줄이기 (글자 빼고 아이콘만) */
+@media (max-width:820px){
+  #tabs{padding:3px 12px calc(3px + env(safe-area-inset-bottom))}
+  #tabs button{min-height:36px;padding:2px 0;gap:0}
+  #tabs button > span:not(.ti){display:none}
+  #tabs button .ti{width:52px;height:30px}
+  #tabs button .ti svg{width:19px;height:19px}
+  #toolbar{padding:5px 10px;gap:6px}
+  #toolbar button{min-width:44px;min-height:44px;padding:4px;border-radius:14px;gap:0}
+  #toolbar button .lb{display:none}
+  #toolbar button [data-ic]{width:32px;height:32px}
+}
+
 </style>
 </head>
 <body>
@@ -989,7 +1037,7 @@ Object.assign(ICONS, {
   clip:'<rect x="5" y="4" width="14" height="17" rx="4"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>',
   copy:'<rect x="8" y="8" width="12" height="12" rx="3.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
   up:'<path d="M6 15l6-6 6 6"/>',
-  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', ol:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5l1.5-1v4M3.5 14h3l-3 3.5h3" stroke-width="1.6"/>', ul:'<path d="M10 6h10M10 12h10M10 18h10"/><circle cx="5" cy="6" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="18" r="1.2" fill="currentColor"/>', dash:'<path d="M10 6h10M10 12h10M10 18h10M3.5 6h3M3.5 12h3M3.5 18h3"/>', ckbox:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12.5l3 3 5-6"/>',
   mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   cloud:'<path d="M7 18a4 4 0 0 1-.6-7.96A6 6 0 0 1 18 9.6 4.2 4.2 0 0 1 17.5 18z"/>', upload:'<path d="M12 16V4m0 0L8 8m4-4 4 4M4 20h16"/>',
   chevL:'<path d="M15 6l-6 6 6 6"/>', chevR:'<path d="M9 6l6 6-6 6"/>',
@@ -1038,7 +1086,7 @@ function toast(msg, act){
 function defaultSettings(){ return { dropMode:'free', noOverlap:true, edgeMarks:true, theme:'auto', pen:false, yesNoColor:true, snap:false, gap:'normal', dim:true, overrideBranches:true, auto:true }; }
 
 function mkNode(o){
-  return Object.assign({ id:uid(), parent:null, children:[], text:'', x:0, y:0, shape:'rounded', color:null, colorOnly:false, dashed:false, collapsed:false, layout:null, label:'', kind:'', w:80, h:36, memo:'', checks:[], hideDone:false, urls:[], evId:'', evRole:'', table:null, tag:'', bold:false, fsz:'', lw:'', ldash:false, pin:false }, o);
+  return Object.assign({ id:uid(), parent:null, children:[], text:'', x:0, y:0, shape:'rounded', color:null, colorOnly:false, dashed:false, collapsed:false, layout:null, label:'', kind:'', w:80, h:36, memo:'', memoH:'', checks:[], hideDone:false, urls:[], evId:'', evRole:'', table:null, tag:'', bold:false, fsz:'', lw:'', ldash:false, pin:false }, o);
 }
 function newMap(name){
   const root = mkNode({ text:name, shape:'rounded' });
@@ -1055,7 +1103,7 @@ function normalizeMap(raw, keepId){
       shape:SHAPE_IDS.includes(r.shape)?r.shape:'rounded',
       color:/^#[0-9a-f]{6}$/i.test(r.color||'')?r.color:null, colorOnly:!!r.colorOnly, dashed:!!r.dashed, collapsed:!!r.collapsed,
       layout:LAYOUT_IDS.includes(r.layout)?r.layout:null, label:String(r.label||''), kind:(r.kind==='yes'||r.kind==='no')?r.kind:'',
-      memo:String(r.memo||'').slice(0,20000), hideDone:!!r.hideDone,
+      memo:String(r.memo||'').slice(0,20000), memoH:cleanMemoH(r.memoH, String(r.memo||'').slice(0,20000)), hideDone:!!r.hideDone,
       tag:TAG_IDS.includes(r.tag)?r.tag:'', bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, pin:!!r.pin,
       checks:(Array.isArray(r.checks)?r.checks:[]).slice(0,500).map(c => ({ id:String((c&&c.id)||uid()), t:String((c&&c.t)||'').slice(0,500), d:!!(c&&c.d) })),
       urls:(Array.isArray(r.urls)?r.urls:[]).slice(0,100).map(u => ({ id:String((u&&u.id)||uid()), name:String((u&&u.name)||'').slice(0,100), url:cleanUrl(u&&u.url), path:String((u&&u.path)||'').slice(0,500), k:String((u&&u.k)||'').slice(0,12) })).filter(u => u.url || u.path),
@@ -1664,16 +1712,16 @@ function micBtn(ta){
     let r;
     try{ r = new SR(); }catch(e){ toast('이 브라우저는 음성 입력을 지원하지 않아요'); return; }
     r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false;
-    const base = ta.value + ((ta.value && !/\s$/.test(ta.value)) ? ' ' : '');
+    const io = ta._mic; const base = io ? io.start() : ta.value + ((ta.value && !/\s$/.test(ta.value)) ? ' ' : '');
     r.onresult = e => {
       let t = ''; for(let i=0;i<e.results.length;i++) t += e.results[i][0].transcript;
-      ta.value = base + t; ta.dispatchEvent(new Event('input',{ bubbles:true }));
+      if(io) io.put(t); else { ta.value = base + t; ta.dispatchEvent(new Event('input',{ bubbles:true })); }
     };
     r.onerror = e => {
       const m = { 'not-allowed':'마이크 권한을 허용해 주세요', 'service-not-allowed':'마이크 권한을 허용해 주세요', 'no-speech':'음성이 들리지 않았어요', 'network':'음성 인식에는 인터넷 연결이 필요해요', 'audio-capture':'마이크를 찾지 못했어요' }[e.error];
       if(m) toast(m);
     };
-    r.onend = () => { b.classList.remove('on'); if(recog===r){ recog = null; recogBtn = null; } try{ b.dispatchEvent(new Event('micend')); }catch(_){} };
+    r.onend = () => { if(io) io.end(); b.classList.remove('on'); if(recog===r){ recog = null; recogBtn = null; } try{ b.dispatchEvent(new Event('micend')); }catch(_){} };
     recog = r; recogBtn = b; b.classList.add('on');
     try{ r.start(); toast('듣고 있어요… 말씀하세요'); }catch(e){ b.classList.remove('on'); recog = null; recogBtn = null; }
   });
@@ -3662,15 +3710,242 @@ function bodyNode(body, n){
   body.append(h('div',{ class:'lbl2' }, '작업'), acts);
   body.append(h('p',{ class:'note', style:'margin-top:10px' }, '하위 '+desc(id).length+'개 · 이름은 위쪽 제목칸에서도 바로 고칠 수 있어요. 변경은 자동 저장돼요.'));
 }
+/* ===================== 메모: 서식 편집(크기·색·형광펜·굵게·밑줄·목록·체크·링크) ===================== */
+// 저장 형식: n.memo = 글자만(검색·복사·옛 버전용), n.memoH = 서식 있는 HTML(정리된 것만 허용)
+function memoSan(html){
+  const doc = new DOMParser().parseFromString('<!doctype html><body>'+String(html||''), 'text/html');
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/ /g,'&nbsp;');
+  const colorOk = c => /^(#[0-9a-f]{3,8}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*[\d.]+\s*)?\))$/i.test(String(c||'').trim());
+  const isDef = c => /^(rgb\(\s*1\s*,\s*1\s*,\s*1\s*\)|#010101|#001)$/i.test(String(c||'').trim());
+  const FSZ = { 'x-small':1, 'small':1, 'large':1, 'x-large':1, 'xx-large':1, 'xxx-large':1 };
+  const FNT = { '1':'x-small', '2':'small', '4':'large', '5':'x-large', '6':'xx-large', '7':'xxx-large' };
+  const walk = n => {
+    if(n.nodeType===3) return esc(n.nodeValue);
+    if(n.nodeType!==1) return '';
+    const t = n.tagName.toLowerCase();
+    const kids = () => Array.from(n.childNodes).map(walk).join('');
+    if(t==='br') return '<br>';
+    if(t==='script' || t==='style') return '';
+    if(t==='div' || t==='p'){ const k = kids(); return '<div>'+(k || '<br>')+'</div>'; }
+    if(t==='ul' || t==='ol'){
+      const k = Array.from(n.childNodes).filter(c => c.nodeType===1 && c.tagName.toLowerCase()==='li').map(walk).join('');
+      return k ? '<'+t+(t==='ul' && n.classList.contains('dash') ? ' class="dash"' : '')+'>'+k+'</'+t+'>' : '';
+    }
+    if(t==='li'){ const k = kids(); return '<li>'+(k || '<br>')+'</li>'; }
+    if(t==='a'){
+      const hr = cleanUrl(n.getAttribute('href')), k = kids();
+      return hr && k ? '<a href="'+hr.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">'+k+'</a>' : k;
+    }
+    if(t==='span' && n.classList.contains('mck')){
+      const on = n.classList.contains('on') || /☑/.test(n.textContent);
+      return '<span class="mck'+(on?' on':'')+'" contenteditable="false">'+(on?'☑':'☐')+'</span>';
+    }
+    let k = kids(); if(!k) return '';
+    let bold = t==='b' || t==='strong', und = t==='u', col = '', bg = '', fs = '';
+    if(t==='font'){
+      const c = n.getAttribute('color'); if(c && colorOk(c) && !isDef(c)) col = c;
+      fs = FNT[n.getAttribute('size')] || '';
+    }
+    const st = n.style;
+    if(st){
+      if(st.color && colorOk(st.color) && !isDef(st.color)) col = st.color;
+      if(st.backgroundColor && colorOk(st.backgroundColor) && !isDef(st.backgroundColor)) bg = st.backgroundColor;
+      if(FSZ[st.fontSize]) fs = st.fontSize;
+      if(st.fontWeight==='bold' || +st.fontWeight>=600) bold = true;
+      if(/underline/.test(st.textDecorationLine || st.textDecoration || '')) und = true;
+    }
+    const css = (col ? 'color:'+col+';' : '') + (bg ? 'background-color:'+bg+';'+(col ? '' : 'color:#1f2937;') : '') + (fs ? 'font-size:'+fs+';' : '');
+    if(css) k = '<span style="'+css+'">'+k+'</span>';
+    if(und) k = '<u>'+k+'</u>';
+    if(bold) k = '<b>'+k+'</b>';
+    return k;
+  };
+  return walk(doc.body);
+}
+function memoText(html){
+  const doc = new DOMParser().parseFromString('<!doctype html><body>'+String(html||''), 'text/html');
+  let out = '';
+  const nl = () => { if(out && !out.endsWith('\n')) out += '\n'; };
+  const walk = n => {
+    if(n.nodeType===3){ out += n.nodeValue.replace(/ /g,' '); return; }
+    if(n.nodeType!==1) return;
+    const t = n.tagName.toLowerCase();
+    if(t==='br'){ out += '\n'; return; }
+    if(t==='span' && n.classList.contains('mck')){ out += n.classList.contains('on') ? '☑' : '☐'; return; }
+    if(t==='li'){
+      nl();
+      const p = n.parentNode;
+      if(p && p.tagName.toLowerCase()==='ol'){ let i = 1, s = n; while((s = s.previousElementSibling)) i++; out += i+'. '; }
+      else out += (p && p.classList && p.classList.contains('dash')) ? '— ' : '• ';
+      n.childNodes.forEach(walk); nl(); return;
+    }
+    if(t==='div' || t==='ul' || t==='ol'){ nl(); n.childNodes.forEach(walk); nl(); return; }
+    n.childNodes.forEach(walk);
+  };
+  walk(doc.body);
+  return out.replace(/\n+$/,'');
+}
+function memoFromPlain(s){
+  s = String(s||''); if(!s) return '';
+  return s.split(/\r?\n/).map(l => '<div>'+(l ? l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '<br>')+'</div>').join('');
+}
+// 불러올 때: 글자(memo)와 맞지 않는 서식(memoH)은 버린다 (옛 버전에서 고친 경우)
+function cleanMemoH(hh, memo){
+  hh = String(hh||''); if(!hh || hh.length>80000) return '';
+  const s = memoSan(hh);
+  return memoText(s).trim()===String(memo||'').trim() ? s : '';
+}
+
 function bodyMemo(body, n){
-  const ta = h('textarea',{ class:'field', placeholder:'메모를 입력하세요' });
-  ta.style.minHeight = '200px'; ta.style.resize = 'none'; ta.value = n.memo || '';
-  ta.addEventListener('input', () => liveSet(nn => { nn.memo = ta.value; }));
-  ta.addEventListener('blur', liveEnd);
-  ta.addEventListener('focus', () => { setTimeout(fitNpanelToViewport, 50); setTimeout(fitNpanelToViewport, 280); });
-  const mic = micBtn(ta);
-  if(mic) body.append(h('div',{style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px'}, h('span',{class:'note',style:'margin:0'},'🎤 눌러서 음성으로 쓰기'), mic));
-  body.append(ta, h('p',{class:'note',style:'margin-top:8px'},'자동으로 저장돼요. 메모가 있는 노드에는 메모 표시가 붙어요.'));
+  const ed = h('div',{ class:'field memoed', contenteditable:'true', spellcheck:'false', 'data-ph':'메모를 입력하세요', role:'textbox', 'aria-multiline':'true' });
+  ed.innerHTML = memoSan(n.memoH || memoFromPlain(n.memo));
+  try{ document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); }catch(_){}
+  let lastRg = null;
+  const keepRg = () => { const s = getSelection(); if(s.rangeCount && ed.contains(s.anchorNode)) lastRg = s.getRangeAt(0).cloneRange(); };
+  const restoreRg = () => { ed.focus(); if(lastRg){ const s = getSelection(); s.removeAllRanges(); s.addRange(lastRg); } };
+  ['keyup','mouseup','touchend','focus','input'].forEach(ev => ed.addEventListener(ev, keepRg));
+  const onSel = () => { if(document.activeElement===ed) keepRg(); };
+  document.addEventListener('selectionchange', onSel);
+  new MutationObserver((_, ob) => { if(!ed.isConnected){ document.removeEventListener('selectionchange', onSel); ob.disconnect(); } }).observe(document.body, { childList:true, subtree:true });
+
+  const save = () => {
+    if(!ed.querySelector('.mck') && !ed.textContent.replace(/ /g,' ').trim() && !ed.querySelector('li')) { if(ed.innerHTML) ed.innerHTML = ''; }
+    const s = memoSan(ed.innerHTML), t = memoText(s);
+    liveSet(nn => { nn.memo = t; nn.memoH = (t.trim() && s.length<=80000) ? s : ''; });
+  };
+  ed.addEventListener('input', save);
+  ed.addEventListener('blur', liveEnd);
+  ed.addEventListener('focus', () => { setTimeout(fitNpanelToViewport, 50); setTimeout(fitNpanelToViewport, 280); });
+  ed.addEventListener('paste', e => {
+    e.preventDefault();
+    const t = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+    if(t) document.execCommand('insertText', false, t);
+  });
+  ed.addEventListener('drop', e => e.preventDefault());
+  ed.addEventListener('click', e => {
+    const ck = e.target.closest && e.target.closest('.mck');
+    if(ck && ed.contains(ck)){ const on = !ck.classList.contains('on'); ck.classList.toggle('on', on); ck.textContent = on ? '☑' : '☐'; save(); return; }
+    const a = e.target.closest && e.target.closest('a');
+    if(a && ed.contains(a)){
+      const hr = cleanUrl(a.getAttribute('href'));
+      openSheet('링크', b => {
+        b.append(h('p',{ class:'note', style:'word-break:break-all' }, hr),
+          h('div',{ class:'row', style:'gap:8px;margin-top:8px;flex-wrap:wrap' },
+            h('button',{ class:'btn primary', type:'button', onclick:() => { window.open(hr, '_blank', 'noopener'); closeSheet(); } }, '열기'),
+            h('button',{ class:'btn', type:'button', onclick:() => { closeSheet(); const p = a.parentNode; while(a.firstChild) p.insertBefore(a.firstChild, a); a.remove(); save(); } }, '링크 해제'),
+            h('button',{ class:'btn', type:'button', onclick:() => closeSheet() }, '닫기')));
+      });
+    }
+  });
+
+  // 음성 입력: 커서 위치(없으면 맨 끝)에 이어서 쓴다
+  let micSpan = null;
+  ed._mic = {
+    start(){
+      stopMicKeep();
+      ed.focus(); if(lastRg){ const s = getSelection(); s.removeAllRanges(); s.addRange(lastRg); }
+      else { const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+      const s = getSelection(); const r = s.getRangeAt(0); r.deleteContents();
+      micSpan = document.createElement('span'); micSpan.setAttribute('data-mic','1');
+      r.insertNode(micSpan);
+      return '';
+    },
+    put(t){ if(micSpan){ micSpan.textContent = t; } },
+    end(){
+      if(micSpan){
+        const tx = document.createTextNode(micSpan.textContent); micSpan.replaceWith(tx);
+        const r = document.createRange(); r.setStartAfter(tx); r.collapse(true); lastRg = r;
+        micSpan = null; save();
+      }
+    }
+  };
+  function stopMicKeep(){}
+
+  const cmd = (c, v) => { restoreRg(); try{ document.execCommand(c, false, v); }catch(_){} keepRg(); save(); };
+  const ICO = (name) => ic(name, 18);
+  const tb = (title, inner, fn, cls) => {
+    const b = h('button',{ class:'mtbtn'+(cls ? ' '+cls : ''), type:'button', title, 'aria-label':title, tabindex:'-1', html:inner });
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', fn);
+    return b;
+  };
+  const pop = h('div',{ class:'mpop hidden' });
+  let popKind = '';
+  const showPop = kind => {
+    if(popKind===kind){ pop.classList.add('hidden'); popKind = ''; return; }
+    popKind = kind; pop.innerHTML = ''; pop.classList.remove('hidden');
+    if(kind==='size'){
+      [['1','작게',11],['3','보통',14],['5','크게',18],['6','제목',23]].forEach(([v,lb,px]) => {
+        const b = tb(lb, '<span style="font-size:'+px+'px;font-weight:700">가</span>', () => { cmd('fontSize', v); }, 'sz');
+        pop.append(b);
+      });
+    }else{
+      const list = kind==='color'
+        ? [['#010101','기본'],['#dc2626','빨강'],['#ea580c','주황'],['#16a34a','초록'],['#2563eb','파랑'],['#9333ea','보라'],['#64748b','회색']]
+        : [['#010101','없음'],['#fde68a','노랑'],['#bbf7d0','초록'],['#bae6fd','하늘'],['#fbcfe8','분홍']];
+      list.forEach(([c, lb]) => {
+        const b = tb(lb, '', () => { cmd(kind==='color' ? 'foreColor' : 'hiliteColor', c); }, 'sw');
+        if(c==='#010101') b.classList.add('none'); else b.style.background = c;
+        pop.append(b);
+      });
+    }
+  };
+  const listCmd = (kind) => {
+    restoreRg();
+    const s = getSelection(); let el = s.anchorNode; el = el && (el.nodeType===1 ? el : el.parentNode);
+    const li = el && el.closest && el.closest('li'); const ul = li && li.parentNode;
+    const isDash = !!(ul && ul.tagName==='UL' && ul.classList.contains('dash'));
+    const isOl = !!(ul && ul.tagName==='OL'), isUl = !!(ul && ul.tagName==='UL' && !isDash);
+    if(kind==='dash'){
+      if(isDash){ document.execCommand('insertUnorderedList'); }
+      else{
+        if(isOl) document.execCommand('insertOrderedList');
+        if(!isUl) document.execCommand('insertUnorderedList');
+        const s2 = getSelection(); let e2 = s2.anchorNode; e2 = e2 && (e2.nodeType===1 ? e2 : e2.parentNode);
+        const u2 = e2 && e2.closest && e2.closest('ul'); if(u2) u2.classList.add('dash');
+      }
+    }else if(kind==='ul'){
+      if(isDash){ ul.classList.remove('dash'); }
+      else{ if(isOl) document.execCommand('insertOrderedList'); document.execCommand('insertUnorderedList'); }
+    }else{
+      if(isOl) document.execCommand('insertOrderedList');
+      else{ if(ul) document.execCommand(isDash ? 'insertUnorderedList' : 'insertUnorderedList'); document.execCommand('insertOrderedList'); }
+    }
+    keepRg(); save();
+  };
+  const doLink = () => {
+    restoreRg(); keepRg();
+    const rg = lastRg ? lastRg.cloneRange() : null;
+    const hasSel = !!(rg && !rg.collapsed);
+    askText({ title:hasSel ? '선택한 글자에 링크 걸기' : '링크 넣기', value:'', placeholder:'https://…', onOk: v => {
+      const cu = cleanUrl(v.trim()); if(!cu){ toast('주소를 확인해 주세요'); return; }
+      ed.focus(); if(rg){ const s = getSelection(); s.removeAllRanges(); s.addRange(rg); }
+      if(hasSel) document.execCommand('createLink', false, cu);
+      else document.execCommand('insertHTML', false, '<a href="'+cu.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">'+hostOf(cu).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</a>&nbsp;');
+      keepRg(); save();
+    } });
+  };
+  const doCheck = () => { restoreRg(); document.execCommand('insertHTML', false, '<span class="mck" contenteditable="false">☐</span>&nbsp;'); keepRg(); save(); };
+
+  const mic = micBtn(ed);
+  const bar = h('div',{ class:'mtb' },
+    tb('완료', ICO('check'), () => { ed.blur(); liveEnd(); getSelection().removeAllRanges(); toast('저장했어요'); }, 'ok'),
+    mic, h('i',{ class:'sep' }),
+    tb('글씨 크기', '<span style="font-weight:800;font-size:15px">가</span>', () => showPop('size')),
+    tb('글씨 색', '<span class="dot" style="background:conic-gradient(#dc2626,#ea580c,#16a34a,#2563eb,#9333ea,#dc2626)"></span>', () => showPop('color')),
+    tb('형광펜', '<span class="hlp">가</span>', () => showPop('hl')),
+    tb('굵게', '<b style="font-size:16px">B</b>', () => cmd('bold')),
+    tb('밑줄', '<u style="font-size:16px;font-weight:700">U</u>', () => cmd('underline')),
+    h('i',{ class:'sep' }),
+    tb('순번 목록', ICO('ol'), () => listCmd('ol')),
+    tb('점 목록', ICO('ul'), () => listCmd('ul')),
+    tb('선 목록', ICO('dash'), () => listCmd('dash')),
+    tb('체크 줄', ICO('ckbox'), doCheck),
+    tb('링크', ICO('link'), doLink),
+    h('i',{ class:'sep' }),
+    tb('실행 취소', ICO('undo'), () => { restoreRg(); document.execCommand('undo'); keepRg(); save(); }),
+    tb('다시 실행', ICO('redo'), () => { restoreRg(); document.execCommand('redo'); keepRg(); save(); }));
+  body.append(bar, pop, ed);
 }
 function bodyChecks(body, n){
   const tot = n.checks.length, done = n.checks.filter(c => c.d).length;
@@ -4140,22 +4415,84 @@ function evRow(ev, ds, o){
 function calAgenda(ds){
   const evs = eventsOn(ds);
   const box = h('div',{class:'agenda'},
-    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정')));
+    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정')));
   if(!evs.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
   evs.forEach(ev => box.append(evRow(ev, ds, { memo:true })));
   return box;
 }
+/* ===================== 대한민국 공휴일 · 주 번호 ===================== */
+// 음력 기준 날짜(양력 환산)는 2025~2030년을 내장. 고정 공휴일과 대체공휴일은 규칙으로 계산.
+function krHolidays(y){
+  const C = krHolidays.cache || (krHolidays.cache = {});
+  if(C[y]) return C[y];
+  const LUN = {
+    2025:{ s:'2025-01-29', c:'2025-10-06', b:'2025-05-05' }, 2026:{ s:'2026-02-17', c:'2026-09-25', b:'2026-05-24' },
+    2027:{ s:'2027-02-07', c:'2027-09-15', b:'2027-05-13' }, 2028:{ s:'2028-01-26', c:'2028-10-03', b:'2028-05-02' },
+    2029:{ s:'2029-02-13', c:'2029-09-22', b:'2029-05-20' }, 2030:{ s:'2030-02-03', c:'2030-09-12', b:'2030-05-09' }
+  };
+  const TMP = { '2025-01-27':'임시공휴일', '2025-06-03':'선거일', '2026-06-03':'선거일', '2028-04-12':'선거일' };
+  const pd = n => (n<10?'0':'')+n, M = {};
+  const wk = ds => parseYmd(ds).getDay();
+  const put = (ds, name) => { if(!M[ds]) M[ds] = name; };
+  const singles = [[y+'-01-01','신정',0], [y+'-03-01','삼일절',1], [y+'-05-05','어린이날',1], [y+'-06-06','현충일',0],
+    [y+'-08-15','광복절',1], [y+'-10-03','개천절',1], [y+'-10-09','한글날',1], [y+'-12-25','성탄절',1]];
+  const L = LUN[y];
+  if(L) singles.push([L.b,'부처님오신날',1]);
+  singles.forEach(([ds,nm]) => put(ds, nm));
+  const blocks = [];  // 설날·추석 (앞뒤 하루씩)
+  if(L){
+    [[L.s,'설날','설 연휴'], [L.c,'추석','추석 연휴']].forEach(([d0,n0,n1]) => {
+      put(addDays(d0,-1), n1); put(d0, n0); put(addDays(d0,1), n1);
+      blocks.push([addDays(d0,-1), addDays(d0,1)]);
+    });
+  }
+  Object.keys(TMP).forEach(ds => { if(ds.slice(0,4)==String(y)) put(ds, TMP[ds]); });
+  // 대체공휴일: 단일 공휴일이 토·일 또는 다른 공휴일과 겹치면 / 설·추석은 일요일 또는 다른 공휴일과 겹치면
+  const subs = [];
+  const need = [];
+  singles.forEach(([ds,,eligible]) => {
+    if(!eligible) return;
+    const w = wk(ds);
+    let over = false;
+    blocks.forEach(([a,b]) => { if(ds>=a && ds<=b) over = true; });
+    if(singles.filter(x => x[0]===ds).length>1) over = true;
+    if(w===0 || w===6 || over) need.push(ds);
+  });
+  // 부처님오신날과 어린이날이 같은 날이면 대체는 한 번만
+  const seen = {}; const uniq = need.filter(d => seen[d] ? false : (seen[d] = true));
+  blocks.forEach(([a,b]) => {
+    let hit = false;
+    for(let d = a; d<=b; d = addDays(d,1)) if(wk(d)===0) hit = true;
+    if(hit) uniq.push(b);
+  });
+  uniq.sort().forEach(ds => {
+    let d = addDays(ds,1);
+    while(M[d] || wk(d)===0 || wk(d)===6) d = addDays(d,1);
+    if(d.slice(0,4)==String(y)){ M[d] = '대체휴일'; }
+  });
+  return (C[y] = M);
+}
+function krHoliday(ds){ return krHolidays(+ds.slice(0,4))[ds] || ''; }
+function isoWeek(ds){
+  const [y,m,d] = ds.split('-').map(Number);
+  const t = new Date(Date.UTC(y,m-1,d)); const n = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate()+4-n);
+  return Math.ceil(((t - Date.UTC(t.getUTCFullYear(),0,1))/86400000 + 1)/7);
+}
+
 function calMonth(body){
   const a = parseYmd(cal.date), y = a.getFullYear(), mo = a.getMonth();
   const first = ymd(new Date(y,mo,1)), start = addDays(first, -dow(first));
   const weeks = Math.ceil((dow(first)+daysIn(y,mo+1))/7), today = todayStr();
-  const grid = h('div',{class:'cgrid'});
+  const grid = h('div',{class:'cgrid wk'});
+  grid.append(h('div',{class:'cdow cwn0'}, '주'));
   DOW.forEach((d,i) => grid.append(h('div',{class:'cdow'+(i===0?' sun':i===6?' sat':'')}, d)));
   for(let i=0;i<weeks*7;i++){
-    const ds = addDays(start,i), dd = parseYmd(ds), evs = eventsOn(ds), wd = dd.getDay();
+    const ds = addDays(start,i), dd = parseYmd(ds), evs = eventsOn(ds), wd = dd.getDay(), hol = krHoliday(ds);
+    if(i%7===0) grid.append(h('div',{class:'cwn', title:isoWeek(addDays(ds,4))+'주'}, isoWeek(addDays(ds,4))));
     const cell = h('div',{ class:'cday'+(dd.getMonth()!==mo?' oth':'')+(ds===cal.sel?' sel':'')+(ds===today?' today':''),
       onclick:() => { cal.sel = ds; renderCal(); }, ondblclick:() => openEventEditor(null,{ ds }) },
-      h('span',{class:'dn'+(wd===0?' sun':wd===6?' sat':'')}, dd.getDate()));
+      h('span',{class:'dn'+(wd===0||hol?' sun':wd===6?' sat':'')}, dd.getDate()), hol ? h('span',{class:'hn'}, hol) : null);
     const chips = h('div',{class:'cchips'});
     evs.slice(0,3).forEach(ev => chips.append(h('span',{class:'cchip',style:'--c:'+ev.color,onclick:e => { e.stopPropagation(); openEventEditor(ev.id,{ ds }); }}, ev.title||'(제목 없음)')));
     if(evs.length>3) chips.append(h('span',{class:'cmore'}, '+'+(evs.length-3)));
@@ -4169,7 +4506,7 @@ function calWeek(body){
   for(let i=0;i<7;i++){
     const ds = addDays(s,i), wd = i, evs = eventsOn(ds);
     const col = h('div',{class:'wkd'+(ds===today?' today':'')},
-      h('button',{class:'wkh'+(wd===0?' sun':wd===6?' sat':''), onclick:() => { cal.date = ds; cal.sel = ds; cal.view = 'day'; renderCal(); }}, DOW[wd]+' '+parseYmd(ds).getDate()));
+      h('button',{class:'wkh'+(wd===0||krHoliday(ds)?' sun':wd===6?' sat':''), onclick:() => { cal.date = ds; cal.sel = ds; cal.view = 'day'; renderCal(); }}, DOW[wd]+' '+parseYmd(ds).getDate()+(krHoliday(ds) ? ' '+krHoliday(ds) : '')));
     if(!evs.length) col.append(h('span',{class:'wke'},'—'));
     evs.forEach(ev => col.append(evRow(ev, ds, {})));
     col.append(h('button',{class:'wkadd',title:'일정 추가',html:ic('plus',14),onclick:() => openEventEditor(null,{ ds })}));
@@ -4194,7 +4531,7 @@ function calYear(body){
     for(let i=0;i<dow(first);i++) g.append(h('span',{}));
     for(let d=1;d<=n;d++){
       const ds = y+'-'+pad(mo+1)+'-'+pad(d), has = eventsOn(ds).length>0;
-      g.append(h('button',{class:'yd'+(has?' has':'')+(ds===today?' today':''), onclick:() => { cal.date = ds; cal.sel = ds; cal.view = 'month'; renderCal(); }}, d));
+      g.append(h('button',{class:'yd'+(has?' has':'')+(ds===today?' today':'')+(krHoliday(ds)?' hol':''), onclick:() => { cal.date = ds; cal.sel = ds; cal.view = 'month'; renderCal(); }}, d));
     }
     blk.append(g); wrap.append(blk);
   }
@@ -6447,7 +6784,7 @@ document.addEventListener('keydown', e => {
   if(!$('#pageMap').classList.contains('hidden') && panelShortcuts(e)) return;
   const tag = (e.target.tagName||'').toUpperCase();
   if((e.ctrlKey || e.metaKey) && (e.key==='f' || e.key==='F') && !e.shiftKey){ e.preventDefault(); openSearch(); return; }
-  if(tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT') return;
+  if(tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT' || (e.target && e.target.isContentEditable)) return;
   if($('#pageMap').classList.contains('hidden')) return;
   if(e.target && e.target.closest && e.target.closest('.tblwrap')) return;
   const mod = e.ctrlKey || e.metaKey, m = cur();
