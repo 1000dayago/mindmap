@@ -869,6 +869,7 @@ table.sheet th.ch .rz:hover{background:color-mix(in srgb,var(--accent) 45%,trans
 
 /* 표: 두 손가락 확대·축소를 브라우저가 가로채지 않게 */
 .tblwrap{touch-action:pan-x pan-y}
+table.sheet th{font-size:var(--thfs,11.5px)}
 
 </style>
 </head>
@@ -3851,9 +3852,8 @@ function bodyMemo(body, n){
   const keepRg = () => { const s = getSelection(); if(s.rangeCount && ed.contains(s.anchorNode)) lastRg = s.getRangeAt(0).cloneRange(); };
   const restoreRg = () => { ed.focus(); if(lastRg){ const s = getSelection(); s.removeAllRanges(); s.addRange(lastRg); } };
   ['keyup','mouseup','touchend','focus','input'].forEach(ev => ed.addEventListener(ev, keepRg));
-  const onSel = () => { if(document.activeElement===ed) keepRg(); };
+  const onSel = () => { if(!ed.isConnected){ document.removeEventListener('selectionchange', onSel); return; } if(document.activeElement===ed) keepRg(); };
   document.addEventListener('selectionchange', onSel);
-  new MutationObserver((_, ob) => { if(!ed.isConnected){ document.removeEventListener('selectionchange', onSel); ob.disconnect(); } }).observe(document.body, { childList:true, subtree:true });
 
   const save = () => {
     if(!ed.querySelector('.mck') && !ed.textContent.replace(/ /g,' ').trim() && !ed.querySelector('li')) { if(ed.innerHTML) ed.innerHTML = ''; }
@@ -5245,7 +5245,7 @@ async function copyAny(text, okMsg){
 }
 /* ===================== 표 화면 (엑셀식) — v25 ===================== */
 const SB = { colW:84, rowH:28, hdrH:24, rhW:46, fs:14 };
-let sheetZoomV = 1; try{ sheetZoomV = clamp(parseFloat(localStorage.getItem('mm_sheet_zoom'))||1, .7, 1.6); }catch(e){}
+let sheetZoomV = 1; try{ sheetZoomV = clamp(parseFloat(localStorage.getItem('mm_sheet_zoom'))||1, .2, 2.5); }catch(e){}
 const sheetSelStore = {};   // 노드별 마지막 선택 위치
 let sheetClip = null;       // 앱 안에서 복사한 칸 (수식 원문 유지)
 let sheetFlush = null;      // 편집 중인 칸을 확정하는 함수 (노드 이동·닫기 전에 호출)
@@ -5416,7 +5416,7 @@ function bodyTable(body, n){
     for(let r=start;r<=last;r++) out += rowHtml(r);
     out += sp(R-1-last);
     tbody.innerHTML = out;
-    tbl.style.fontSize = Math.round(SB.fs*z)+'px';
+    tbl.style.fontSize = Math.max(5, Math.round(SB.fs*z))+'px'; tbl.style.setProperty('--thfs', Math.max(4, Math.min(11.5, 11.5*z)).toFixed(1)+'px');
     placeOverlays();
   }
   let rafDraw = 0;
@@ -5954,7 +5954,7 @@ function bodyTable(body, n){
   grid.addEventListener('touchstart', e => { if(e.touches.length===2){ pinchS = { d:Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY), z }; drag = null; if(e.cancelable) e.preventDefault(); } }, { passive:false });
   grid.addEventListener('touchmove', e => { if(e.touches.length===2 && pinchS){ const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); setZoom(pinchS.z*d/pinchS.d, true); e.preventDefault(); } }, { passive:false });
   grid.addEventListener('touchend', e => { if(e.touches.length<2) pinchS = null; }, { passive:true });
-  function setZoom(v, live){ z = clamp(v, .7, 1.6); sheetZoomV = z; try{ localStorage.setItem('mm_sheet_zoom', String(z)); }catch(e){} live ? drawSoon() : draw(); }
+  function setZoom(v, live){ z = clamp(v, .2, 2.5); sheetZoomV = z; try{ localStorage.setItem('mm_sheet_zoom', String(z)); }catch(e){} live ? drawSoon() : draw(); }
 
   /* ---------- 키보드 ---------- */
   cin.addEventListener('keydown', e => {
@@ -6198,6 +6198,13 @@ function bodyTable(body, n){
     const rr = root.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
     pop.style.left = Math.max(4, Math.min(ar.left - rr.left, rr.width - 250))+'px'; pop.style.top = (ar.bottom - rr.top + 4)+'px';
   }
+  function fitWidth(){
+    const t = T(), { C } = dim(); let tot = SB.rhW;
+    for(let i=0;i<C;i++) tot += (t.colW && t.colW[i]) || SB.colW;
+    const avail = (grid.clientWidth || 360) - 4;
+    setZoom(Math.floor(avail/tot*100)/100); grid.scrollLeft = 0;
+    toast('전체 열이 보이게 맞췄어요 ('+Math.round(z*100)+'%)');
+  }
   const setFrz = nx => {
     mutate(m => { const tt = m.nodes[nid].table; const o = { r:(nx&1)?1:0, c:(nx&2)?1:0 }; if(o.r||o.c) tt.frz = o; else delete tt.frz; }, { noUndo:true });
     draw(); toast(['틀 고정 해제','첫 행 고정','첫 열 고정','첫 행·첫 열 고정'][nx]);
@@ -6226,7 +6233,7 @@ function bodyTable(body, n){
     ['행 '+nr+'개 삭제', () => delRows(b.r1, nr), 'd'], ['열 '+nc+'개 삭제', () => delCols(b.c1, nc), 'd']]; });
   const bView = dd('보기', '보기 · 틀 고정 · 크기', () => { const fr = T().frz || {}, s = (fr.r?1:0)+(fr.c?2:0); return [
     [ck(s===0,'틀 고정 없음'), () => setFrz(0)], [ck(s===1,'첫 행 고정'), () => setFrz(1)], [ck(s===2,'첫 열 고정'), () => setFrz(2)], [ck(s===3,'첫 행·첫 열 고정'), () => setFrz(3)], null,
-    ['표 크게', () => setZoom(z+.1)], ['표 작게', () => setZoom(z-.1)], null,
+    ['전체 열 한눈에 보기', fitWidth], ['원래 크기 (100%)', () => setZoom(1)], ['표 크게', () => setZoom(z*1.2)], ['표 작게', () => setZoom(z/1.2)], null,
     [ck(sheetRangeMode,'터치로 범위 선택 (끌어서 여러 칸)'), () => { sheetRangeMode = !sheetRangeMode; toast(sheetRangeMode ? '범위 선택: 켜짐 (끌어서 선택)' : '범위 선택: 꺼짐'); }]]; });
   const bAlign = dd(svgI('<path d="M4 6h16M4 12h10M4 18h14"/>'), '맞춤 · 병합', () => { const f = fmtOf(st.ar, st.ac) || {}; return [
     [ck(f.al==='l','왼쪽 맞춤'), () => applyFmt({ al: f.al==='l' ? null : 'l' })], [ck(f.al==='c','가운데 맞춤'), () => applyFmt({ al: f.al==='c' ? null : 'c' })], [ck(f.al==='r','오른쪽 맞춤'), () => applyFmt({ al: f.al==='r' ? null : 'r' })], null,
