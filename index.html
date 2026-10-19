@@ -867,6 +867,9 @@ table.sheet th.ch .rz:hover{background:color-mix(in srgb,var(--accent) 45%,trans
 .fdsw.on{outline:3px solid var(--accent);outline-offset:1px}
 .fdsw.none{background:var(--bg);color:var(--sub);font-weight:800;box-shadow:inset 0 0 0 1px var(--line)}
 
+/* 표: 두 손가락 확대·축소를 브라우저가 가로채지 않게 */
+.tblwrap{touch-action:pan-x pan-y}
+
 </style>
 </head>
 <body>
@@ -5948,7 +5951,7 @@ function bodyTable(body, n){
   });
   // 두 손가락으로 표 크기 조절
   let pinchS = null;
-  grid.addEventListener('touchstart', e => { if(e.touches.length===2) pinchS = { d:Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY), z }; }, { passive:true });
+  grid.addEventListener('touchstart', e => { if(e.touches.length===2){ pinchS = { d:Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY), z }; drag = null; if(e.cancelable) e.preventDefault(); } }, { passive:false });
   grid.addEventListener('touchmove', e => { if(e.touches.length===2 && pinchS){ const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); setZoom(pinchS.z*d/pinchS.d, true); e.preventDefault(); } }, { passive:false });
   grid.addEventListener('touchend', e => { if(e.touches.length<2) pinchS = null; }, { passive:true });
   function setZoom(v, live){ z = clamp(v, .7, 1.6); sheetZoomV = z; try{ localStorage.setItem('mm_sheet_zoom', String(z)); }catch(e){} live ? drawSoon() : draw(); }
