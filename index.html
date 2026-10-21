@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610220011">
+<meta name="app-version" content="202610220059">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -996,6 +996,22 @@ table.sheet th.corner .rz.rc:hover{background:color-mix(in srgb,var(--accent) 35
 #exitDlg .erow button{flex:1;padding:12px 0;border-radius:999px;font-weight:800;font-size:14px}
 #exitDlg .ecan{background:var(--grad,#5b6cff);color:#fff}
 #exitDlg .eok{background:var(--bg);color:var(--text)}
+#exitDlg .edel{background:#ef4444;color:#fff}
+
+.evrow.lifting{opacity:.35;transform:scale(.96)}
+.evrow[draggable=true]{-webkit-touch-callout:none}
+.dragghost{position:absolute;top:-1000px;left:0;max-width:150px;padding:6px 12px;border-radius:999px;background:var(--c,#5b6cff);color:#fff;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.cday.dropt,.wkd.dropt{outline:2.5px solid var(--accent);outline-offset:-2px;background:var(--accent-soft)}
+.exseg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--bg)}
+.exseg button{flex:1;padding:9px 4px;border-radius:999px;font-weight:800;font-size:13px;color:var(--sub);white-space:nowrap}
+.exseg button.on{background:var(--panel-solid);color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.exfields{margin-top:6px}
+.evrow{touch-action:pan-y;position:relative}
+.evrow.swiping{z-index:2}
+.evrow .swic{position:absolute;top:50%;width:38px;height:38px;margin-top:-19px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;pointer-events:none;opacity:var(--p,0);transform:scale(calc(.5 + var(--p,0)*.5));background:#10b981}
+.evrow .swic.del{background:#ef4444}
+.evrow .swic.und{background:#f59e0b}
+.evrow .swic.go{box-shadow:0 0 0 4px color-mix(in srgb,currentColor 0%,transparent),0 4px 14px rgba(0,0,0,.28)}
 
 </style>
 </head>
@@ -2773,7 +2789,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610220011';
+const APP_VER = '202610220059';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4779,6 +4795,232 @@ function ordGrip(ev, ds){
 }
 
 function evRow(ev, ds, o){
+  o = o||{}; const row = evRow0(ev, ds, o);
+  if(o.dbl!==false && !o.ord && ev.repeat==='none' && !doneOf(ev, ds)) evDragOn(row, ev, ds);
+  if(!o.ord) evSwipeOn(row, ev, ds);
+  return row;
+}
+/* ===================== 일정 목록에서 꾹 눌러 잡아 달력 날짜에 놓기 ===================== */
+let dndCur = null;
+/* ===================== 일정 목록: 오른쪽으로 밀면 완료(완료 목록에서는 완료 취소) · 왼쪽으로 밀면 삭제(되묻기) ===================== */
+function askDlg(o, fn){
+  closeExitDlg();
+  const close = () => { exitDlg && exitDlg.remove(); exitDlg = null; };
+  exitDlg = h('div',{ id:'exitDlg', role:'alertdialog', onclick:e => { if(e.target===exitDlg) close(); } },
+    h('div',{ class:'ecard' }, h('b',{}, o.title), h('p',{}, o.sub||''),
+      h('div',{ class:'erow' },
+        h('button',{ type:'button', class:'eok', onclick:close }, '취소'),
+        h('button',{ type:'button', class:o.danger ? 'edel' : 'ecan', onclick:() => { close(); fn(); } }, o.ok||'확인'))));
+  document.body.append(exitDlg);
+}
+function swipeDelete(ev){
+  const ex = JSON.parse(JSON.stringify(ev)), name = (ev.title||'(제목 없음)');
+  askDlg({ title:'“'+(name.length>18 ? name.slice(0,18)+'…' : name)+'” 일정을 삭제할까요?', ok:'삭제', danger:true,
+    sub:(ev.repeat!=='none' ? '반복 일정은 전체가 삭제돼요. ' : '')+(ev.link ? '마인드맵의 해당 노드도 함께 삭제돼요.' : '') }, () => {
+    const wasSent = !!(syncCfg.sent && syncCfg.sent[ev.id]), eid = ev.id;
+    deleteEvent(eid); refreshEvViews();
+    const undo = ex.link ? null : { label:'취소', fn:() => { data.events[eid] = normEvent(ex); saveSoon(); refreshEvViews(); } };
+    toast('일정을 삭제했어요', undo);
+    if(wasSent && syncOn()) setTimeout(() => askDlg({ title:'구글 캘린더에도 올려 둔 일정이에요', sub:'그것도 지울까요?', ok:'지우기', danger:true }, () => {
+      gs('gdelete', { ids:[eid], calendarId:syncCfg.calId||'' }).then(j => { if(j.ok){ delete syncCfg.sent[eid]; saveSync(); toast('구글 캘린더에서도 지웠어요'); } else toast('구글 삭제 실패: '+j.error); }).catch(e => toast('구글 삭제 실패: '+e.message));
+    }), 300);
+  });
+}
+function evSwipeOn(row, ev, ds){
+  let x0 = 0, y0 = 0, pid = -1, on = false, dead = false, ic_ = null, lastDx = 0;
+  const TH = () => Math.min(130, (row.getBoundingClientRect().width || 300)*0.4);
+  const reset = anim => {
+    row.style.transition = anim ? 'transform .18s' : ''; row.style.transform = ''; row.classList.remove('swiping');
+    if(ic_){ ic_.remove(); ic_ = null; } if(anim) setTimeout(() => { row.style.transition = ''; }, 220);
+  };
+  row.addEventListener('pointerdown', e => {
+    if(e.pointerType==='mouse' || (e.target.closest && e.target.closest('button, .ordgrip, input'))) return;
+    x0 = e.clientX; y0 = e.clientY; pid = e.pointerId; on = false; dead = false; lastDx = 0;
+  });
+  row.addEventListener('pointermove', e => {
+    if(e.pointerId!==pid || dead) return;
+    const dx = e.clientX-x0, dy = e.clientY-y0;
+    if(!on){
+      if(Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)){ dead = true; return; }                 // 세로 스크롤
+      if(Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy)*1.5) return;
+      on = true; row.classList.add('swiping'); try{ row.setPointerCapture(pid); }catch(_){}
+      ic_ = h('span',{ class:'swic' }); row.append(ic_);
+    }
+    lastDx = dx;
+    const tx = Math.round(dx*0.6), p = Math.min(1, Math.abs(dx)/TH()), dn = !!doneOf(ev, ds), right = dx>0;
+    row.style.transform = 'translateX('+tx+'px)';
+    ic_.className = 'swic '+(right ? (dn ? 'und' : 'ok') : 'del')+(p>=1 ? ' go' : '');
+    ic_.innerHTML = ic(right ? (dn ? 'undo' : 'check') : 'trash', 20);
+    ic_.style.setProperty('--p', p.toFixed(2));
+    // 행이 움직인 만큼 반대로 밀어서, 아이콘은 제자리(드러난 빈 자리)에 머문다
+    ic_.style[right ? 'left' : 'right'] = (14 - (right ? tx : -tx))+'px'; ic_.style[right ? 'right' : 'left'] = 'auto';
+  });
+  const end = commit => {
+    if(!on){ pid = -1; return; }
+    const ok = commit && Math.abs(lastDx) >= TH(), right = lastDx>0;
+    on = false; pid = -1; onDbl.drag = performance.now(); reset(true);
+    if(!ok) return;
+    if(S().lock){ lockedMsg(); return; }
+    if(right){
+      const dn = !!doneOf(ev, ds);
+      setEvDone(ev, ds, !dn); refreshEvViews();
+      toast(dn ? '완료를 취소했어요' : '완료했어요 · 달력에서는 숨겨져요', { label:'취소', fn:() => { setEvDone(ev, ds, dn); refreshEvViews(); } });
+    }else swipeDelete(ev);
+  };
+  row.addEventListener('pointerup', () => end(true));
+  row.addEventListener('pointercancel', () => end(false));
+}
+
+function clearDrop(){ document.querySelectorAll('.dropt').forEach(e => e.classList.remove('dropt')); }
+function evDragOn(row, ev, ds){
+  row.draggable = true;
+  row.addEventListener('dragstart', e => {
+    dndCur = { id:ev.id, ds };
+    try{
+      e.dataTransfer.setData('text/plain', ev.id+'|'+ds); e.dataTransfer.effectAllowed = 'move';
+      const g = h('div',{ class:'dragghost', style:'--c:'+ev.color }, ev.title||'(제목 없음)');   // 쪼그라든 모습으로 손가락에 잡힌다
+      document.body.append(g); e.dataTransfer.setDragImage(g, 16, 16); setTimeout(() => g.remove(), 0);
+    }catch(_){}
+    setTimeout(() => row.classList.add('lifting'), 0);
+  });
+  row.addEventListener('dragend', () => { row.classList.remove('lifting'); dndCur = null; clearDrop(); });
+}
+function moveEvTo(id, from, to){
+  const ev = data.events[id]; if(!ev) return;
+  if(S().lock){ lockedMsg(); return; }
+  const d = dayDiff(from, to); if(!d) return;
+  const orig = { date:ev.date, endDate:ev.endDate||'', sel:cal.sel };
+  ev.date = addDays(ev.date, d); ev.endDate = ev.endDate ? addDays(ev.endDate, d) : '';
+  if(ev.dn && ev.repeat==='none'){ const v = Object.values(ev.dn)[0]; if(v) ev.dn = { [ev.date]:v }; }
+  if(ev.link) pushEventToMap(ev);
+  cal.sel = to; saveSoon(); refreshEvViews();
+  toast('일정을 '+fmtMD(to)+'로 옮겼어요', { label:'취소', fn:() => { ev.date = orig.date; ev.endDate = orig.endDate; cal.sel = orig.sel; if(ev.link) pushEventToMap(ev); saveSoon(); refreshEvViews(); } });
+}
+function dndInit(){
+  const cellOf = e => e.target && e.target.closest ? e.target.closest('.cday[data-ds], .wkd[data-ds]') : null;
+  document.addEventListener('dragover', e => {
+    if(!dndCur) return; const c = cellOf(e); clearDrop();
+    if(c){ e.preventDefault(); try{ e.dataTransfer.dropEffect = 'move'; }catch(_){} c.classList.add('dropt'); }
+  });
+  document.addEventListener('drop', e => {
+    if(!dndCur) return; const c = cellOf(e); clearDrop(); if(!c) return;
+    e.preventDefault(); const cur = dndCur; dndCur = null; moveEvTo(cur.id, cur.ds, c.dataset.ds);
+  });
+}
+
+/* ===================== 일정 내보내기 (엑셀 .xlsx) ===================== */
+function zipStore(files){   // files: [{name, data(Uint8Array)}] — 압축 없이 묶는 최소 ZIP
+  const te = new TextEncoder(), tbl = zipStore.t || (zipStore.t = (() => { const t = []; for(let n=0;n<256;n++){ let c = n; for(let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[n] = c>>>0; } return t; })());
+  const crc = d => { let c = 0xFFFFFFFF; for(let i=0;i<d.length;i++) c = tbl[(c^d[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+  const parts = [], cen = []; let off = 0;
+  const u16 = v => [v&255, (v>>8)&255], u32 = v => [v&255, (v>>8)&255, (v>>16)&255, (v>>>24)&255];
+  files.forEach(f => {
+    const nm = te.encode(f.name), c = crc(f.data), sz = f.data.length;
+    const lh = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(sz), ...u32(sz), ...u16(nm.length), ...u16(0)]);
+    parts.push(lh, nm, f.data);
+    cen.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(sz), ...u32(sz), ...u16(nm.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), nm);
+    off += lh.length+nm.length+sz;
+  });
+  let cl = 0; cen.forEach(x => { cl += x.length; });
+  const end = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(cl), ...u32(off), ...u16(0)]);
+  return new Blob([...parts, ...cen, end], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function xlsxBlob(rows, widths, merges){   // rows: [[{v, s}]]  s = 스타일 번호
+  const xe = s => String(s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const colL = i => String.fromCharCode(65+i);
+  let sd = '';
+  rows.forEach((r, ri) => {
+    sd += '<row r="'+(ri+1)+'">';
+    r.forEach((c, ci) => { if(c==null) return; sd += '<c r="'+colL(ci)+(ri+1)+'" s="'+(c.s||0)+'" t="inlineStr"><is><t xml:space="preserve">'+xe(c.v==null ? '' : c.v)+'</t></is></c>'; });
+    sd += '</row>';
+  });
+  const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="20"/><cols>'
+    + widths.map((w, i) => '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>'+sd+'</sheetData>'
+    + (merges.length ? '<mergeCells count="'+merges.length+'">'+merges.map(m => '<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>' : '')
+    + '<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup orientation="landscape" fitToHeight="0"/></worksheet>';
+  const fill = c => '<fill><patternFill patternType="solid"><fgColor rgb="FF'+c+'"/><bgColor indexed="64"/></patternFill></fill>';
+  const bd = '<border><left style="thin"><color rgb="FFBFC6D8"/></left><right style="thin"><color rgb="FFBFC6D8"/></right><top style="thin"><color rgb="FFBFC6D8"/></top><bottom style="thin"><color rgb="FFBFC6D8"/></bottom><diagonal/></border>';
+  const xf = (font, fl, border, al) => '<xf numFmtId="0" fontId="'+font+'" fillId="'+fl+'" borderId="'+border+'" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment '+al+'/></xf>';
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<fonts count="4"><font><sz val="10"/><name val="맑은 고딕"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="맑은 고딕"/></font><font><b/><sz val="13"/><color rgb="FF2B3A8C"/><name val="맑은 고딕"/></font><font><b/><sz val="10"/><name val="맑은 고딕"/></font></fonts>'
+    + '<fills count="8"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+fill('4F6BFF')+fill('E8ECFF')+fill('DDF3E4')+fill('FFEBD2')+fill('ECEFF4')+'<fill><patternFill patternType="none"/></fill></fills>'
+    + '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'+bd+'</borders>'
+    + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    + '<cellXfs count="8"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+    + xf(1,2,1,'horizontal="center" vertical="center"') + xf(2,3,1,'horizontal="left" vertical="center"') + xf(0,0,1,'vertical="center" wrapText="1"') + xf(0,0,1,'horizontal="center" vertical="center" wrapText="1"')
+    + xf(3,4,1,'horizontal="center" vertical="center"') + xf(3,5,1,'horizontal="center" vertical="center"') + xf(3,6,1,'horizontal="center" vertical="center"')
+    + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  const te = new TextEncoder(), X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  return zipStore([
+    { name:'[Content_Types].xml', data:te.encode(X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>') },
+    { name:'_rels/.rels', data:te.encode(X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
+    { name:'xl/workbook.xml', data:te.encode(X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="일정" sheetId="1" r:id="rId1"/></sheets></workbook>') },
+    { name:'xl/_rels/workbook.xml.rels', data:te.encode(X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>') },
+    { name:'xl/styles.xml', data:te.encode(styles) },
+    { name:'xl/worksheets/sheet1.xml', data:te.encode(X+sheet.replace(/^<\?xml[^>]*>/,'')) }
+  ]);
+}
+// 기간 안의 일정을 (날짜 · 업무 · 계획 · 진행 상황) 줄로 만든다
+function exportRows(from, to){
+  const out = [], today = todayStr();
+  Object.values(data.events).forEach(ev => { if(isSpan(ev) && ev.date<=to && ev.endDate>=from) out.push({ ev, ds:ev.date, s:ev.date, e:ev.endDate, k:'0' }); });
+  const n = Math.min(1100, dayDiff(from, to)+1);
+  for(let i=0;i<n;i++){ const ds = addDays(from, i); eventsOn(ds, true).forEach((ev, j) => { if(!isSpan(ev)) out.push({ ev, ds, s:ds, e:ds, k:'1'+String(j).padStart(3,'0') }); }); }
+  out.sort((a, b) => a.ds.localeCompare(b.ds) || a.k.localeCompare(b.k));
+  return out.map(x => {
+    const ev = x.ev, dn = doneOf(ev, x.ds), tm = t => (!ev.allDay && t) ? ' '+t : '';
+    const st = dn ? '완료' : (x.s>today ? '예정' : '진행 중');
+    const memo = [ev.memo ? ev.memo.replace(/\s*\n\s*/g,' / ') : '', (ev.repeat && ev.repeat!=='none') ? '반복: '+REPEAT_LABEL[ev.repeat] : ''].filter(Boolean).join(' · ');
+    const f = d => (+d.slice(5,7))+'/'+(+d.slice(8,10))+'('+DOW[dow(d)]+')';
+    return { ds:x.ds, year:x.ds.slice(0,4), date:(+x.ds.slice(5,7))+'월 '+(+x.ds.slice(8,10))+'일 ('+DOW[dow(x.ds)]+')', title:ev.title||'(제목 없음)',
+      start:f(x.s)+tm(ev.time), end:f(x.e)+tm(ev.endTime), status:st, stat:dn ? '완료 ('+(+dn.slice(5,7))+'/'+(+dn.slice(8,10))+')' : st, memo };
+  });
+}
+function exportXlsx(from, to, label){
+  const rs = exportRows(from, to); if(!rs.length){ toast('이 기간에는 내보낼 일정이 없어요'); return; }
+  const W = ['날짜', '업무 내용', '계획 시작', '계획 종료', '진행 상황', '메모'];
+  const rows = [W.map(v => ({ v, s:1 }))], merges = []; let yr = '';
+  rs.forEach(r => {
+    if(r.year!==yr){ yr = r.year; rows.push([{ v:yr+'년', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }]); merges.push('A'+rows.length+':F'+rows.length); }
+    rows.push([{ v:r.date, s:4 }, { v:r.title, s:3 }, { v:r.start, s:4 }, { v:r.end, s:4 }, { v:r.stat, s:r.status==='완료' ? 5 : r.status==='예정' ? 7 : 6 }, { v:r.memo, s:3 }]);
+  });
+  const blob = xlsxBlob(rows, [16, 38, 18, 18, 12, 34], merges);
+  const url = URL.createObjectURL(blob), a = h('a',{ href:url, download:'일정_'+label+'.xlsx' });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('엑셀로 내보냈어요 · '+rs.length+'건');
+}
+function openExport(){
+  const st = { mode:'month', month:cal.date.slice(0,7), day:cal.date, from:cal.date, to:addDays(cal.date, 30) };
+  const range = () => {
+    if(st.mode==='month'){ const y = +st.month.slice(0,4), m = +st.month.slice(5,7); return [st.month+'-01', st.month+'-'+pad(daysIn(y, m)), st.month]; }
+    if(st.mode==='week'){ const s = addDays(st.day, -dow(st.day)); return [s, addDays(s, 6), s+'~'+addDays(s, 6)]; }
+    if(st.mode==='day') return [st.day, st.day, st.day];
+    let a = st.from, z = st.to; if(a>z){ const t = a; a = z; z = t; } return [a, z, a+'~'+z];
+  };
+  openSheet('일정 내보내기 (엑셀)', b => {
+    const info = h('p',{ class:'note', style:'margin:10px 2px 0' });
+    const fields = h('div',{ class:'exfields' });
+    const modes = [['month','월'], ['week','주'], ['day','일'], ['custom','사용자 설정']];
+    const seg = h('div',{ class:'exseg' }, modes.map(([k, t]) => h('button',{ type:'button', 'data-k':k, onclick:() => { st.mode = k; draw(); } }, t)));
+    const inp = (type, key) => h('input',{ class:'field', type, value:st[key], onchange:e => { if(e.target.value){ st[key] = e.target.value; upd(); } } });
+    const upd = () => { const [a, z] = range(); const n = exportRows(a, z).length; info.textContent = fmtKo(a)+(a!==z ? ' ~ '+fmtKo(z) : '')+' · 일정 '+n+'건'; };
+    const draw = () => {
+      seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k===st.mode));
+      fields.innerHTML = '';
+      if(st.mode==='month') fields.append(h('div',{ class:'lbl' }, '월 선택'), inp('month', 'month'));
+      else if(st.mode==='week') fields.append(h('div',{ class:'lbl' }, '이 날짜가 속한 주 (일~토)'), inp('date', 'day'));
+      else if(st.mode==='day') fields.append(h('div',{ class:'lbl' }, '날짜'), inp('date', 'day'));
+      else fields.append(h('div',{ class:'lbl' }, '시작일'), inp('date', 'from'), h('div',{ class:'lbl' }, '종료일'), inp('date', 'to'));
+      upd();
+    };
+    b.append(seg, fields, info,
+      h('p',{ class:'note', style:'margin:6px 2px 10px' }, '연도 → 날짜 · 업무 내용 · 계획(시작~종료) · 진행 상황(완료 / 진행 중 / 예정) 순서로 정리돼요.'),
+      h('button',{ class:'btn primary', type:'button', style:'width:100%', onclick:() => { const [a, z, lb] = range(); exportXlsx(a, z, lb); } }, '엑셀로 내보내기'));
+    draw();
+  });
+}
+
+function evRow0(ev, ds, o){
   o = o||{};
   const tags = [];
   if(ev.repeat && ev.repeat!=='none') tags.push(h('span',{class:'tg',title:'반복',html:ic('repeat',13)}));
@@ -5085,7 +5327,7 @@ function calWeek(body){
   }
   for(let i=0;i<7;i++){
     const ds = addDays(s,i), wd = i, evs = eventsOn(ds, true).filter(ev => !isSpan(ev) || doneOf(ev, ds));
-    const col = h('div',{class:'wkd'+(ds===today?' today':'')},
+    const col = h('div',{'data-ds':ds, class:'wkd'+(ds===today?' today':'')},
       h('button',{class:'wkh'+(wd===0||krHoliday(ds)?' sun':wd===6?' sat':''), onclick:() => { cal.date = ds; cal.sel = ds; cal.view = 'day'; renderCal(); }}, DOW[wd]+' '+parseYmd(ds).getDate()+(krHoliday(ds) ? ' '+krHoliday(ds) : '')));
     if(!evs.length) col.append(h('span',{class:'wke'},'—'));
     evs.forEach(ev => col.append(evRow(ev, ds, {})));
@@ -7273,6 +7515,7 @@ function gcalBox(ex, save){
 /* ---------- 설정 화면 ---------- */
 function openSyncSheet(){
   openSheet('동기화 · 구글 연동', b => {
+    b.append(h('div',{class:'list',style:'margin-bottom:12px'}, h('button',{class:'item',onclick:() => { closeSheet(true); openExport(); }}, h('span',{class:'ico',style:'--c:#10b981',html:ic('dl',20)}), h('span',{class:'t'},'일정 내보내기 (엑셀)'))));
     b.append(h('p',{class:'note'},'여러 기기에서 같은 마인드맵·일정을 쓰려면 Apps Script를 한 번 설치하세요. 드라이브에 파일 1개를 만들어 저장하고, 구글 캘린더에는 내가 누를 때만 올려요.'));
     if(!syncOn()) b.append(h('ol',{class:'note',style:'padding-left:20px;line-height:1.7'},
       h('li',{},'아래 「Apps Script 코드 복사」를 누르세요.'),
@@ -7282,6 +7525,11 @@ function openSyncSheet(){
     const urlI = h('input',{class:'field',type:'url',placeholder:'웹앱 URL (https://script.google.com/macros/s/…/exec)',value:syncCfg.url||'',autocapitalize:'off',autocomplete:'off',spellcheck:false});
     const tokI = h('input',{class:'field',type:'password',placeholder:'비밀키 (스크립트의 TOKEN 과 같은 값)',value:syncCfg.token||'',autocomplete:'off'});
     b.append(h('div',{class:'lbl'},'웹앱 URL'), urlI, h('div',{class:'lbl'},'비밀키'), tokI);
+    {   // 구글 캘린더에 올릴 때 기본으로 쓸 캘린더
+      const cp = calPicker(syncCfg.calId||'', () => '기본 캘린더'+(((syncCfg.cals||[]).find(x => x.def)||{}).name ? ' ('+(syncCfg.cals.find(x => x.def).name)+')' : ''));
+      cp.querySelector('select').addEventListener('change', e => { syncCfg.calId = e.target.value; saveSync(); toast('기본 캘린더: '+defCalName()); });
+      b.append(h('div',{class:'lbl'},'구글 캘린더에 올릴 기본 캘린더'), cp, h('p',{class:'note',style:'margin:4px 2px 8px;font-size:11.5px'},'「구글 캘린더로 올리기」에서 기본으로 쓰는 캘린더예요. 일정마다 따로 정할 수도 있어요.'));
+    }
     b.append(toggleRow('자동 동기화 (앱을 열 때 확인 · 변경 후 자동 저장)', syncCfg.auto, v => { syncCfg.auto = v; saveSync(); }));
     const stat = h('div',{class:'syncstat',id:'syncStat'}); b.append(stat);
     const saveConn = async () => {
@@ -8089,6 +8337,7 @@ renderCal();
 setTimeout(checkAlarms, 800);
 setTimeout(purgeDoneEvents, 1500);
 verInit();
+dndInit();
 exitInit();
 setTimeout(backupReminder, 2800);
 setTimeout(autoBackup, 3000);
