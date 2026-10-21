@@ -928,14 +928,21 @@ table.sheet th{font-size:var(--thfs,11.5px)}
   .wkspan .wsh{display:none}
 }
 
+.cbar.one{border-radius:6px}
+.cday .cmore{align-self:flex-start;font-size:10px;font-weight:800;color:var(--sub);padding-left:3px;line-height:1.2}
+.cbar.gray{box-shadow:none}
+.cbar.gray span{text-decoration:line-through;opacity:.92}
+
 
 /* ===== 일정 완료 체크 ===== */
-.evck{width:24px;height:24px;border-radius:50%;border:2px solid color-mix(in srgb,var(--c,var(--sub)) 60%,transparent);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;background:transparent;padding:0}
+.evck{width:26px;height:26px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--text) 50%,transparent);background:var(--panel-solid,#fff);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;padding:0}
 .evck:hover{border-color:#10b981}
 .evck.on{background:#10b981;border-color:#10b981}
 .evrow.done{opacity:.72}
 .evrow.done .tt b{text-decoration:line-through;opacity:.6}
 .evrow .dnl{color:#10b981;font-weight:800;display:block;font-size:11.5px}
+.trow .ck{width:26px;height:26px;border:2.5px solid color-mix(in srgb,var(--text) 50%,transparent);background:var(--panel-solid,#fff)}
+.trow.done .ck{background:#10b981;border-color:#10b981}
 
 </style>
 </head>
@@ -968,7 +975,7 @@ table.sheet th{font-size:var(--thfs,11.5px)}
       <button class="ibtn" id="calSearchBtn" data-ic="zoom" data-sz="20" title="일정 검색"></button>
       <button class="ibtn" id="calCloud" data-ic="cloud" data-sz="20" title="동기화 · 구글 연동"></button>
     </header>
-    <div id="calSeg" class="seg"><button data-v="year">년</button><button data-v="month">월</button><button data-v="week">주</button><button data-v="day">일</button></div>
+    <div id="calSeg" class="seg"><button data-v="year">년</button><button data-v="month">월</button><button data-v="week">주</button><button data-v="day">일</button><button data-v="done">완료</button></div>
     <div id="calSearchBar" class="hidden"><input id="calQ" class="field" type="search" placeholder="일정 검색 (제목 · 내용)"></div>
     <div id="calBody"></div>
     <button id="calAdd" class="fab" data-ic="plus" data-sz="26" title="일정 추가"></button>
@@ -4471,7 +4478,7 @@ function chipsSvg(n, dark){
 
 /* ===================== 3단계: 일정(달력) ===================== */
 const cal = { view:'month', date:todayStr(), sel:todayStr(), q:'', search:false };
-try{ const v = localStorage.getItem('mm_calview'); if(['year','month','week','day'].includes(v)) cal.view = v; }catch(e){}
+try{ const v = localStorage.getItem('mm_calview'); if(['year','month','week','day','done'].includes(v)) cal.view = v; }catch(e){}
 
 const dow = ds => parseYmd(ds).getDay();
 const fmtKo = ds => { const [y,m,d] = ds.split('-').map(Number); return y+'년 '+m+'월 '+d+'일'; };
@@ -4526,7 +4533,7 @@ function calTitleText(){
   if(cal.search) return '일정 검색';
   switch(cal.view){
     case 'year': return a.getFullYear()+'년';
-    case 'month': return a.getFullYear()+'년 '+(a.getMonth()+1)+'월';
+    case 'month': case 'done': return a.getFullYear()+'년 '+(a.getMonth()+1)+'월';
     case 'week': { const s = addDays(cal.date,-dow(cal.date)), e = addDays(s,6); return fmtMD(s).replace(/ \(.\)/,'')+' ~ '+fmtMD(e).replace(/ \(.\)/,''); }
     default: return fmtMD(cal.date);
   }
@@ -4540,7 +4547,7 @@ function renderCal(){
   const st = body.scrollTop;
   body.innerHTML = '';
   if(cal.search) calSearch(body);
-  else ({ year:calYear, month:calMonth, week:calWeek, day:calDay })[cal.view](body);
+  else ({ year:calYear, month:calMonth, week:calWeek, day:calDay, done:calDone })[cal.view](body);
   body.scrollTop = st;
 }
 /* ===================== 일정 완료 체크 (달력에서는 숨기고 목록에는 취소선) ===================== */
@@ -4660,54 +4667,96 @@ function isoWeek(ds){
 
 /* ===================== 기간 일정 막대 (월 · 주) ===================== */
 const isSpan = ev => !!(ev.endDate && ev.endDate > ev.date && (!ev.repeat || ev.repeat==='none'));
-// 한 주(ws부터 7일)에 걸친 기간 일정을 막대 조각으로 만들고 줄(lane)을 배정한다
-function spanBars(ws, maxLanes){
+// 막대 조각들에 줄(lane)을 배정한다. maxLanes 를 넘는 것은 빼고 날짜별 개수(more)로 센다.
+function packBars(items, maxLanes){
+  const occ = [], bars = [], more = [0,0,0,0,0,0,0];
+  for(const it of items){
+    let ln = 0;
+    for(;; ln++){
+      if(!occ[ln]) occ[ln] = new Array(7).fill(false);
+      let free = true; for(let c=it.c1;c<=it.c2;c++){ if(occ[ln][c]){ free = false; break; } }
+      if(free) break;
+    }
+    if(maxLanes && ln>=maxLanes){ for(let c=it.c1;c<=it.c2;c++) more[c]++; continue; }
+    for(let c=it.c1;c<=it.c2;c++) occ[ln][c] = true;
+    it.lane = ln; bars.push(it);
+  }
+  return { bars, more, n:bars.reduce((m, b) => Math.max(m, b.lane+1), 0) };
+}
+// 한 주(ws부터 7일)의 일정을 막대 조각으로 만든다. withSingles 이면 하루짜리 일정도 막대로 만든다.
+function spanBars(ws, maxLanes, withSingles){
   const we = addDays(ws, 6);
   const evs = Object.values(data.events).filter(ev => isSpan(ev) && !doneOf(ev, ev.date) && ev.date<=we && ev.endDate>=ws);
   evs.sort((a, b) => a.date.localeCompare(b.date) || b.endDate.localeCompare(a.endDate) || (a.title||'').localeCompare(b.title||''));
-  const lanes = [], bars = [];
-  for(const ev of evs){
-    const c1 = Math.max(0, dayDiff(ws, ev.date)), c2 = Math.min(6, dayDiff(ws, ev.endDate));
-    let ln = lanes.findIndex(e => e < c1);
-    if(ln<0){ ln = lanes.length; lanes.push(-1); }
-    lanes[ln] = c2;
-    bars.push({ ev, c1, c2, lane:ln, l:ev.date<ws, r:ev.endDate>we });   // l: 앞 주에서 이어짐 · r: 다음 주로 이어짐
+  const items = evs.map(ev => ({ ev, c1:Math.max(0, dayDiff(ws, ev.date)), c2:Math.min(6, dayDiff(ws, ev.endDate)), l:ev.date<ws, r:ev.endDate>we }));   // l: 앞 주에서 이어짐 · r: 다음 주로 이어짐
+  if(withSingles){
+    for(let i=0;i<7;i++){ const ds = addDays(ws, i); eventsOn(ds).forEach(ev => { if(!isSpan(ev)) items.push({ ev, c1:i, c2:i, l:false, r:false, single:true, ds }); }); }
   }
-  const keep = maxLanes ? bars.filter(b => b.lane<maxLanes) : bars;
-  return { bars:keep, n:maxLanes ? Math.min(lanes.length, maxLanes) : lanes.length };
+  return packBars(items, maxLanes);
+}
+// 완료 기록: 일정의 시점(s)에서 완료한 날(d)까지
+function doneItems(){
+  const out = [];
+  for(const id in data.events){
+    const ev = data.events[id]; if(!ev.dn) continue;
+    for(const k of Object.keys(ev.dn)){ out.push({ ev, s:isRep(ev) ? k : ev.date, d:ev.dn[k] }); }
+  }
+  return out;
+}
+function doneBars(ws, maxLanes){
+  const we = addDays(ws, 6), items = [];
+  doneItems().forEach(x => {
+    const lo = x.s<x.d ? x.s : x.d, hi = x.s<x.d ? x.d : x.s, fwd = x.d>=x.s;
+    if(lo>we || hi<ws) return;
+    items.push({ ev:x.ev, s:x.s, d:x.d, lo, c1:Math.max(0, dayDiff(ws, lo)), c2:Math.min(6, dayDiff(ws, hi)),
+      l:fwd ? lo<ws : true, r:fwd ? true : hi>we, gray:true, ds:x.s });   // 화살표는 완료한 쪽 끝에 붙는다
+  });
+  items.sort((a, b) => a.lo.localeCompare(b.lo) || (b.c2-b.c1)-(a.c2-a.c1) || (a.ev.title||'').localeCompare(b.ev.title||''));
+  return packBars(items, maxLanes);
 }
 function barEl(b, ds0, pos){
-  const ev = b.ev, tc = ev.color==='#eab308' ? '#422006' : '#fff';
-  return h('div',{ class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : ''), role:'button', tabindex:'0', title:(ev.title||'(제목 없음)')+' · '+evDateText(ev),
-    style:'--c:'+ev.color+';--tc:'+tc+';'+pos, onclick:e => { e.stopPropagation(); openEventEditor(ev.id,{ ds:ds0 }); } },
+  const ev = b.ev, gray = !!b.gray, tc = gray ? '#fff' : (ev.color==='#eab308' ? '#422006' : '#fff');
+  const tip = (ev.title||'(제목 없음)')+' · '+(gray ? '시작 '+b.s+' → 완료 '+b.d : evDateText(ev));
+  return h('div',{ class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : ''), role:'button', tabindex:'0', title:tip,
+    style:'--c:'+(gray ? '#7c8696' : ev.color)+';--tc:'+tc+';'+pos, onclick:e => { e.stopPropagation(); openEventEditor(ev.id,{ ds:ds0 }); } },
     h('span',{}, ev.title||'(제목 없음)'));
 }
-function calMonth(body){
+// 월 달력: done 이면 완료한 일정만, 시점→완료일을 회색 화살표 선으로 보여준다
+function monthGrid(body, done){
   const a = parseYmd(cal.date), y = a.getFullYear(), mo = a.getMonth();
   const first = ymd(new Date(y,mo,1)), start = addDays(first, -dow(first));
   const weeks = Math.ceil((dow(first)+daysIn(y,mo+1))/7), today = todayStr();
+  const maxL = (window.matchMedia && matchMedia('(min-width:821px)').matches) ? 4 : 3;
   const grid = h('div',{class:'cgrid wk'});
   grid.append(h('div',{class:'cdow cwn0', style:'grid-row:1;grid-column:1'}, '주'));
   DOW.forEach((d,i) => grid.append(h('div',{class:'cdow'+(i===0?' sun':i===6?' sat':''), style:'grid-row:1;grid-column:'+(i+2)}, d)));
   for(let w=0; w<weeks; w++){
-    const ws = addDays(start, w*7), sp = spanBars(ws, 3), shown = new Set(sp.bars.map(b => b.ev.id));
+    const ws = addDays(start, w*7), sp = done ? doneBars(ws, maxL) : spanBars(ws, maxL, true);
     grid.append(h('div',{class:'cwn', style:'grid-row:'+(w+2)+';grid-column:1', title:isoWeek(addDays(ws,4))+'주'}, isoWeek(addDays(ws,4))));
     for(let wd=0; wd<7; wd++){
-      const ds = addDays(ws, wd), dd = parseYmd(ds), evs = eventsOn(ds).filter(ev => !shown.has(ev.id)), hol = krHoliday(ds);
-      const cell = h('div',{ class:'cday'+(dd.getMonth()!==mo?' oth':'')+(ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
-        onclick:() => { cal.sel = ds; renderCal(); }, ondblclick:() => openEventEditor(null,{ ds }) },
+      const ds = addDays(ws, wd), dd = parseYmd(ds), hol = krHoliday(ds);
+      const cell = h('div',{ class:'cday'+(dd.getMonth()!==mo?' oth':'')+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
+        onclick:() => { if(!done){ cal.sel = ds; renderCal(); } }, ondblclick:() => { if(!done) openEventEditor(null,{ ds }); } },
         h('span',{class:'dn'+(wd===0||hol?' sun':wd===6?' sat':'')}, dd.getDate()));
       const hn = hol ? h('span',{class:'hn'}, hol) : null;
       if(sp.n) cell.append(h('div',{class:'cspc', style:'--n:'+sp.n}, hn)); else if(hn) cell.append(hn);
-      const chips = h('div',{class:'cchips'});
-      evs.slice(0,3).forEach(ev => chips.append(h('span',{class:'cchip',style:'--c:'+ev.color,onclick:e => { e.stopPropagation(); openEventEditor(ev.id,{ ds }); }}, ev.title||'(제목 없음)')));
-      if(evs.length>3) chips.append(h('span',{class:'cmore'}, '+'+(evs.length-3)));
-      const dots = h('div',{class:'cdots'}); evs.slice(0,4).forEach(ev => dots.append(h('i',{style:'background:'+ev.color})));
-      cell.append(chips, dots); grid.append(cell);
+      if(sp.more[wd]) cell.append(h('span',{class:'cmore'}, '+'+sp.more[wd]));
+      grid.append(cell);
     }
-    sp.bars.forEach(b => grid.append(barEl(b, addDays(ws, b.c1), 'grid-row:'+(w+2)+';grid-column:'+(b.c1+2)+'/'+(b.c2+3)+';margin-top:calc(47px + var(--bs)*'+b.lane+')')));
+    sp.bars.forEach(b => grid.append(barEl(b, b.ds || addDays(ws, b.c1), 'grid-row:'+(w+2)+';grid-column:'+(b.c1+2)+'/'+(b.c2+3)+';margin-top:calc(47px + var(--bs)*'+b.lane+')')));
   }
-  body.append(h('div',{class:'cm'}, grid, calAgenda(cal.sel)));
+  body.append(h('div',{class:'cm'}, grid, done ? doneList(first, ymd(new Date(y,mo,daysIn(y,mo+1)))) : calAgenda(cal.sel)));
+}
+function calMonth(body){ monthGrid(body, false); }
+function calDone(body){ monthGrid(body, true); }
+// 완료 목록: 그 달에 걸친 완료 기록을 완료한 날 순서(최근 먼저)로
+function doneList(m1, m2){
+  const list = doneItems().filter(x => { const lo = x.s<x.d ? x.s : x.d, hi = x.s<x.d ? x.d : x.s; return lo<=m2 && hi>=m1; })
+    .sort((a, b) => b.d.localeCompare(a.d) || (a.ev.title||'').localeCompare(b.ev.title||''));
+  const box = h('div',{class:'agenda'}, h('div',{class:'ahead'}, h('b',{}, '완료한 일정 '+list.length+'개')));
+  if(!list.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'이 달에는 완료한 일정이 없어요. 일정 목록의 동그라미를 누르면 완료돼요.'));
+  list.slice(0,150).forEach(x => box.append(evRow(x.ev, x.s, { showDate:true, memo:false })));
+  return box;
 }
 function calWeek(body){
   const s = addDays(cal.date, -dow(cal.date)), today = todayStr(), wrap = h('div',{class:'cwk'});
@@ -4782,7 +4831,7 @@ function calSearch(body){
 function calMove(dir){
   const a = parseYmd(cal.date);
   if(cal.view==='year') a.setFullYear(a.getFullYear()+dir);
-  else if(cal.view==='month'){ const d = a.getDate(); a.setDate(1); a.setMonth(a.getMonth()+dir); a.setDate(Math.min(d, daysIn(a.getFullYear(), a.getMonth()+1))); }
+  else if(cal.view==='month' || cal.view==='done'){ const d = a.getDate(); a.setDate(1); a.setMonth(a.getMonth()+dir); a.setDate(Math.min(d, daysIn(a.getFullYear(), a.getMonth()+1))); }
   else if(cal.view==='week') a.setDate(a.getDate()+7*dir);
   else a.setDate(a.getDate()+dir);
   cal.date = ymd(a); cal.sel = cal.date; renderCal();
