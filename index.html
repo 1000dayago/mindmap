@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610220111">
+<meta name="app-version" content="202610220824">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1013,6 +1013,13 @@ table.sheet th.corner .rz.rc:hover{background:color-mix(in srgb,var(--accent) 35
 .evrow .swic.und{background:#f59e0b}
 .evrow .swic.go{box-shadow:0 0 0 4px color-mix(in srgb,currentColor 0%,transparent),0 4px 14px rgba(0,0,0,.28)}
 @media(max-width:820px){.evrow .evck{display:none}}
+
+.synctabs{display:flex;gap:6px;margin:2px 0 12px}
+.synctabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 2px 7px;border-radius:16px;background:var(--bg);color:var(--sub);font-size:11px;font-weight:800;min-width:0;border:1.5px solid transparent;transition:background .14s,color .14s}
+.synctabs button .si{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c)}
+.synctabs button .sl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.synctabs button.on{background:color-mix(in srgb,var(--c) 10%,var(--panel-solid));color:var(--text);border-color:color-mix(in srgb,var(--c) 55%,transparent)}
+.syncpanel .lbl:first-child{margin-top:0}
 
 </style>
 </head>
@@ -2790,7 +2797,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610220111';
+const APP_VER = '202610220824';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -7294,7 +7301,7 @@ async function fetchCalendars(){
   saveSync();
   return syncCfg.cals;
 }
-const defCalName = () => { const c = (syncCfg.cals||[]).find(x => syncCfg.calId ? x.id===syncCfg.calId : x.def); return c ? c.name : (syncCfg.calId ? '직접 입력한 캘린더' : '내 기본 캘린더'); };
+const defCalName = () => { const c = (syncCfg.cals||[]).find(x => syncCfg.calId ? x.id===syncCfg.calId : x.def); return c ? c.name : (syncCfg.calId ? '직접 입력한 캘린더' : '내 캘린더'); };
 // 캘린더 고르기 (목록 + 새로고침). dflt: 맨 위 '기본' 항목 문구, 비우면 기본 항목 없음
 function calPicker(cur, dflt){
   const sel = h('select',{class:'field',style:'flex:1;min-width:0'});
@@ -7313,14 +7320,14 @@ function calPicker(cur, dflt){
   const load = async (quiet) => {
     if(!syncOn()){ st.textContent = '먼저 웹앱 URL과 비밀키를 입력하세요'; return; }
     st.textContent = '내 캘린더 불러오는 중…'; rb.disabled = true;
-    try{ await fetchCalendars(); fill(); st.textContent = '내 캘린더 '+syncCfg.cals.length+'개 · ★는 기본 캘린더'; }
+    try{ await fetchCalendars(); fill(); st.textContent = '내 캘린더 '+syncCfg.cals.length+'개'; }
     catch(e){ st.textContent = e.message; }
     rb.disabled = false;
   };
   sel.addEventListener('change', () => { val = sel.value; });
   rb.addEventListener('click', () => load());
   fill();
-  if(!(syncCfg.cals||[]).length) load(true); else st.textContent = '내 캘린더 '+syncCfg.cals.length+'개 · ★는 기본 캘린더 · ↻ 로 새로 불러와요';
+  if(!(syncCfg.cals||[]).length) load(true); else st.textContent = '내 캘린더 '+syncCfg.cals.length+'개 · ↻ 로 새로 불러와요';
   const box = h('div',{}, h('div',{class:'row',style:'gap:6px;align-items:center'}, sel, rb), st);
   box.get = () => sel.value;
   return box;
@@ -7480,7 +7487,7 @@ function openCalUpload(){
       closeSheet(true);
       await runUpload(list, syncCfg.calId);
     });
-    b.append(h('div',{class:'lbl'},'범위'), seg, h('div',{class:'lbl'},'올릴 캘린더 (기본)'), calI, h('p',{class:'note',style:'margin:6px 2px 0;font-size:11.5px'},'일정 편집창에서 따로 캘린더를 정한 일정은 그 캘린더로 올라가요.'), info,
+    b.append(h('div',{class:'lbl'},'범위'), seg, h('div',{class:'lbl'},'올릴 캘린더'), calI, h('p',{class:'note',style:'margin:6px 2px 0;font-size:11.5px'},'일정 편집창에서 따로 캘린더를 정한 일정은 그 캘린더로 올라가요.'), info,
       h('div',{class:'row end'}, h('button',{class:'btn',onclick:() => closeSheet()},'취소'), btnGo));
     upd();
   });
@@ -7494,7 +7501,7 @@ function gcalBox(ex, save){
   }
   const box = h('div',{class:'mmbox',style:'margin-top:8px'});
   const sent = ex && syncCfg.sent[ex.id];
-  const pk = calPicker(ex ? (ex.gcal||'') : '', () => '기본 캘린더 · '+defCalName());
+  const pk = calPicker(ex ? (ex.gcal||'') : '', () => defCalName());
   box._pick = () => pk.get();
   box.append(h('div',{class:'lbl'},'구글 캘린더 (선택) '+(sent ? '· 올림 '+fmtDT(sent) : '')),
     h('div',{class:'lbl',style:'margin-top:4px;font-weight:600'},'올릴 캘린더'), pk,
@@ -7515,45 +7522,82 @@ function gcalBox(ex, save){
 /* ---------- 설정 화면 ---------- */
 function openSyncSheet(){
   openSheet('동기화 · 구글 연동', b => {
-    b.append(h('div',{class:'list',style:'margin-bottom:12px'}, h('button',{class:'item',onclick:() => { closeSheet(true); openExport(); }}, h('span',{class:'ico',style:'--c:#10b981',html:ic('dl',20)}), h('span',{class:'t'},'일정 내보내기 (엑셀)'))));
-    b.append(h('p',{class:'note'},'여러 기기에서 같은 마인드맵·일정을 쓰려면 Apps Script를 한 번 설치하세요. 드라이브에 파일 1개를 만들어 저장하고, 구글 캘린더에는 내가 누를 때만 올려요.'));
-    if(!syncOn()) b.append(h('ol',{class:'note',style:'padding-left:20px;line-height:1.7'},
-      h('li',{},'아래 「Apps Script 코드 복사」를 누르세요.'),
-      h('li',{},'script.google.com → 새 프로젝트에 붙여넣고, 맨 위 TOKEN 을 나만의 비밀키로 바꾸세요.'),
-      h('li',{},'authorize 함수를 한 번 실행해 권한을 허용하고, 배포 → 웹 앱(실행: 나, 액세스: 모든 사용자)을 만드세요.'),
-      h('li',{},'나온 웹앱 URL과 비밀키를 아래 칸에 입력하세요. (자세한 설명은 코드 맨 위 주석)')));
-    const urlI = h('input',{class:'field',type:'url',placeholder:'웹앱 URL (https://script.google.com/macros/s/…/exec)',value:syncCfg.url||'',autocapitalize:'off',autocomplete:'off',spellcheck:false});
-    const tokI = h('input',{class:'field',type:'password',placeholder:'비밀키 (스크립트의 TOKEN 과 같은 값)',value:syncCfg.token||'',autocomplete:'off'});
-    b.append(h('div',{class:'lbl'},'웹앱 URL'), urlI, h('div',{class:'lbl'},'비밀키'), tokI);
-    {   // 구글 캘린더에 올릴 때 기본으로 쓸 캘린더
-      const cp = calPicker(syncCfg.calId||'', () => '기본 캘린더'+(((syncCfg.cals||[]).find(x => x.def)||{}).name ? ' ('+(syncCfg.cals.find(x => x.def).name)+')' : ''));
-      cp.querySelector('select').addEventListener('change', e => { syncCfg.calId = e.target.value; saveSync(); toast('기본 캘린더: '+defCalName()); });
-      b.append(h('div',{class:'lbl'},'구글 캘린더에 올릴 기본 캘린더'), cp, h('p',{class:'note',style:'margin:4px 2px 8px;font-size:11.5px'},'「구글 캘린더로 올리기」에서 기본으로 쓰는 캘린더예요. 일정마다 따로 정할 수도 있어요.'));
-    }
-    b.append(toggleRow('자동 동기화 (앱을 열 때 확인 · 변경 후 자동 저장)', syncCfg.auto, v => { syncCfg.auto = v; saveSync(); }));
-    const stat = h('div',{class:'syncstat',id:'syncStat'}); b.append(stat);
-    const saveConn = async () => {
-      const changed = syncCfg.url !== urlI.value.trim() || syncCfg.token !== tokI.value.trim();
-      syncCfg.url = urlI.value.trim(); syncCfg.token = tokI.value.trim(); saveSync();
-      if(!syncOn()){ toast('URL과 비밀키를 모두 입력하세요'); return false; }
-      if(!changed) return true;
-      try{ const j = await gs('ping'); if(!j.ok) throw gsErr(j.error||'연결 실패'); toast('연결됐어요'); refreshSyncUI(); return true; }
-      catch(e){ toast('연결 실패: '+e.message); return false; }
+    let tab = ''; try{ tab = localStorage.getItem('mm_sync_tab')||''; }catch(_){}
+    if(!['sync','cal','conn'].includes(tab)) tab = 'sync';
+    if(!syncOn()) tab = 'conn';
+    const tabs = h('div',{ class:'synctabs', role:'tablist' }), panel = h('div',{ class:'syncpanel' });
+    const TABS = [
+      ['sync', '동기화', 'cloud', '#10b981'],
+      ['cal', '구글 캘린더', 'calendar', '#5b6cff'],
+      ['xl', '엑셀 내보내기', 'dl', '#0ea5e9'],
+      ['conn', '연결 설정', 'link', '#f59e0b']
+    ];
+    const need = () => { if(syncOn()) return true; toast('먼저 「연결 설정」에서 웹앱 URL과 비밀키를 입력하세요'); show('conn'); return false; };
+    const item = (color, icon, label, fn, cls) => h('button',{ class:'item'+(cls ? ' '+cls : ''), type:'button', onclick:fn }, h('span',{ class:'ico', style:'--c:'+color, html:ic(icon, 20) }), h('span',{ class:'t' }, label));
+    const panels = {
+      sync(){
+        panel.append(h('div',{ class:'syncstat', id:'syncStat' }),
+          toggleRow('자동 동기화 (앱을 열 때 확인 · 변경 후 자동 저장)', syncCfg.auto, v => { syncCfg.auto = v; saveSync(); }),
+          h('div',{ class:'list', style:'margin-top:6px' },
+            item('#10b981', 'cloud', '지금 동기화', () => { if(need()){ closeSheet(true); syncNow(); } }),
+            localStorage.getItem(PRESYNC_KEY) ? item('#64748b', 'back', '동기화 직전 상태로 복원', () => {
+              if(!confirm('동기화 직전의 이 기기 상태로 되돌릴까요?\n(지금 내용은 사라져요)')) return;
+              try{
+                const o = JSON.parse(localStorage.getItem(PRESYNC_KEY)); const rem = parseRemote(o); if(!rem.order.length) throw new Error('백업이 비어 있어요');
+                data.maps = rem.maps; data.order = rem.order; data.events = rem.events; data.current = rem.maps[data.current] ? data.current : rem.order[0];
+                for(const k in hist) delete hist[k]; data.order.forEach(id => refitAll(data.maps[id])); closeSheet(true); closePanel(); sel = null; saveNow(); render(); renderCal(); toast('직전 상태로 되돌렸어요 ('+fmtDT(o.at)+' 기준)'); refreshSyncUI();
+              }catch(e){ toast('복원 실패: '+e.message); }
+            }) : null),
+          h('p',{ class:'note', style:'margin:10px 2px 0' }, '여러 기기에서 같은 마인드맵·일정을 쓰도록 드라이브의 파일 1개로 맞춰요.'));
+        refreshSyncUI();
+      },
+      cal(){
+        const cp = calPicker(syncCfg.calId||'', () => defCalName());
+        cp.querySelector('select').addEventListener('change', e => { syncCfg.calId = e.target.value; saveSync(); toast('올릴 캘린더: '+defCalName()); });
+        panel.append(h('div',{ class:'lbl' }, '올릴 캘린더'), cp,
+          h('p',{ class:'note', style:'margin:4px 2px 10px;font-size:11.5px' }, '일정마다 편집창에서 따로 정할 수도 있어요. 구글 캘린더에는 내가 누를 때만 올라가요.'),
+          h('div',{ class:'list' },
+            item('#5b6cff', 'upload', '구글 캘린더로 올리기', () => { if(need()){ closeSheet(true); openCalUpload(); } }),
+            item('#0ea5e9', 'calendar', '구글 캘린더에서 가져오기', () => { if(need()){ closeSheet(true); openCalImport(); } })));
+      },
+      conn(){
+        if(!syncOn()) panel.append(h('ol',{ class:'note', style:'padding-left:20px;line-height:1.7;margin-top:2px' },
+          h('li',{}, '아래 「Apps Script 코드 복사」를 누르세요.'),
+          h('li',{}, 'script.google.com → 새 프로젝트에 붙여넣고, 맨 위 TOKEN 을 나만의 비밀키로 바꾸세요.'),
+          h('li',{}, 'authorize 함수를 한 번 실행해 권한을 허용하고, 배포 → 웹 앱(실행: 나, 액세스: 모든 사용자)을 만드세요.'),
+          h('li',{}, '나온 웹앱 URL과 비밀키를 아래 칸에 입력하고 「저장 · 연결 확인」을 누르세요.')));
+        const urlI = h('input',{ class:'field', type:'url', placeholder:'웹앱 URL (https://script.google.com/macros/s/…/exec)', value:syncCfg.url||'', autocapitalize:'off', autocomplete:'off', spellcheck:false });
+        const tokI = h('input',{ class:'field', type:'password', placeholder:'비밀키 (스크립트의 TOKEN 과 같은 값)', value:syncCfg.token||'', autocomplete:'off' });
+        const saveConn = async () => {
+          const changed = syncCfg.url !== urlI.value.trim() || syncCfg.token !== tokI.value.trim();
+          syncCfg.url = urlI.value.trim(); syncCfg.token = tokI.value.trim(); saveSync();
+          if(!syncOn()){ toast('URL과 비밀키를 모두 입력하세요'); return; }
+          try{ const j = await gs('ping'); if(!j.ok) throw gsErr(j.error||'연결 실패'); toast(changed ? '연결됐어요' : '연결이 잘 돼요'); refreshSyncUI(); if(changed) show('sync'); }
+          catch(e){ toast('연결 실패: '+e.message); }
+        };
+        panel.append(h('div',{ class:'lbl' }, '웹앱 URL'), urlI, h('div',{ class:'lbl' }, '비밀키'), tokI,
+          h('div',{ class:'list', style:'margin-top:10px' },
+            item('#10b981', 'check', '저장 · 연결 확인', saveConn),
+            item('#f59e0b', 'copy', 'Apps Script 코드 복사', () => copyAny(GS_CODE, 'Apps Script 코드를 복사했어요')),
+            syncOn() ? item('#ef4444', 'trash', '연결 끊기', () => {
+              if(!confirm('연결을 끊을까요? (드라이브의 파일은 그대로 남아요)')) return;
+              syncCfg.url = ''; syncCfg.token = ''; syncCfg.rev = 0; syncCfg.sig = ''; syncCfg.pending = false; saveSync(); closeSheet(true); toast('연결을 끊었어요'); refreshSyncUI();
+            }, 'danger') : null));
+      }
     };
-    b.append(h('div',{class:'list',style:'margin-top:6px'},
-      h('button',{class:'item',onclick:async () => { if(await saveConn()){ closeSheet(true); syncNow(); } }}, h('span',{class:'ico',style:'--c:#10b981',html:ic('cloud',20)}), h('span',{class:'t'},'저장 후 지금 동기화')),
-      h('button',{class:'item',onclick:async () => { if(await saveConn()){ closeSheet(true); openCalUpload(); } }}, h('span',{class:'ico',style:'--c:#5b6cff',html:ic('upload',20)}), h('span',{class:'t'},'구글 캘린더로 올리기')),
-      h('button',{class:'item',onclick:async () => { if(await saveConn()){ closeSheet(true); openCalImport(); } }}, h('span',{class:'ico',style:'--c:#0ea5e9',html:ic('calendar',20)}), h('span',{class:'t'},'구글 캘린더에서 가져오기')),
-      h('button',{class:'item',onclick:() => copyAny(GS_CODE, 'Apps Script 코드를 복사했어요')}, h('span',{class:'ico',style:'--c:#f59e0b',html:ic('copy',20)}), h('span',{class:'t'},'Apps Script 코드 복사')),
-      localStorage.getItem(PRESYNC_KEY) ? h('button',{class:'item',onclick:() => { if(!confirm('동기화 직전의 이 기기 상태로 되돌릴까요?\n(지금 내용은 사라져요)')) return; try{
-          const o = JSON.parse(localStorage.getItem(PRESYNC_KEY)); const rem = parseRemote(o); if(!rem.order.length) throw new Error('백업이 비어 있어요');
-          data.maps = rem.maps; data.order = rem.order; data.events = rem.events; data.current = rem.maps[data.current] ? data.current : rem.order[0];
-          for(const k in hist) delete hist[k]; data.order.forEach(id => refitAll(data.maps[id])); closeSheet(true); closePanel(); sel = null; saveNow(); render(); renderCal(); toast('직전 상태로 되돌렸어요 ('+fmtDT(o.at)+' 기준)'); refreshSyncUI();
-        }catch(e){ toast('복원 실패: '+e.message); } }}, h('span',{class:'ico',style:'--c:#64748b',html:ic('back',20)}), h('span',{class:'t'},'동기화 직전 상태로 복원')) : null,
-      syncOn() ? h('button',{class:'item danger',onclick:() => { if(!confirm('연결을 끊을까요? (드라이브의 파일은 그대로 남아요)')) return; syncCfg.url = ''; syncCfg.token = ''; syncCfg.rev = 0; syncCfg.sig = ''; syncCfg.pending = false; saveSync(); closeSheet(true); toast('연결을 끊었어요'); refreshSyncUI(); }}, h('span',{class:'ico',style:'--c:#ef4444',html:ic('trash',20)}), h('span',{class:'t'},'연결 끊기')) : null));
-    refreshSyncUI();
+    function show(k){
+      if(k==='xl'){ closeSheet(true); openExport(); return; }
+      tab = k; try{ localStorage.setItem('mm_sync_tab', k); }catch(_){}
+      tabs.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k===k));
+      panel.innerHTML = ''; panels[k]();
+    }
+    TABS.forEach(([k, label, icon, color]) => tabs.append(h('button',{ type:'button', 'data-k':k, role:'tab', title:label, 'aria-label':label, style:'--c:'+color, onclick:() => show(k) },
+      h('span',{ class:'si', html:ic(icon, 22) }), h('span',{ class:'sl' }, label))));
+    b.append(tabs, panel);
+    show(tab);
   });
 }
+
 $('#calCloud').addEventListener('click', openSyncSheet);
 
 __syncReady = true;
