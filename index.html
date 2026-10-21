@@ -954,12 +954,10 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 .ordtg{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:var(--sub)}
 .ordtg.on{background:var(--accent-soft);color:var(--accent)}
 .ahead .hbtns{display:flex;align-items:center;gap:4px}
-.ordbs{display:flex;flex-direction:column;gap:2px;flex:none}
-.ordb{width:30px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--panel);color:var(--accent);padding:0}
-.ordb svg{transform:rotate(var(--r,0deg))}
-.ordb:disabled{opacity:.25}
-.ordb:active:not(:disabled){transform:scale(.92)}
 .cdy .ordrow{display:flex;justify-content:flex-end;margin-bottom:4px}
+.ordgrip{width:34px;height:40px;margin:-6px -6px -6px 0;display:flex;align-items:center;justify-content:center;color:var(--sub);cursor:grab;touch-action:none;flex:none;border-radius:10px}
+.ordgrip:hover{color:var(--accent);background:var(--accent-soft)}
+.evrow.dragging{opacity:.97}
 
 </style>
 </head>
@@ -1185,6 +1183,7 @@ Object.assign(ICONS, {
   clip:'<rect x="5" y="4" width="14" height="17" rx="4"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>',
   copy:'<rect x="8" y="8" width="12" height="12" rx="3.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
   up:'<path d="M6 15l6-6 6 6"/>',
+  grip:'<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/>',
   sort:'<path d="M8 4v16M8 4L4 8M8 4l4 4M16 20V4M16 20l-4-4M16 20l4-4"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', ol:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5l1.5-1v4M3.5 14h3l-3 3.5h3" stroke-width="1.6"/>', ul:'<path d="M10 6h10M10 12h10M10 18h10"/><circle cx="5" cy="6" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="18" r="1.2" fill="currentColor"/>', dash:'<path d="M10 6h10M10 12h10M10 18h10M3.5 6h3M3.5 12h3M3.5 18h3"/>', ckbox:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12.5l3 3 5-6"/>',
   mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
@@ -4601,23 +4600,59 @@ function purgeDoneEvents(){
 }
 
 /* ===================== 일정 순서 바꾸기 (위 = 달력에 먼저 보임) ===================== */
-function moveEv(ds, ev, dir){
-  const list = eventsOn(ds, true).filter(e => !!doneOf(e, ds) === !!doneOf(ev, ds));
+function ordAssign(list){
   let m = Object.values(data.events).reduce((a, e) => Math.max(a, e.ord==null ? 0 : e.ord), 0);
   list.forEach(e => { if(e.ord==null) e.ord = ++m; });
-  const i = list.indexOf(ev), j = i+dir;
-  if(i<0 || j<0 || j>=list.length) return;
-  const t = ev.ord; ev.ord = list[j].ord; list[j].ord = t;
-  saveSoon(); refreshEvViews();
+}
+// 손잡이를 잡고 위아래로 끌면 순서가 바뀐다 (완료한 일정은 완료끼리만)
+function startReorder(e, ev, ds){
+  if(e.button!=null && e.button!==0) return;
+  e.preventDefault(); e.stopPropagation();
+  const row = e.currentTarget.closest('.evrow'), box = row.parentNode;
+  const all = eventsOn(ds, true), rows = [...box.querySelectorAll(':scope > .evrow')];
+  if(rows.length!==all.length) return;
+  const dn = !!doneOf(ev, ds), idx = all.map((x, i) => i).filter(i => !!doneOf(all[i], ds)===dn);
+  const grp = idx.map(i => all[i]), gr = idx.map(i => rows[i]), rc = gr.map(r => r.getBoundingClientRect());
+  const cur = grp.indexOf(ev); if(cur<0 || grp.length<2) return;
+  const gap = rc.length>1 ? Math.max(0, rc[1].top-rc[0].bottom) : 5, step = rc[cur].height+gap, y0 = e.clientY;
+  gr.forEach((r, i) => { r.style.transition = i===cur ? 'none' : 'transform .15s'; });
+  row.style.position = 'relative'; row.style.zIndex = '5'; row.style.boxShadow = '0 10px 26px rgba(0,0,0,.22)'; row.classList.add('dragging');
+  const shield = h('div',{ class:'dragshield', style:'cursor:grabbing' }); document.body.append(shield);
+  try{ shield.setPointerCapture(e.pointerId); }catch(_){}
+  let target = cur, lastY = y0;
+  let sc = box; while(sc && sc!==document.body && !(/(auto|scroll)/.test(getComputedStyle(sc).overflowY) && sc.scrollHeight>sc.clientHeight+2)) sc = sc.parentElement;
+  const sc0 = sc ? sc.scrollTop : 0;
+  const upd = () => {
+    const dy = (lastY-y0)+(sc ? sc.scrollTop-sc0 : 0), center = rc[cur].top+rc[cur].height/2+dy-(sc ? 0 : 0);
+    row.style.transform = 'translateY('+dy+'px)';
+    target = 0; rc.forEach((r, j) => { if(j!==cur && r.top+r.height/2<center) target++; });
+    gr.forEach((r, j) => { if(j===cur) return; r.style.transform = (j>cur && j<=target) ? 'translateY('+(-step)+'px)' : (j<cur && j>=target) ? 'translateY('+step+'px)' : ''; });
+  };
+  shield.addEventListener('pointermove', m => { lastY = m.clientY; upd(); });
+  const tick = setInterval(() => {
+    if(!sc) return; const r = sc.getBoundingClientRect(), z = 70;
+    const v = lastY<r.top+z ? -Math.ceil((r.top+z-lastY)/5) : lastY>r.bottom-z ? Math.ceil((lastY-(r.bottom-z))/5) : 0;
+    if(v){ sc.scrollTop += v; upd(); }
+  }, 16);
+  const end = commit => {
+    clearInterval(tick); shield.remove();
+    if(commit && target!==cur){
+      ordAssign(grp);
+      const ords = grp.map(x => x.ord).sort((a, b) => a-b), order = grp.slice(); order.splice(cur, 1); order.splice(target, 0, ev);
+      order.forEach((x, i) => { x.ord = ords[i]; });
+      saveSoon();
+    }
+    refreshEvViews();
+  };
+  shield.addEventListener('pointerup', () => end(true));
+  shield.addEventListener('pointercancel', () => end(false));
 }
 function ordToggle(){
-  return h('button',{ class:'mini ordtg'+(cal.rord ? ' on' : ''), type:'button', title:'순서 바꾸기 (위쪽이 달력에 먼저 보여요)', 'aria-label':'순서 바꾸기', html:ic('sort',16),
+  return h('button',{ class:'mini ordtg'+(cal.rord ? ' on' : ''), type:'button', title:'순서 바꾸기 (위쪽 일정이 달력에 먼저 보여요)', 'aria-label':'순서 바꾸기', html:ic('sort',16),
     onclick:e => { e.stopPropagation(); cal.rord = !cal.rord; renderCal(); } });
 }
-function ordBtns(ev, ds, first, last){
-  const b = (dir, off) => h('button',{ class:'ordb', type:'button', disabled:!!off, title:dir<0 ? '위로' : '아래로', 'aria-label':dir<0 ? '위로' : '아래로', html:ic('up',16)+'',
-    style:dir>0 ? '--r:180deg' : '', onclick:e => { e.stopPropagation(); moveEv(ds, ev, dir); } });
-  return h('span',{class:'ordbs'}, b(-1, first), b(1, last));
+function ordGrip(ev, ds){
+  return h('span',{ class:'ordgrip', title:'끌어서 순서 바꾸기', 'aria-label':'끌어서 순서 바꾸기', html:ic('grip',20), onpointerdown:e => startReorder(e, ev, ds), onclick:e => e.stopPropagation() });
 }
 
 function evRow(ev, ds, o){
@@ -4634,14 +4669,14 @@ function evRow(ev, ds, o){
     ck,
     h('span',{class:'tm'}, o.showDate ? fmtMD(ds)+(ev.allDay?'':' '+ev.time) : timeLabel(ev)),
     h('span',{class:'tt'}, h('b',{}, ev.title||'(제목 없음)'), dn ? h('small',{class:'dnl'}, '✓ 완료 '+(+dm[1])+'/'+(+dm[2])) : null, (o.memo && ev.memo) ? h('small',{}, ev.memo.split('\n')[0]) : null),
-    h('span',{class:'tgs'}, tags), go, o.ord ? ordBtns(ev, ds, o.ord.first, o.ord.last) : null);
+    h('span',{class:'tgs'}, tags), go, o.ord ? ordGrip(ev, ds) : null);
 }
 function calAgenda(ds){
   const evs = eventsOn(ds, true);
   const box = h('div',{class:'agenda'},
     h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('span',{class:'hbtns'}, ordToggle(), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정'))));
   if(!evs.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
-  evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:cal.rord ? { first:i===0 || !!doneOf(evs[i-1], ds)!==!!doneOf(ev, ds), last:i===evs.length-1 || !!doneOf(evs[i+1], ds)!==!!doneOf(ev, ds) } : null })));
+  evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:cal.rord })));
   return box;
 }
 /* ===================== 대한민국 공휴일 · 주 번호 ===================== */
@@ -4888,7 +4923,7 @@ function calDay(body){
   const wrap = h('div',{class:'cdy'});
   if(!evs.length) wrap.append(h('p',{class:'note',style:'text-align:center;padding:30px 0'},'이 날은 일정이 없어요.'));
   if(evs.length) wrap.prepend(h('div',{class:'ordrow'}, ordToggle()));
-  evs.forEach((ev, i) => wrap.append(evRow(ev, ds, { memo:true, ord:cal.rord ? { first:i===0 || !!doneOf(evs[i-1], ds)!==!!doneOf(ev, ds), last:i===evs.length-1 || !!doneOf(evs[i+1], ds)!==!!doneOf(ev, ds) } : null })));
+  evs.forEach((ev, i) => wrap.append(evRow(ev, ds, { memo:true, ord:cal.rord })));
   body.append(wrap);
 }
 function calYear(body){
