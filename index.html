@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
+<meta name="app-version" content="202610212323">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -959,6 +960,17 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 .ordgrip:hover{color:var(--accent);background:var(--accent-soft)}
 .evrow.dragging{opacity:.97}
 
+#verBar{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 20px);padding:7px 8px 7px 14px;border-radius:999px;background:rgba(12,18,34,.92);color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.28);backdrop-filter:blur(14px)}
+#verBar .vi{display:flex;color:#8fa2ff}
+#verBar .vt{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+#verBar .vt b{font-size:13px;font-weight:800;white-space:nowrap}
+#verBar .vt small{font-size:11px;opacity:.65;white-space:nowrap}
+#verBar .vgo{padding:7px 14px;border-radius:999px;background:var(--grad,#5b6cff);color:#fff;font-weight:800;font-size:13px;white-space:nowrap}
+#verBar .vgo:disabled{opacity:.6}
+#verBar .vx{width:28px;height:28px;border-radius:50%;color:#fff;opacity:.7;font-size:13px}
+.vernote{margin:12px 2px 0;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+.vernote .sp{flex:1}
+
 </style>
 </head>
 <body>
@@ -1183,6 +1195,8 @@ Object.assign(ICONS, {
   clip:'<rect x="5" y="4" width="14" height="17" rx="4"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>',
   copy:'<rect x="8" y="8" width="12" height="12" rx="3.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
   up:'<path d="M6 15l6-6 6 6"/>',
+  dl:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  rf:'<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',
   grip:'<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/>',
   sort:'<path d="M8 4v16M8 4L4 8M8 4l4 4M16 20V4M16 20l-4-4M16 20l4-4"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', ol:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5l1.5-1v4M3.5 14h3l-3 3.5h3" stroke-width="1.6"/>', ul:'<path d="M10 6h10M10 12h10M10 18h10"/><circle cx="5" cy="6" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="18" r="1.2" fill="currentColor"/>', dash:'<path d="M10 6h10M10 12h10M10 18h10M3.5 6h3M3.5 12h3M3.5 18h3"/>', ckbox:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12.5l3 3 5-6"/>',
@@ -2731,6 +2745,53 @@ function exportPNG(){
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(str);
 }
 
+/* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
+const APP_VER = '202610212323';
+const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
+function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
+function verBar(remote, text){
+  let bar = $('#verBar'); if(bar) bar.remove();
+  const hosted = location.origin==='https://1000dayago.github.io';
+  const go = () => {
+    if(hosted){ try{ saveNow(); }catch(_){} bar.querySelector('button.vgo').disabled = true; setTimeout(() => { location.replace(location.pathname+'?u='+remote); }, 300); return; }
+    try{
+      const url = URL.createObjectURL(new Blob([text], { type:'text/html;charset=utf-8' })), a = h('a',{ href:url, download:'index.html' });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+      bar.remove(); toast('index.html 을 받았어요 · 기존 파일에 덮어쓰고 다시 열어 주세요');
+    }catch(_){ toast('다운로드하지 못했어요'); }
+  };
+  bar = h('div',{ id:'verBar', role:'status' },
+    h('span',{class:'vi',html:ic(hosted ? 'rf' : 'dl', 18)}),
+    h('span',{class:'vt'}, h('b',{}, '새 버전이 있어요'), h('small',{}, verFmt(remote))),
+    h('button',{class:'vgo',type:'button',onclick:go}, hosted ? '업데이트' : '다운로드'),
+    h('button',{class:'vx',type:'button','aria-label':'닫기',title:'이 버전은 그만 알림',html:'✕',onclick:() => { try{ localStorage.setItem('mm_ver_skip', remote); }catch(_){} bar.remove(); }}));
+  document.body.append(bar);
+}
+async function verCheck(manual){
+  if(location.protocol==='file:' || /^https?:/.test(location.protocol)){}
+  try{
+    if(!manual){ const last = +localStorage.getItem('mm_ver_chk')||0; if(Date.now()-last<3*3600e3) return; }
+    const r = await fetch(PAGES_URL+'?c='+Date.now(), { cache:'no-store' });
+    if(!r.ok) throw new Error('http '+r.status);
+    const text = await r.text(), m = /name="app-version" content="(\d{12})"/.exec(text);
+    try{ localStorage.setItem('mm_ver_chk', String(Date.now())); }catch(_){}
+    if(!m) throw new Error('no version');
+    const remote = m[1];
+    if(remote>APP_VER){
+      let skip = ''; try{ skip = localStorage.getItem('mm_ver_skip')||''; }catch(_){}
+      if(manual || skip!==remote) verBar(remote, text);
+      return 'new';
+    }
+    if(manual) toast('최신 버전이에요 · '+verFmt(APP_VER));
+    return 'ok';
+  }catch(e){ if(manual) toast('확인하지 못했어요 · 인터넷 연결을 확인해 주세요'); }
+}
+function verInit(){
+  if(/[?&]u=/.test(location.search)){ try{ history.replaceState(null, '', location.pathname); }catch(_){} }
+  setTimeout(verCheck, 3000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible') verCheck(); });
+}
+
 function openSettings(){
   openSheet('설정', b => {
     b.append(h('div',{class:'lbl'},'화면 모드'));
@@ -2749,6 +2810,7 @@ function openSettings(){
     b.append(toggleRow('편집 잠금 (실수로 고치지 않게 · 위쪽 자물쇠로도 전환)', !!S().lock, v => { S().lock = v; saveSoon(); updateLockUI(); render(); }));
     b.append(h('p',{class:'note',style:'margin:10px 2px 0;line-height:1.5'},'알림은 앱(브라우저)이 열려 있을 때만 울려요. 앱을 닫아도 꼭 받아야 하는 일정은 동기화 · 구글 연동에서 구글 캘린더로 올려 주세요.'));
     b.append(h('div',{style:'height:6px'}), h('button',{class:'item',onclick:() => { closeSheet(true); openSyncSheet(); }}, h('span',{class:'ico',style:'--c:#10b981',html:ic('cloud',20)}), h('span',{class:'t'},'동기화 · 구글 연동')));
+    b.append(h('div',{class:'vernote'}, h('span',{}, '버전 '+verFmt(APP_VER)), h('span',{class:'sp'}), h('button',{class:'chipbtn',type:'button',onclick:() => verCheck(true)}, '업데이트 확인')));
   });
 }
 function openHelp(){
@@ -7837,6 +7899,7 @@ prodInit();
 renderCal();
 setTimeout(checkAlarms, 800);
 setTimeout(purgeDoneEvents, 1500);
+verInit();
 setTimeout(backupReminder, 2800);
 setTimeout(autoBackup, 3000);
 refreshSyncUI();
