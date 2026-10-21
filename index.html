@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610212323">
+<meta name="app-version" content="202610212341">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -906,6 +906,11 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 .trow.done .tt b{text-decoration:line-through;opacity:.55}
 .trow .dd{flex:none;font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:999px;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);white-space:nowrap}
 #pageToday .agenda{margin-bottom:5px}
+.tds{cursor:pointer;user-select:none;-webkit-user-select:none;border-radius:10px;padding:4px 4px;margin:12px 0 4px}
+.tds:hover{background:var(--accent-soft)}
+.tds .tdc{display:flex;margin-right:-3px;transition:transform .15s}
+.tds.fold .tdc{transform:rotate(-90deg)}
+.tdhid{display:none!important}
 
 
 /* ===== 기간 일정 막대 ===== */
@@ -970,6 +975,17 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 #verBar .vx{width:28px;height:28px;border-radius:50%;color:#fff;opacity:.7;font-size:13px}
 .vernote{margin:12px 2px 0;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
 .vernote .sp{flex:1}
+
+table.sheet th.rh .rz.rr{position:absolute;left:0;right:0;bottom:0;top:auto;width:auto;height:9px;cursor:row-resize;z-index:9;touch-action:none}
+table.sheet th.rh .rz.rr:hover{background:color-mix(in srgb,var(--accent) 45%,transparent)}
+table.sheet th.corner .rz.rc{position:absolute;right:0;bottom:0;top:auto;left:auto;width:16px;height:16px;cursor:nwse-resize;z-index:9;touch-action:none}
+table.sheet th.corner .rz.rc::after{content:'';position:absolute;right:2px;bottom:2px;border:4px solid transparent;border-right-color:var(--sub);border-bottom-color:var(--sub);opacity:.7}
+table.sheet th.corner .rz.rc:hover{background:color-mix(in srgb,var(--accent) 35%,transparent)}
+@media (pointer:coarse){
+  table.sheet th.ch .rz{width:24px;right:-10px}
+  table.sheet th.rh .rz.rr{height:18px}
+  table.sheet th.corner .rz.rc{width:26px;height:26px}
+}
 
 </style>
 </head>
@@ -1283,6 +1299,7 @@ function normalizeMap(raw, keepId){
         const C = Math.max(1, ...rows.map(x => x.length));
         const t = { cells:rows.map(x => { while(x.length<C) x.push(''); return x; }) };
         if(Array.isArray(r.table.colW)) t.colW = r.table.colW.slice(0,MAXC).map(v => clamp(+v||84, 28, 600));
+        if(Array.isArray(r.table.rowHt)) t.rowHt = r.table.rowHt.slice(0,MAXR).map(v => clamp(+v||0, 0, 800));
         if(r.table.fmt && typeof r.table.fmt==='object'){ t.fmt = {}; Object.keys(r.table.fmt).slice(0,20000).forEach(k => { if(/^\d+,\d+$/.test(k)){ const o = cleanCellFmt(r.table.fmt[k]); if(o) t.fmt[k] = o; } }); }
         { const mg = cleanMerges(r.table.mg, t.cells.length, C); if(mg) t.mg = mg; }
         if(r.table.frz && typeof r.table.frz==='object') t.frz = { r:clamp((r.table.frz.r|0),0,1), c:clamp((r.table.frz.c|0),0,1) };
@@ -2746,7 +2763,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610212323';
+const APP_VER = '202610212341';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5728,6 +5745,11 @@ function bodyTable(body, n){
   };
   const rowH = () => Math.round(SB.rowH*z), hdrH = () => Math.round(SB.hdrH*z), rhW = () => Math.round(SB.rhW*z);
   const cwOf = c => { const t = T(); return Math.round(((t.colW && t.colW[c]) || SB.colW) * z); };
+  const rhOf = r => { const t = T(); return Math.round(((t && t.rowHt && t.rowHt[r]) || SB.rowH) * z); };
+  const hasRH = () => { const t = T(); return !!(t && t.rowHt && t.rowHt.some(v => v)); };
+  const rowTop = r => { let y = hdrH(); if(!hasRH()) return y + r*rowH(); for(let i=0;i<r;i++) y += rhOf(i); return y; };
+  const rowAtY = y => { y -= hdrH(); if(!hasRH()) return Math.floor(y/rowH()); let a = 0; for(let r=0;r<=MAXR;r++){ const hh = rhOf(r); if(a+hh>y) return r; a += hh; } return MAXR; };
+  const spH = (a, b) => { if(b<=a) return 0; if(!hasRH()) return (b-a)*rowH(); let s = 0; for(let i=a;i<b;i++) s += rhOf(i); return s; };
   const getCalc = () => calcObj || (calcObj = tableCalc(T().cells));
   const fmtOf = (r,c) => { const t = T(); return (t.fmt && t.fmt[r+','+c]) || null; };
   const rawAt = (r,c) => { const t = T(); return (t.cells[r] && t.cells[r][c]!=null) ? String(t.cells[r][c]) : ''; };
@@ -5777,7 +5799,7 @@ function bodyTable(body, n){
     for(let c=0;c<C;c++){ const w = cwOf(c); cgh += '<col style="width:'+w+'px">'; tw += w; }
     cg.innerHTML = cgh; tbl.style.width = tw+'px';
     const b = box(), wholeCols = (b.r1===0 && b.r2===R-1), wholeRows = (b.c1===0 && b.c2===C-1);
-    let hh = '<tr style="height:'+HH+'px"><th class="corner" data-all="1" style="height:'+HH+'px"></th>';
+    let hh = '<tr style="height:'+HH+'px"><th class="corner" data-all="1" style="height:'+HH+'px"><span class="rz rc" title="눌러서 모든 열·행 크기 자동 맞춤"></span></th>';
     for(let c=0;c<C;c++){
       const on = c>=b.c1 && c<=b.c2;
       hh += '<th class="ch'+(on?' on':'')+((frz.c&&c===0)?' fc':'')+'" data-hc="'+c+'" style="height:'+HH+'px'+((frz.c&&c===0)?';left:'+RW+'px':'')+'">'+colName(c)+'<span class="rz" data-c="'+c+'"></span></th>';
@@ -5786,7 +5808,7 @@ function bodyTable(body, n){
     // 보이는 줄 범위
     const { vh } = scrollInfo();
     const top = grid.scrollTop;
-    let first = Math.floor((top - HH)/RH) - 6, last = Math.ceil((top + vh - HH)/RH) + 6;
+    let first = rowAtY(top) - 6, last = rowAtY(top + vh) + 6;
     first = clamp(first, 0, R-1); last = clamp(last, 0, R-1);
     const mgs = t.mg || [], mAnc = new Map(), mCov = new Set();
     mgs.forEach(g => { mAnc.set(g.r*64+g.c, g); for(let rr=g.r; rr<g.r+g.rs; rr++) for(let cc=g.c; cc<g.c+g.cs; cc++) if(rr!==g.r || cc!==g.c) mCov.add(rr*64+cc); });
@@ -5794,8 +5816,8 @@ function bodyTable(body, n){
     const calc = getCalc(), refs = refMap();
     let out = '';
     const rowHtml = (r) => {
-      const rowOn = r>=b.r1 && r<=b.r2;
-      let s = '<tr style="height:'+RH+'px"><th class="rh'+(rowOn?' on':'')+((frz.r&&r===0)?' fr':'')+'" data-hr="'+r+'" style="height:'+RH+'px'+((frz.r&&r===0)?';top:'+HH+'px':'')+'">'+(r+1)+'</th>';
+      const rowOn = r>=b.r1 && r<=b.r2, RHr = rhOf(r);
+      let s = '<tr style="height:'+RHr+'px"><th class="rh'+(rowOn?' on':'')+((frz.r&&r===0)?' fr':'')+'" data-hr="'+r+'" style="height:'+RHr+'px'+((frz.r&&r===0)?';top:'+HH+'px':'')+'">'+(r+1)+'<span class="rz rr" data-r="'+r+'"></span></th>';
       for(let c=0;c<C;c++){
         if(mCov.has(r*64+c)) continue;
         const g = mAnc.get(r*64+c), rE = g ? r+g.rs-1 : r, cE = g ? c+g.cs-1 : c;
@@ -5809,7 +5831,7 @@ function bodyTable(body, n){
         if(d.err) cls += ' err';
         if(frz.r && r===0) cls += ' fr'; if(frz.c && c===0) cls += ' fc';
         const al = (f && f.al) || ((typeof d.v==='number' && !d.err) ? 'r' : 'l');
-        let sty = 'text-align:'+(al==='r'?'right':al==='c'?'center':'left')+';height:'+RH+'px';
+        let sty = 'text-align:'+(al==='r'?'right':al==='c'?'center':'left')+';height:'+RHr+'px';
         if(f){
           if(f.b) sty += ';font-weight:800';
           if(f.i) sty += ';font-style:italic';
@@ -5830,12 +5852,12 @@ function bodyTable(body, n){
       }
       return s+'</tr>';
     };
-    const sp = (n) => n>0 ? '<tr class="sp"><td colspan="'+(C+1)+'" style="height:'+(n*RH)+'px"></td></tr>' : '';
+    const sp = (a, b) => b>a ? '<tr class="sp"><td colspan="'+(C+1)+'" style="height:'+spH(a, b)+'px"></td></tr>' : '';
     let start = first;
-    if(frz.r && first>0){ out += rowHtml(0); out += sp(first-1); start = first; if(start<1) start = 1; }
-    else out += sp(first);
+    if(frz.r && first>0){ out += rowHtml(0); out += sp(1, first); start = first; if(start<1) start = 1; }
+    else out += sp(0, first);
     for(let r=start;r<=last;r++) out += rowHtml(r);
-    out += sp(R-1-last);
+    out += sp(last+1, R);
     tbody.innerHTML = out;
     tbl.style.fontSize = Math.max(5, Math.round(SB.fs*z))+'px'; tbl.style.setProperty('--thfs', Math.max(4, Math.min(11.5, 11.5*z)).toFixed(1)+'px');
     placeOverlays();
@@ -5843,10 +5865,60 @@ function bodyTable(body, n){
   let rafDraw = 0;
   const drawSoon = () => { if(rafDraw) return; rafDraw = requestAnimationFrame(() => { rafDraw = 0; draw(); }); };
 
+  /* ---- 자동 맞춤: 글이 가리지 않게 열은 가장 긴 글, 행은 줄바꿈·큰 글자에 맞춰 키운다 ---- */
+  function fitAuto(cols, rows){
+    const t = T(), { R, C } = dim(), calc = getCalc();
+    const mgs = t.mg || [], cov = new Set(), anc = new Map();
+    mgs.forEach(g => { anc.set(g.r*64+g.c, g); for(let rr=g.r; rr<g.r+g.rs; rr++) for(let cc=g.c; cc<g.c+g.cs; cc++) if(rr!==g.r || cc!==g.c) cov.add(rr*64+cc); });
+    const cw = {}, rh = {}, baseW = c => (cw[c]!=null && cw[c]>0) ? cw[c] : ((t.colW && t.colW[c]) || SB.colW);
+    cols.forEach(c => {
+      let mx = 0;
+      for(let r=0;r<R;r++){
+        const key = r*64+c; if(cov.has(key)) continue;
+        const g = anc.get(key); if(g && g.cs>1) continue;
+        const f = fmtOf(r,c); if(f && f.wr) continue;
+        const s = fmtDisplay(calc(r,c), f); if(!s) continue;
+        const fs = (f && f.fs) || SB.fs, bd = !!(f && f.b);
+        const rf = Math.max(5, Math.round(fs*z));   // 화면에 실제로 그려지는 글자 크기로 재서 확대·축소에서도 안 잘리게
+        String(s).split('\n').forEach(line => { mx = Math.max(mx, (textW(line, rf, bd)+16)/z + 2); });
+      }
+      cw[c] = mx ? Math.round(clamp(mx, 40, 520)) : 0;
+    });
+    rows.forEach(r => {
+      let need = SB.rowH;
+      for(let c=0;c<C;c++){
+        const key = r*64+c; if(cov.has(key)) continue;
+        const g = anc.get(key); if(g && g.rs>1) continue;
+        const f = fmtOf(r,c), fs = (f && f.fs) || SB.fs;
+        let n = Math.ceil(fs*1.25)+10;
+        if(f && f.wr){
+          const s = fmtDisplay(calc(r,c), f);
+          if(s){ let w = 0; for(let i=0;i<(g ? g.cs : 1);i++) w += baseW(c+i); const rf = Math.max(5, Math.round(fs*z)); n = Math.ceil((wrapText(String(s), rf, !!(f && f.b), Math.max(20, w*z-14)).length*rf*1.25)/z)+10; }
+        }
+        need = Math.max(need, n);
+      }
+      rh[r] = need>SB.rowH ? Math.min(800, need) : 0;
+    });
+    mutate(m => {
+      const tt = m.nodes[nid].table;
+      if(cols.length){ tt.colW = tt.colW || []; cols.forEach(c => { tt.colW[c] = cw[c]; }); }
+      if(rows.length){ tt.rowHt = tt.rowHt || []; rows.forEach(r => { tt.rowHt[r] = rh[r]; }); }
+    }, { noUndo:true });
+    draw();
+  }
+  const rng = (a, b) => { const o = []; for(let i=a;i<=b;i++) o.push(i); return o; };
+  function fitFromHandle(d){
+    const { R, C } = dim(), b = box();
+    const wholeCols = b.r1===0 && b.r2===R-1, wholeRows = b.c1===0 && b.c2===C-1;
+    if(d.axis==='all'){ fitAuto(rng(0, C-1), rng(0, R-1)); return; }
+    if(d.axis==='c'){ fitAuto((wholeCols && d.c>=b.c1 && d.c<=b.c2) ? rng(b.c1, b.c2) : [d.c], (wholeCols && wholeRows) ? rng(0, R-1) : []); return; }
+    fitAuto((wholeCols && wholeRows) ? rng(0, C-1) : [], (wholeRows && d.r>=b.r1 && d.r<=b.r2) ? rng(b.r1, b.r2) : [d.r]);
+  }
+
   function tdAt(r,c){ return tbody.querySelector('td[data-r="'+r+'"][data-c="'+c+'"]'); }
   function colLeft(c){ let x = rhW(); for(let i=0;i<c;i++) x += cwOf(i); return x; }
   function rect(r,c){ // 표 안 좌표 (스크롤 포함)
-    return { x:colLeft(c), y:hdrH() + r*rowH(), w:cwOf(c), h:rowH() };
+    return { x:colLeft(c), y:rowTop(r), w:cwOf(c), h:rhOf(r) };
   }
   function placeOverlays(){
     const b = box();
@@ -5857,7 +5929,7 @@ function bodyTable(body, n){
     fh.style.left = (rr.x + rr.w - 5)+'px'; fh.style.top = (rr.y + rr.h - 5)+'px';
     // 입력창 위치
     const a = rect(st.ar, st.ac);
-    { const gm = mergeOf(st.ar, st.ac); if(gm){ a.w = 0; for(let i=0;i<gm.cs;i++) a.w += cwOf(gm.c+i); a.h = rowH()*gm.rs; } }
+    { const gm = mergeOf(st.ar, st.ac); if(gm){ a.w = 0; for(let i=0;i<gm.cs;i++) a.w += cwOf(gm.c+i); a.h = spH(st.ar, st.ar+gm.rs); } }
     cin.style.left = a.x+'px'; cin.style.top = a.y+'px';
     if(ed && ed.via==='cin'){
       const { vw } = scrollInfo();
@@ -5869,8 +5941,8 @@ function bodyTable(body, n){
   function scrollTo(r,c){
     const t = T(); const frz = (t && t.frz) || {};
     const { vh, vw } = scrollInfo(), a = rect(r,c);
-    const topB = grid.scrollTop + hdrH() + (frz.r && r>0 ? rowH() : 0), botB = grid.scrollTop + vh - 4;
-    if(a.y < topB) grid.scrollTop = Math.max(0, a.y - hdrH() - (frz.r && r>0 ? rowH() : 0));
+    const topB = grid.scrollTop + hdrH() + (frz.r && r>0 ? rhOf(0) : 0), botB = grid.scrollTop + vh - 4;
+    if(a.y < topB) grid.scrollTop = Math.max(0, a.y - hdrH() - (frz.r && r>0 ? rhOf(0) : 0));
     else if(a.y + a.h > botB) grid.scrollTop = a.y + a.h - vh + 4;
     const leftB = grid.scrollLeft + rhW() + (frz.c && c>0 ? cwOf(0) : 0), rightB = grid.scrollLeft + vw - 4;
     if(a.x < leftB) grid.scrollLeft = Math.max(0, a.x - rhW() - (frz.c && c>0 ? cwOf(0) : 0));
@@ -6195,13 +6267,13 @@ function bodyTable(body, n){
   function insRows(at, count){
     const { R, C } = dim(); if(R+count>MAXR){ toast('최대 '+MAXR+'행까지예요'); return; }
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table; for(let i=0;i<count;i++) t.cells.splice(at,0,Array(C).fill('')); remapAll(t,'r','ins',at,count); });
+    mutate(m => { const t = m.nodes[nid].table; for(let i=0;i<count;i++) t.cells.splice(at,0,Array(C).fill('')); if(t.rowHt) t.rowHt.splice(at,0,...Array(count).fill(0)); remapAll(t,'r','ins',at,count); });
     selOne(at, st.ac); 
   }
   function delRows(at, count){
     const { R } = dim(); if(count>=R){ toast('행을 모두 지울 수는 없어요'); return; }
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table; t.cells.splice(at,count); remapAll(t,'r','del',at,count); });
+    mutate(m => { const t = m.nodes[nid].table; t.cells.splice(at,count); if(t.rowHt) t.rowHt.splice(at,count); remapAll(t,'r','del',at,count); });
     selOne(Math.min(at, dim().R-1), st.ac);
   }
   function insCols(at, count){
@@ -6283,7 +6355,10 @@ function bodyTable(body, n){
     const rz = e.target.closest && e.target.closest('.rz');
     if(rz){
       e.preventDefault(); if(ed) commitEdit();
-      const c = +rz.dataset.c; drag = { kind:'resize', c, x0:e.clientX, w0:cwOf(c)/z }; try{ grid.setPointerCapture(e.pointerId); }catch(_){} return;
+      if(rz.classList.contains('rc')) drag = { kind:'resize', axis:'all', x0:e.clientX, y0:e.clientY };
+      else if(rz.dataset.r!=null){ const r = +rz.dataset.r; drag = { kind:'resize', axis:'r', r, x0:e.clientX, y0:e.clientY, h0:rhOf(r)/z }; }
+      else{ const c = +rz.dataset.c; drag = { kind:'resize', axis:'c', c, x0:e.clientX, y0:e.clientY, w0:cwOf(c)/z }; }
+      try{ grid.setPointerCapture(e.pointerId); }catch(_){} return;
     }
     const td = e.target.closest && e.target.closest('td[data-r]');
     const thc = e.target.closest && e.target.closest('th[data-hc]'), thr = e.target.closest && e.target.closest('th[data-hr]'), all = e.target.closest && e.target.closest('th[data-all]');
@@ -6318,7 +6393,11 @@ function bodyTable(body, n){
     if(!drag) return;
     if(drag.kind==='tap'){ if(Math.hypot(e.clientX-drag.x, e.clientY-drag.y) > 10) drag = null; return; }
     if(drag.kind==='resize'){
-      const w = clamp(drag.w0 + (e.clientX-drag.x0)/z, 36, 520); const t = T(); t.colW = t.colW || []; t.colW[drag.c] = Math.round(w); drawSoon(); return;
+      if(Math.hypot(e.clientX-drag.x0, e.clientY-drag.y0) > 4) drag.moved = true;
+      if(!drag.moved || drag.axis==='all') return;
+      const t = T();
+      if(drag.axis==='r'){ t.rowHt = t.rowHt || []; t.rowHt[drag.r] = Math.round(clamp(drag.h0 + (e.clientY-drag.y0)/z, 20, 800)); drawSoon(); return; }
+      const w = clamp(drag.w0 + (e.clientX-drag.x0)/z, 36, 520); t.colW = t.colW || []; t.colW[drag.c] = Math.round(w); drawSoon(); return;
     }
     autoScroll(e);
     const hp = hit(e); if(!hp) return;
@@ -6342,7 +6421,10 @@ function bodyTable(body, n){
       return;
     }
     if(d.kind==='resize'){
-      const t = T(); const w = t.colW && t.colW[d.c]; if(w){ mutate(m => { const tt = m.nodes[nid].table; tt.colW = tt.colW || []; tt.colW[d.c] = w; }, { noUndo:true }); }
+      if(!d.moved){ fitFromHandle(d); return; }
+      const t = T();
+      if(d.axis==='r'){ const hv = t.rowHt && t.rowHt[d.r]; if(hv){ mutate(m => { const tt = m.nodes[nid].table; tt.rowHt = tt.rowHt || []; tt.rowHt[d.r] = hv; }, { noUndo:true }); } }
+      else{ const w = t.colW && t.colW[d.c]; if(w){ mutate(m => { const tt = m.nodes[nid].table; tt.colW = tt.colW || []; tt.colW[d.c] = w; }, { noUndo:true }); } }
       draw(); return;
     }
     if(d.kind==='fill' && d.dst){ fillBox(d.src, d.dst); }
@@ -6352,7 +6434,8 @@ function bodyTable(body, n){
   grid.addEventListener('pointercancel', () => { drag = null; });
   grid.addEventListener('dblclick', e => {
     const rz = e.target.closest && e.target.closest('.rz');
-    if(rz){ // 열 너비 자동 맞춤
+    if(rz) return;   // 경계 한 번 누르기로 이미 처리
+    if(false){
       const c = +rz.dataset.c, calc = getCalc(), { R } = dim(); let mx = 40;
       for(let r=0;r<Math.min(R,300);r++){ const s = fmtDisplay(calc(r,c), fmtOf(r,c)); if(s) mx = Math.max(mx, textW(s, SB.fs, false)+18); }
       const t = T(); mutate(m => { const tt = m.nodes[nid].table; tt.colW = tt.colW || []; tt.colW[c] = Math.round(clamp(mx, 40, 520)); }, { noUndo:true }); draw(); return;
@@ -7750,6 +7833,8 @@ function toggleDone(mid, id){
 
 /* ---------- 오늘 화면 ---------- */
 const tdMore = new Set();
+const tdFold = (() => { try{ return new Set(JSON.parse(localStorage.getItem('mm_td_fold')||'[]')); }catch(_){ return new Set(); } })();
+const tdFoldSave = () => { try{ localStorage.setItem('mm_td_fold', JSON.stringify([...tdFold])); }catch(_){} };
 function pathOf(m, n, max){
   const names = []; let p = n.parent && m.nodes[n.parent], g = 0;
   while(p && g<max){ names.unshift(p.text || '…'); p = p.parent && m.nodes[p.parent]; g++; }
@@ -7801,19 +7886,21 @@ function renderToday(){
       (pr && pr.t) ? h('span',{ class:'dd', style:'--c:'+(pr.d===pr.t?'#10b981':'#f97316'), title:'하위 할 일' }, pr.d+'/'+pr.t) : null,
       di ? h('span',{ class:'dd', style:'--c:'+di.color }, di.label) : null);
   };
-  const head = (title, cnt, cls, act) => h('div',{ class:'tds'+(cls?' '+cls:'') }, h('span',{}, title), h('em',{ class:'cnt' }, String(cnt)), h('span',{ class:'sp' }), act || null);
+  const head = (title, cnt, cls, act, key) => h('div',{ class:'tds'+(cls?' '+cls:'')+(tdFold.has(key)?' fold':''), 'data-k':key, role:'button', tabindex:'0', title:tdFold.has(key) ? '펼치기' : '접기',
+    onclick:e => { if(e.target.closest && e.target.closest('.tdlink')) return; if(tdFold.has(key)) tdFold.delete(key); else tdFold.add(key); tdFoldSave(); renderToday(); } },
+    h('span',{ class:'tdc', html:ic('chev',15) }), h('span',{}, title), h('em',{ class:'cnt' }, String(cnt)), h('span',{ class:'sp' }), act || null);
   const more = (key, total, lim) => total>lim ? h('button',{ class:'tdmore', type:'button', onclick:() => { if(tdMore.has(key)) tdMore.delete(key); else tdMore.add(key); renderToday(); } }, tdMore.has(key) ? '접기' : '+'+(total-lim)+'개 더 보기') : null;
   const list = (key, title, items, build, cls, lim, act) => {
     if(!items.length) return;
     lim = lim || 6;
-    body.append(head(title, items.length, cls, act));
+    body.append(head(title, items.length, cls, act, key));
     (tdMore.has(key) ? items : items.slice(0, lim)).forEach(x => body.append(build(x)));
     const mb = more(key, items.length, lim); if(mb) body.append(mb);
   };
 
   list('over', '기한 지남', overdue, x => taskRow(x), 'red');
 
-  body.append(head('오늘', evsT.length + dueToday.length, ''));
+  body.append(head('오늘', evsT.length + dueToday.length, '', null, 'today'));
   if(evsT.length){ const ag = h('div',{ class:'agenda' }); evsT.forEach(ev => ag.append(evRow(ev, t, {}))); body.append(ag); }
   dueToday.forEach(x => body.append(taskRow(x)));
   if(!evsT.length && !dueToday.length) body.append(h('p',{ class:'note tdnone' }, '오늘 일정과 기한이 없어요.'));
@@ -7821,7 +7908,7 @@ function renderToday(){
   if(ib || inbox.length) list('inb', '받은편지함', inbox, x => taskRow(x, { nock:false }), '', 5, h('button',{ class:'tdlink', type:'button', onclick:() => goNode(ib.mid, ib.id) }, '맵에서 정리'));
 
   if(evsM.length || soon.length){
-    body.append(head('곧', evsM.length + soon.length, ''));
+    body.append(head('곧', evsM.length + soon.length, '', null, 'soon'));
     if(evsM.length){ const ag = h('div',{ class:'agenda' }); evsM.forEach(ev => ag.append(evRow(ev, tm, { showDate:true }))); body.append(ag); }
     (tdMore.has('soon') ? soon : soon.slice(0,6)).forEach(x => body.append(taskRow(x)));
     const mb = more('soon', soon.length, 6); if(mb) body.append(mb);
@@ -7832,6 +7919,10 @@ function renderToday(){
 
   if(!tasks.length && !inbox.length && !evsT.length && !evsM.length && !recent.length){
     body.append(h('p',{ class:'note tdnone', style:'margin-top:22px' }, '아직 비어 있어요. 위 입력칸에 떠오른 걸 적으면 받은편지함에 모이고, 노드에 기한을 정하면 여기에 나와요.'));
+  }
+  { // 접은 구역은 머리글만 남기고 숨긴다
+    let hid = false;
+    [...body.children].forEach(el => { if(el.classList.contains('tds')){ hid = tdFold.has(el.dataset.k); } else if(hid) el.classList.add('tdhid'); });
   }
   body.scrollTop = keep;
 }
