@@ -908,7 +908,7 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 
 
 /* ===== 기간 일정 막대 ===== */
-.cgrid.wk{--bh:14px;--bs:16px}
+.cgrid.wk{--bh:16px;--bs:18px}
 .cspc{align-self:stretch;flex:none;height:calc(14px + var(--bs)*var(--n))}
 .cspc .hn{display:block}
 .cbar{align-self:start;height:var(--bh);margin:0 3px;background:var(--c);color:var(--tc,#fff);font-size:10px;font-weight:700;line-height:var(--bh);padding:0 6px;border-radius:7px;overflow:hidden;white-space:nowrap;cursor:pointer;z-index:2;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -932,6 +932,13 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 .cday .cmore{align-self:flex-start;font-size:10px;font-weight:800;color:var(--sub);padding-left:3px;line-height:1.2}
 .cbar.gray{box-shadow:none}
 .cbar.gray span{text-decoration:line-through;opacity:.92}
+.cbar{position:relative}
+.cbar .rz{position:absolute;top:0;bottom:0;width:11px;cursor:ew-resize;touch-action:none;z-index:3}
+.cbar .rz.s{left:0}.cbar .rz.e{right:0}
+.cbar .rz::before{content:'';position:absolute;top:4px;bottom:4px;width:2px;border-radius:2px;background:rgba(255,255,255,.8)}
+.cbar .rz.s::before{left:3px}.cbar .rz.e::before{right:3px}
+.dragshield{position:fixed;inset:0;z-index:9998;touch-action:none;cursor:ew-resize}
+.dragtip{position:fixed;z-index:9999;pointer-events:none;background:rgba(12,18,34,.92);color:#fff;font-size:12px;font-weight:700;padding:6px 10px;border-radius:10px;white-space:nowrap}
 
 
 /* ===== 일정 완료 체크 ===== */
@@ -4665,6 +4672,62 @@ function isoWeek(ds){
   return Math.ceil(((t - Date.UTC(t.getUTCFullYear(),0,1))/86400000 + 1)/7);
 }
 
+/* ===================== 일정 막대 끌어서 늘이기 · 줄이기 ===================== */
+// 막대의 앞(시작)·뒤(끝) 가장자리를 끌면 시작일·종료일이 바뀐다. 반복 일정은 제외.
+const shortMD = d => { const p = d.split('-'); return (+p[1])+'/'+(+p[2]); };
+function dayFromPoint(x, y, ctx){
+  if(ctx.kind==='week'){
+    const st = document.querySelector('.wkspan'); if(!st) return null;
+    const r = st.getBoundingClientRect(), cs = getComputedStyle(st);
+    const l = r.left + (parseFloat(cs.paddingLeft)||0), w = r.width - (parseFloat(cs.paddingLeft)||0) - (parseFloat(cs.paddingRight)||0);
+    return addDays(ctx.ws, Math.max(0, Math.min(6, Math.floor((x - l) / (w/7)))));
+  }
+  const els = document.elementsFromPoint(x, y);
+  for(const el of els){ if(el.dataset && el.dataset.ds) return el.dataset.ds; }
+  return null;
+}
+function startResize(e, ev, edge, ctx, ds0){
+  if(e.button!=null && e.button!==0) return;
+  e.preventDefault(); e.stopPropagation();
+  if(S().lock){ lockedMsg(); return; }
+  const orig = { date:ev.date, endDate:ev.endDate||'' };
+  const shield = h('div',{ class:'dragshield' }), tip = h('div',{ class:'dragtip' });
+  document.body.append(shield, tip);
+  try{ shield.setPointerCapture(e.pointerId); }catch(_){}
+  let moved = false, finished = false;
+  const apply = ds => {
+    const start = orig.date, end = orig.endDate || orig.date;
+    let ns = start, ne = end;
+    if(edge==='s') ns = ds>end ? end : ds; else ne = ds<start ? start : ds;
+    ev.date = ns; ev.endDate = ne>ns ? ne : '';
+  };
+  const label = () => { const en = ev.endDate || ev.date; return shortMD(ev.date)+(en!==ev.date ? ' ~ '+shortMD(en)+' · '+(dayDiff(ev.date, en)+1)+'일' : ''); };
+  const revert = () => { ev.date = orig.date; ev.endDate = orig.endDate; };
+  shield.addEventListener('pointermove', m => {
+    tip.style.left = Math.min(window.innerWidth-150, m.clientX+14)+'px'; tip.style.top = Math.max(6, m.clientY-44)+'px';
+    const ds = dayFromPoint(m.clientX, m.clientY, ctx); if(!ds) return;
+    const before = ev.date+'|'+ev.endDate; apply(ds);
+    if(ev.date+'|'+ev.endDate !== before){ moved = true; renderCal(); }
+    tip.textContent = label();
+  });
+  const finish = commit => {
+    if(finished) return; finished = true;
+    tip.remove(); setTimeout(() => shield.remove(), 60);
+    if(!moved){ revert(); if(commit) openEventEditor(ev.id,{ ds:ds0 }); return; }
+    if(!commit){ revert(); renderCal(); return; }
+    const after = { date:ev.date, endDate:ev.endDate };
+    if(after.date===orig.date && after.endDate===orig.endDate){ renderCal(); return; }
+    if(ev.link) pushEventToMap(ev);
+    saveSoon(); renderCal();
+    toast('일정을 '+label()+'로 바꿨어요', { label:'취소', fn:() => { revert(); if(ev.link) pushEventToMap(ev); saveSoon(); renderCal(); } });
+  };
+  shield.addEventListener('pointerup', () => finish(true));
+  shield.addEventListener('pointercancel', () => finish(false));
+}
+function rzHandle(edge, ev, ctx, ds0){
+  return h('i',{ class:'rz '+edge, 'aria-hidden':'true', onpointerdown:e => startResize(e, ev, edge, ctx, ds0), onclick:e => e.stopPropagation() });
+}
+
 /* ===================== 기간 일정 막대 (월 · 주) ===================== */
 const isSpan = ev => !!(ev.endDate && ev.endDate > ev.date && (!ev.repeat || ev.repeat==='none'));
 // 막대 조각들에 줄(lane)을 배정한다. maxLanes 를 넘는 것은 빼고 날짜별 개수(more)로 센다.
@@ -4714,12 +4777,16 @@ function doneBars(ws, maxLanes){
   items.sort((a, b) => a.lo.localeCompare(b.lo) || (b.c2-b.c1)-(a.c2-a.c1) || (a.ev.title||'').localeCompare(b.ev.title||''));
   return packBars(items, maxLanes);
 }
-function barEl(b, ds0, pos){
+function barEl(b, ds0, pos, ctx){
   const ev = b.ev, gray = !!b.gray, tc = gray ? '#fff' : (ev.color==='#eab308' ? '#422006' : '#fff');
   const tip = (ev.title||'(제목 없음)')+' · '+(gray ? '시작 '+b.s+' → 완료 '+b.d : evDateText(ev));
+  const kids = [h('span',{}, ev.title||'(제목 없음)')];
+  if(ctx && !gray && !isRep(ev)){
+    if(!b.l) kids.unshift(rzHandle('s', ev, ctx, ds0));
+    if(!b.r) kids.push(rzHandle('e', ev, ctx, ds0));
+  }
   return h('div',{ class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : ''), role:'button', tabindex:'0', title:tip,
-    style:'--c:'+(gray ? '#7c8696' : ev.color)+';--tc:'+tc+';'+pos, onclick:e => { e.stopPropagation(); openEventEditor(ev.id,{ ds:ds0 }); } },
-    h('span',{}, ev.title||'(제목 없음)'));
+    style:'--c:'+(gray ? '#7c8696' : ev.color)+';--tc:'+tc+';'+pos, onclick:e => { e.stopPropagation(); openEventEditor(ev.id,{ ds:ds0 }); } }, kids);
 }
 // 월 달력: done 이면 완료한 일정만, 시점→완료일을 회색 화살표 선으로 보여준다
 function monthGrid(body, done){
@@ -4735,7 +4802,7 @@ function monthGrid(body, done){
     grid.append(h('div',{class:'cwn', style:'grid-row:'+(w+2)+';grid-column:1', title:isoWeek(addDays(ws,4))+'주'}, isoWeek(addDays(ws,4))));
     for(let wd=0; wd<7; wd++){
       const ds = addDays(ws, wd), dd = parseYmd(ds), hol = krHoliday(ds);
-      const cell = h('div',{ class:'cday'+(dd.getMonth()!==mo?' oth':'')+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
+      const cell = h('div',{ 'data-ds':ds, class:'cday'+(dd.getMonth()!==mo?' oth':'')+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
         onclick:() => { if(!done){ cal.sel = ds; renderCal(); } }, ondblclick:() => { if(!done) openEventEditor(null,{ ds }); } },
         h('span',{class:'dn'+(wd===0||hol?' sun':wd===6?' sat':'')}, dd.getDate()));
       const hn = hol ? h('span',{class:'hn'}, hol) : null;
@@ -4743,7 +4810,7 @@ function monthGrid(body, done){
       if(sp.more[wd]) cell.append(h('span',{class:'cmore'}, '+'+sp.more[wd]));
       grid.append(cell);
     }
-    sp.bars.forEach(b => grid.append(barEl(b, b.ds || addDays(ws, b.c1), 'grid-row:'+(w+2)+';grid-column:'+(b.c1+2)+'/'+(b.c2+3)+';margin-top:calc(47px + var(--bs)*'+b.lane+')')));
+    sp.bars.forEach(b => grid.append(barEl(b, b.ds || addDays(ws, b.c1), 'grid-row:'+(w+2)+';grid-column:'+(b.c1+2)+'/'+(b.c2+3)+';margin-top:calc(47px + var(--bs)*'+b.lane+')', done ? null : { kind:'month' })));
   }
   body.append(h('div',{class:'cm'}, grid, done ? doneList(first, ymd(new Date(y,mo,daysIn(y,mo+1)))) : calAgenda(cal.sel)));
 }
@@ -4768,7 +4835,7 @@ function calWeek(body){
       strip.append(h('button',{ class:'wsh'+(i===0||krHoliday(ds)?' sun':i===6?' sat':'')+(ds===today?' today':''), style:'grid-row:1;grid-column:'+(i+1), type:'button',
         onclick:() => { cal.date = ds; cal.sel = ds; cal.view = 'day'; renderCal(); } }, DOW[i]+' '+parseYmd(ds).getDate()));
     }
-    sp.bars.forEach(b => strip.append(barEl(b, addDays(s, b.c1), 'grid-row:'+(b.lane+2)+';grid-column:'+(b.c1+1)+'/'+(b.c2+2))));
+    sp.bars.forEach(b => strip.append(barEl(b, addDays(s, b.c1), 'grid-row:'+(b.lane+2)+';grid-column:'+(b.c1+1)+'/'+(b.c2+2), { kind:'week', ws:s })));
     all.append(strip);
   }
   for(let i=0;i<7;i++){
