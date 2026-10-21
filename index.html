@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610212341">
+<meta name="app-version" content="202610220011">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -945,6 +945,7 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 .cbar .rz.s::before{left:3px}.cbar .rz.e::before{right:3px}
 .dragshield{position:fixed;inset:0;z-index:9998;touch-action:none;cursor:ew-resize}
 .dragtip{position:fixed;z-index:9999;pointer-events:none;background:rgba(12,18,34,.92);color:#fff;font-size:12px;font-weight:700;padding:6px 10px;border-radius:10px;white-space:nowrap}
+.cbar.mv{cursor:grab;touch-action:none}
 
 
 /* ===== 일정 완료 체크 ===== */
@@ -986,6 +987,15 @@ table.sheet th.corner .rz.rc:hover{background:color-mix(in srgb,var(--accent) 35
   table.sheet th.rh .rz.rr{height:18px}
   table.sheet th.corner .rz.rc{width:26px;height:26px}
 }
+
+#exitDlg{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(10,14,28,.45);backdrop-filter:blur(3px)}
+#exitDlg .ecard{width:min(300px,calc(100vw - 48px));background:var(--panel-solid);color:var(--text);border-radius:22px;padding:22px 20px 16px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center}
+#exitDlg b{font-size:17px;font-weight:800}
+#exitDlg p{margin:6px 0 16px;font-size:13px;color:var(--sub)}
+#exitDlg .erow{display:flex;gap:8px}
+#exitDlg .erow button{flex:1;padding:12px 0;border-radius:999px;font-weight:800;font-size:14px}
+#exitDlg .ecan{background:var(--grad,#5b6cff);color:#fff}
+#exitDlg .eok{background:var(--bg);color:var(--text)}
 
 </style>
 </head>
@@ -2763,7 +2773,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610212341';
+const APP_VER = '202610220011';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -2807,6 +2817,40 @@ function verInit(){
   if(/[?&]u=/.test(location.search)){ try{ history.replaceState(null, '', location.pathname); }catch(_){} }
   setTimeout(verCheck, 3000);
   document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible') verCheck(); });
+}
+
+/* ===================== 뒤로가기 실수 방지: 끝낼지 묻기 ===================== */
+let exitOn = false, exitDlg = null;
+function exitGuard(){ try{ history.pushState({ mmGuard:1 }, '', location.href); }catch(_){} }
+function closeExitDlg(){ if(exitDlg){ exitDlg.remove(); exitDlg = null; } }
+function showExitDlg(){
+  if(exitDlg) return;
+  const leave = () => {
+    exitOn = true; closeExitDlg();
+    try{ saveNow(); }catch(_){}
+    try{ window.close(); }catch(_){}
+    setTimeout(() => { try{ history.go(-2); }catch(_){} }, 80);
+    setTimeout(() => { if(document.visibilityState==='visible'){ exitOn = false; toast('홈 버튼을 눌러 나가 주세요'); } }, 900);
+  };
+  exitDlg = h('div',{ id:'exitDlg', role:'alertdialog', 'aria-label':'앱 종료 확인', onclick:e => { if(e.target===exitDlg) closeExitDlg(); } },
+    h('div',{ class:'ecard' },
+      h('b',{}, '앱을 끝낼까요?'),
+      h('p',{}, '작업 내용은 저장돼 있어요.'),
+      h('div',{ class:'erow' },
+        h('button',{ type:'button', class:'ecan', onclick:closeExitDlg }, '계속 쓰기'),
+        h('button',{ type:'button', class:'eok', onclick:leave }, '끝내기'))));
+  document.body.append(exitDlg);
+  setTimeout(() => { const b = exitDlg && exitDlg.querySelector('.ecan'); if(b) b.focus(); }, 30);
+}
+function exitInit(){
+  exitGuard();
+  window.addEventListener('popstate', () => {
+    if(exitOn) return;
+    exitGuard();                                   // 다음 뒤로가기도 다시 가로채기
+    if(exitDlg){ closeExitDlg(); return; }         // 확인창이 떠 있으면 뒤로가기 = 계속 쓰기
+    if(!sheetWrap.classList.contains('hidden')){ closeSheet(); return; }   // 열린 창이 있으면 그것부터 닫기
+    showExitDlg();
+  });
 }
 
 function openSettings(){
@@ -4744,7 +4788,7 @@ function evRow(ev, ds, o){
   const dn = doneOf(ev, ds), dm = dn ? dn.split('-') : null;
   const ck = h('button',{ class:'evck'+(dn?' on':''), type:'button', title:dn ? '완료 취소' : '완료 체크', 'aria-label':dn ? '완료 취소' : '완료 체크', html:dn ? ic('check',13) : '',
     onclick:e => { e.stopPropagation(); setEvDone(ev, ds, !dn); refreshEvViews(); if(!dn) toast('완료했어요 · 달력에서는 숨겨져요', { label:'취소', fn:() => { setEvDone(ev, ds, false); refreshEvViews(); } }); } });
-  return h('div',{ class:'evrow'+(dn?' done':''), role:'button', tabindex:'0', style:'--c:'+ev.color, onclick:() => openEventEditor(ev.id,{ ds }) },
+  return h('div',{ class:'evrow'+(dn?' done':''), role:'button', tabindex:'0', style:'--c:'+ev.color, onclick:(o.dbl===false) ? () => openEventEditor(ev.id,{ ds }) : openEvOnDbl(ev, ds), title:(o.dbl===false) ? null : '두 번 누르면 수정', onkeydown:e => { if(e.key==='Enter' && e.target===e.currentTarget) openEventEditor(ev.id,{ ds }); } },
     ck,
     h('span',{class:'tm'}, o.showDate ? fmtMD(ds)+(ev.allDay?'':' '+ev.time) : timeLabel(ev)),
     h('span',{class:'tt'}, h('b',{}, ev.title||'(제목 없음)'), dn ? h('small',{class:'dnl'}, '✓ 완료 '+(+dm[1])+'/'+(+dm[2])) : null, (o.memo && ev.memo) ? h('small',{}, ev.memo.split('\n')[0]) : null),
@@ -4859,7 +4903,7 @@ function startResize(e, ev, edge, ctx, ds0){
   const finish = commit => {
     if(finished) return; finished = true;
     tip.remove(); setTimeout(() => shield.remove(), 60);
-    if(!moved){ revert(); if(commit) openEventEditor(ev.id,{ ds:ds0 }); return; }
+    if(!moved){ revert(); return; }
     if(!commit){ revert(); renderCal(); return; }
     const after = { date:ev.date, endDate:ev.endDate };
     if(after.date===orig.date && after.endDate===orig.endDate){ renderCal(); return; }
@@ -4873,6 +4917,58 @@ function startResize(e, ev, edge, ctx, ds0){
 function rzHandle(edge, ev, ctx, ds0){
   return h('i',{ class:'rz '+edge, 'aria-hidden':'true', onpointerdown:e => startResize(e, ev, edge, ctx, ds0), onclick:e => e.stopPropagation() });
 }
+
+/* ===================== 더블클릭(더블탭)으로 열기 · 막대 가운데를 끌어 날짜 옮기기 ===================== */
+function onDbl(fn){ let t = 0; return e => { if(e && e.stopPropagation) e.stopPropagation(); const n = performance.now(); if(n-t < 420 && n-(onDbl.drag||0) > 350){ t = 0; fn(e); } else t = n; }; }
+function startMove(e, ev, ctx, ds0){
+  if(e.target.closest && e.target.closest('.rz')) return;
+  if(e.button!=null && e.button!==0) return;
+  const touch = e.pointerType==='touch', x0 = e.clientX, y0 = e.clientY, pid = e.pointerId;
+  const grab = dayFromPoint(x0, y0, ctx); if(!grab) return;
+  const orig = { date:ev.date, endDate:ev.endDate||'' };
+  let active = false, moved = false, done = false, timer = 0, shield = null, tip = null;
+  const label = () => { const en = ev.endDate || ev.date; return shortMD(ev.date)+(en!==ev.date ? ' ~ '+shortMD(en) : ''); };
+  const revert = () => { ev.date = orig.date; ev.endDate = orig.endDate; };
+  const apply = ds => {
+    const d = dayDiff(grab, ds);
+    ev.date = addDays(orig.date, d); ev.endDate = orig.endDate ? addDays(orig.endDate, d) : '';
+  };
+  const cleanup = () => { clearTimeout(timer); document.removeEventListener('pointermove', onMove, true); document.removeEventListener('pointerup', onUp, true); document.removeEventListener('pointercancel', onCancel, true); };
+  const begin = () => {
+    if(S().lock){ lockedMsg(); cleanup(); return; }
+    active = true; tip = h('div',{ class:'dragtip' }); shield = h('div',{ class:'dragshield', style:'cursor:grabbing' }); document.body.append(shield, tip);
+    try{ shield.setPointerCapture(pid); }catch(_){}
+    try{ if(navigator.vibrate) navigator.vibrate(12); }catch(_){}
+  };
+  function onMove(m){
+    if(m.pointerId!==pid) return;
+    if(!active){
+      if(Math.hypot(m.clientX-x0, m.clientY-y0) > (touch ? 8 : 5)) begin();
+      if(!active) return;
+    }
+    m.preventDefault();
+    tip.style.left = Math.min(window.innerWidth-150, m.clientX+14)+'px'; tip.style.top = Math.max(6, m.clientY-44)+'px';
+    const ds = dayFromPoint(m.clientX, m.clientY, ctx); if(!ds) return;
+    const before = ev.date+'|'+ev.endDate; apply(ds);
+    if(ev.date+'|'+ev.endDate !== before){ moved = true; renderCal(); }
+    tip.textContent = label();
+  }
+  function finish(commit){
+    if(done) return; done = true; cleanup();
+    if(!active) return;
+    onDbl.drag = performance.now();
+    tip.remove(); setTimeout(() => shield.remove(), 80);
+    if(!moved || !commit){ revert(); if(moved) renderCal(); return; }
+    if(ev.date===orig.date && (ev.endDate||'')===orig.endDate){ renderCal(); return; }
+    if(ev.link) pushEventToMap(ev);
+    saveSoon(); renderCal();
+    toast('일정을 '+label()+'로 옮겼어요', { label:'취소', fn:() => { revert(); if(ev.link) pushEventToMap(ev); saveSoon(); renderCal(); } });
+  }
+  function onUp(m){ if(m.pointerId===pid) finish(true); }
+  function onCancel(m){ if(m.pointerId===pid) finish(false); }
+  document.addEventListener('pointermove', onMove, true); document.addEventListener('pointerup', onUp, true); document.addEventListener('pointercancel', onCancel, true);
+}
+function openEvOnDbl(ev, ds0){ return onDbl(() => openEventEditor(ev.id,{ ds:ds0 })); }
 
 /* ===================== 기간 일정 막대 (월 · 주) ===================== */
 const isSpan = ev => !!(ev.endDate && ev.endDate > ev.date && (!ev.repeat || ev.repeat==='none'));
@@ -4932,8 +5028,10 @@ function barEl(b, ds0, pos, ctx){
     if(!b.l) kids.unshift(rzHandle('s', ev, ctx, ds0));
     if(!b.r) kids.push(rzHandle('e', ev, ctx, ds0));
   }
-  return h('div',{ class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : ''), role:'button', tabindex:'0', title:tip,
-    style:'--c:'+(gray ? '#7c8696' : ev.color)+';--tc:'+tc+';'+pos, onclick:e => { e.stopPropagation(); openEventEditor(ev.id,{ ds:ds0 }); } }, kids);
+  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 가운데를 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
+    style:'--c:'+(gray ? '#7c8696' : ev.color)+';--tc:'+tc+';'+pos, onclick:openEvOnDbl(ev, ds0), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
+  if(ctx && !gray && !isRep(ev)) props.onpointerdown = e => startMove(e, ev, ctx, ds0);
+  return h('div', props, kids);
 }
 // 월 달력: done 이면 완료한 일정만, 시점→완료일을 회색 화살표 선으로 보여준다
 function monthGrid(body, done){
@@ -5279,7 +5377,7 @@ function checkAlarms(){
 }
 function showAlarms(list){
   openSheet('⏰ 일정 알림', b => {
-    list.forEach(x => b.append(evRow(x.ev, x.ds, { showDate:true, memo:true })));
+    list.forEach(x => b.append(evRow(x.ev, x.ds, { showDate:true, memo:true, dbl:false })));
     b.append(h('div',{class:'row end'}, h('button',{class:'btn',onclick:() => { closeSheet(true); showTab('schedule'); }},'달력 보기'), h('button',{class:'btn primary',onclick:() => closeSheet(true)},'확인')));
   });
   if(navigator.vibrate) try{ navigator.vibrate([60,40,60]); }catch(e){}
@@ -7901,7 +7999,7 @@ function renderToday(){
   list('over', '기한 지남', overdue, x => taskRow(x), 'red');
 
   body.append(head('오늘', evsT.length + dueToday.length, '', null, 'today'));
-  if(evsT.length){ const ag = h('div',{ class:'agenda' }); evsT.forEach(ev => ag.append(evRow(ev, t, {}))); body.append(ag); }
+  if(evsT.length){ const ag = h('div',{ class:'agenda' }); evsT.forEach(ev => ag.append(evRow(ev, t, { dbl:false }))); body.append(ag); }
   dueToday.forEach(x => body.append(taskRow(x)));
   if(!evsT.length && !dueToday.length) body.append(h('p',{ class:'note tdnone' }, '오늘 일정과 기한이 없어요.'));
 
@@ -7909,7 +8007,7 @@ function renderToday(){
 
   if(evsM.length || soon.length){
     body.append(head('곧', evsM.length + soon.length, '', null, 'soon'));
-    if(evsM.length){ const ag = h('div',{ class:'agenda' }); evsM.forEach(ev => ag.append(evRow(ev, tm, { showDate:true }))); body.append(ag); }
+    if(evsM.length){ const ag = h('div',{ class:'agenda' }); evsM.forEach(ev => ag.append(evRow(ev, tm, { showDate:true, dbl:false }))); body.append(ag); }
     (tdMore.has('soon') ? soon : soon.slice(0,6)).forEach(x => body.append(taskRow(x)));
     const mb = more('soon', soon.length, 6); if(mb) body.append(mb);
   }
@@ -7991,6 +8089,7 @@ renderCal();
 setTimeout(checkAlarms, 800);
 setTimeout(purgeDoneEvents, 1500);
 verInit();
+exitInit();
 setTimeout(backupReminder, 2800);
 setTimeout(autoBackup, 3000);
 refreshSyncUI();
