@@ -951,6 +951,16 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 .trow .ck{width:26px;height:26px;border:2.5px solid color-mix(in srgb,var(--text) 50%,transparent);background:var(--panel-solid,#fff)}
 .trow.done .ck{background:#10b981;border-color:#10b981}
 
+.ordtg{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:var(--sub)}
+.ordtg.on{background:var(--accent-soft);color:var(--accent)}
+.ahead .hbtns{display:flex;align-items:center;gap:4px}
+.ordbs{display:flex;flex-direction:column;gap:2px;flex:none}
+.ordb{width:30px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--panel);color:var(--accent);padding:0}
+.ordb svg{transform:rotate(var(--r,0deg))}
+.ordb:disabled{opacity:.25}
+.ordb:active:not(:disabled){transform:scale(.92)}
+.cdy .ordrow{display:flex;justify-content:flex-end;margin-bottom:4px}
+
 </style>
 </head>
 <body>
@@ -1175,6 +1185,7 @@ Object.assign(ICONS, {
   clip:'<rect x="5" y="4" width="14" height="17" rx="4"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>',
   copy:'<rect x="8" y="8" width="12" height="12" rx="3.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
   up:'<path d="M6 15l6-6 6 6"/>',
+  sort:'<path d="M8 4v16M8 4L4 8M8 4l4 4M16 20V4M16 20l-4-4M16 20l4-4"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', ol:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5l1.5-1v4M3.5 14h3l-3 3.5h3" stroke-width="1.6"/>', ul:'<path d="M10 6h10M10 12h10M10 18h10"/><circle cx="5" cy="6" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="18" r="1.2" fill="currentColor"/>', dash:'<path d="M10 6h10M10 12h10M10 18h10M3.5 6h3M3.5 12h3M3.5 18h3"/>', ckbox:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12.5l3 3 5-6"/>',
   mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   cloud:'<path d="M7 18a4 4 0 0 1-.6-7.96A6 6 0 0 1 18 9.6 4.2 4.2 0 0 1 17.5 18z"/>', upload:'<path d="M12 16V4m0 0L8 8m4-4 4 4M4 20h16"/>',
@@ -1296,6 +1307,7 @@ function normEvent(r){
     memo:String(r.memo||'').slice(0,5000), gcal:String(r.gcal||'').slice(0,200), gimp:(r.gimp && r.gimp.key) ? { key:String(r.gimp.key).slice(0,300), cal:String(r.gimp.cal||'').slice(0,200), sig:String(r.gimp.sig||'').slice(0,100) } : null, color:EV_COLORS.includes(r.color)?r.color:EV_COLORS[0],
     link:(r.link && r.link.mapId && r.link.titleId) ? { mapId:String(r.link.mapId), titleId:String(r.link.titleId), dateId:String(r.link.dateId||''), bodyId:String(r.link.bodyId||'') } : null,
     created:+r.created||Date.now() };
+  if(r.ord!=null && r.ord!=='' && isFinite(+r.ord)) ev.ord = +r.ord;
   if(r.dn && typeof r.dn==='object'){ const dn = {}; Object.keys(r.dn).slice(0,400).forEach(k => { if(isD(k) && isD(r.dn[k])) dn[k] = r.dn[k]; }); if(Object.keys(dn).length) ev.dn = dn; }
   if(ev.dn && ev.repeat==='none'){ const v = Object.values(ev.dn)[0]; ev.dn = { [ev.date]: v }; }
   if(ev.allDay){ ev.time = ''; ev.endTime = ''; }
@@ -4510,7 +4522,7 @@ function occurs(ev, ds){
 function eventsOn(ds, withDone){
   const out = [];
   for(const id in data.events){ const ev = data.events[id]; if(occurs(ev, ds) && (withDone || !doneOf(ev, ds))) out.push(ev); }
-  out.sort((a,b) => (doneOf(a,ds)?1:0)-(doneOf(b,ds)?1:0) || (a.allDay?0:1)-(b.allDay?0:1) || (a.time||'').localeCompare(b.time||'') || a.title.localeCompare(b.title));
+  out.sort((a,b) => (doneOf(a,ds)?1:0)-(doneOf(b,ds)?1:0) || (a.ord==null ? 1e15 : a.ord)-(b.ord==null ? 1e15 : b.ord) || (a.allDay?0:1)-(b.allDay?0:1) || (a.time||'').localeCompare(b.time||'') || a.title.localeCompare(b.title));
   return out;
 }
 const timeLabel = ev => ev.allDay ? '종일' : (ev.time + (ev.endTime ? '~'+ev.endTime : ''));
@@ -4588,6 +4600,26 @@ function purgeDoneEvents(){
   }catch(e){}
 }
 
+/* ===================== 일정 순서 바꾸기 (위 = 달력에 먼저 보임) ===================== */
+function moveEv(ds, ev, dir){
+  const list = eventsOn(ds, true).filter(e => !!doneOf(e, ds) === !!doneOf(ev, ds));
+  let m = Object.values(data.events).reduce((a, e) => Math.max(a, e.ord==null ? 0 : e.ord), 0);
+  list.forEach(e => { if(e.ord==null) e.ord = ++m; });
+  const i = list.indexOf(ev), j = i+dir;
+  if(i<0 || j<0 || j>=list.length) return;
+  const t = ev.ord; ev.ord = list[j].ord; list[j].ord = t;
+  saveSoon(); refreshEvViews();
+}
+function ordToggle(){
+  return h('button',{ class:'mini ordtg'+(cal.rord ? ' on' : ''), type:'button', title:'순서 바꾸기 (위쪽이 달력에 먼저 보여요)', 'aria-label':'순서 바꾸기', html:ic('sort',16),
+    onclick:e => { e.stopPropagation(); cal.rord = !cal.rord; renderCal(); } });
+}
+function ordBtns(ev, ds, first, last){
+  const b = (dir, off) => h('button',{ class:'ordb', type:'button', disabled:!!off, title:dir<0 ? '위로' : '아래로', 'aria-label':dir<0 ? '위로' : '아래로', html:ic('up',16)+'',
+    style:dir>0 ? '--r:180deg' : '', onclick:e => { e.stopPropagation(); moveEv(ds, ev, dir); } });
+  return h('span',{class:'ordbs'}, b(-1, first), b(1, last));
+}
+
 function evRow(ev, ds, o){
   o = o||{};
   const tags = [];
@@ -4602,14 +4634,14 @@ function evRow(ev, ds, o){
     ck,
     h('span',{class:'tm'}, o.showDate ? fmtMD(ds)+(ev.allDay?'':' '+ev.time) : timeLabel(ev)),
     h('span',{class:'tt'}, h('b',{}, ev.title||'(제목 없음)'), dn ? h('small',{class:'dnl'}, '✓ 완료 '+(+dm[1])+'/'+(+dm[2])) : null, (o.memo && ev.memo) ? h('small',{}, ev.memo.split('\n')[0]) : null),
-    h('span',{class:'tgs'}, tags), go);
+    h('span',{class:'tgs'}, tags), go, o.ord ? ordBtns(ev, ds, o.ord.first, o.ord.last) : null);
 }
 function calAgenda(ds){
   const evs = eventsOn(ds, true);
   const box = h('div',{class:'agenda'},
-    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정')));
+    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('span',{class:'hbtns'}, ordToggle(), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정'))));
   if(!evs.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
-  evs.forEach(ev => box.append(evRow(ev, ds, { memo:true })));
+  evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:cal.rord ? { first:i===0 || !!doneOf(evs[i-1], ds)!==!!doneOf(ev, ds), last:i===evs.length-1 || !!doneOf(evs[i+1], ds)!==!!doneOf(ev, ds) } : null })));
   return box;
 }
 /* ===================== 대한민국 공휴일 · 주 번호 ===================== */
@@ -4755,6 +4787,7 @@ function spanBars(ws, maxLanes, withSingles){
   if(withSingles){
     for(let i=0;i<7;i++){ const ds = addDays(ws, i); eventsOn(ds).forEach(ev => { if(!isSpan(ev)) items.push({ ev, c1:i, c2:i, l:false, r:false, single:true, ds }); }); }
   }
+  items.sort((a, b) => (a.ev.ord==null ? 1e15 : a.ev.ord)-(b.ev.ord==null ? 1e15 : b.ev.ord));   // 정렬은 안정적이라 순서 미지정 일정은 기존 순서 유지
   return packBars(items, maxLanes);
 }
 // 완료 기록: 일정의 시점(s)에서 완료한 날(d)까지
@@ -4854,7 +4887,8 @@ function calDay(body){
   const ds = cal.date, evs = eventsOn(ds, true);
   const wrap = h('div',{class:'cdy'});
   if(!evs.length) wrap.append(h('p',{class:'note',style:'text-align:center;padding:30px 0'},'이 날은 일정이 없어요.'));
-  evs.forEach(ev => wrap.append(evRow(ev, ds, { memo:true })));
+  if(evs.length) wrap.prepend(h('div',{class:'ordrow'}, ordToggle()));
+  evs.forEach((ev, i) => wrap.append(evRow(ev, ds, { memo:true, ord:cal.rord ? { first:i===0 || !!doneOf(evs[i-1], ds)!==!!doneOf(ev, ds), last:i===evs.length-1 || !!doneOf(evs[i+1], ds)!==!!doneOf(ev, ds) } : null })));
   body.append(wrap);
 }
 function calYear(body){
