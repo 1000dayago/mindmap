@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610221020">
+<meta name="app-version" content="202610221035">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1021,24 +1021,25 @@ table.sheet th.corner .rz.rc:hover{background:color-mix(in srgb,var(--accent) 35
 .synctabs button.on{background:color-mix(in srgb,var(--c) 10%,var(--panel-solid));color:var(--text);border-color:color-mix(in srgb,var(--c) 55%,transparent)}
 .syncpanel .lbl:first-child{margin-top:0}
 
-.gchip{display:inline-block;max-width:100%;margin-bottom:2px;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:800;color:var(--gc);background:color-mix(in srgb,var(--gc) 15%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;width:fit-content}
+.gchip{display:inline-block;max-width:100%;margin-bottom:2px;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:800;color:var(--gc);background:var(--g15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;width:fit-content}
 button.gchip{cursor:pointer}
 .gchip.on{background:var(--gc);color:#fff}
 .evrow .tt{display:flex;flex-direction:column}
 .cbar .gm{flex:none;width:11px;height:11px;margin-right:3px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--c);font-style:normal;font-size:8px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;line-height:1}
-.cbar.gb{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55)}
+.cbar.gb{background:var(--cl);color:var(--cd);box-shadow:inset 0 0 0 1px rgba(120,120,125,.45);font-weight:700}
+.cbar.gb .rz::before{background:var(--c)}
 .gdim{opacity:.22!important;filter:saturate(.5)}
-.grpbar{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:7px 8px 7px 12px;border-radius:999px;background:color-mix(in srgb,var(--gc) 14%,var(--panel-solid));border:1.5px solid color-mix(in srgb,var(--gc) 55%,transparent)}
+.grpbar{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:7px 8px 7px 12px;border-radius:999px;background:linear-gradient(var(--g14),var(--g14)),var(--panel-solid);border:1.5px solid var(--g55)}
 .grpbar .gd{width:10px;height:10px;border-radius:50%;background:var(--gc);flex:none}
 .grpbar b{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .grpbar small{color:var(--sub);font-size:11.5px;font-weight:700;white-space:nowrap}
 .grpbar .sp{flex:1}
 .grpbar .gb{padding:5px 12px;border-radius:999px;background:var(--gc);color:#fff;font-size:12px;font-weight:800}
 .grpbar .gx{width:26px;height:26px;border-radius:50%;color:var(--sub);font-size:12px}
-.gprog .gbar{height:9px;border-radius:99px;background:color-mix(in srgb,var(--gc) 18%,transparent);overflow:hidden}
+.gprog .gbar{height:9px;border-radius:99px;background:var(--g18);overflow:hidden}
 .gprog .gbar i{display:block;height:100%;border-radius:99px;background:var(--gc);transition:width .25s}
 .gprog small{display:block;margin-top:6px;color:var(--sub);font-size:12px;font-weight:700}
-.ggrp{margin:0 0 10px;padding:2px 4px 2px;border-radius:18px;background:color-mix(in srgb,var(--gc) 9%,transparent);border:1.5px solid color-mix(in srgb,var(--gc) 35%,transparent)}
+.ggrp{margin:0 0 10px;padding:2px 4px 2px;border-radius:18px;background:var(--g9);border:1.5px solid var(--g35)}
 .ggrp .evrow{margin-bottom:6px}
 .ggrp .gchip{display:none}
 .garea{margin:0 0 8px}
@@ -1055,8 +1056,8 @@ button.gchip{cursor:pointer}
 .ggrp .gname small{font-size:11.5px;font-weight:700;color:var(--sub);white-space:nowrap}
 .ggrp .gedit{width:30px;height:30px;border-radius:50%;color:var(--sub);font-size:15px;flex:none}
 .ggrp.foc{box-shadow:0 0 0 2px var(--gc)}
-.ggrp .ghint{margin:2px 8px 8px;padding:10px;border-radius:12px;border:1.5px dashed color-mix(in srgb,var(--gc) 50%,transparent);color:var(--sub);font-size:12px;text-align:center}
-.ggrp.dropt,.indep.dropt{outline:2.5px dashed var(--gc,var(--accent));outline-offset:1px;background:color-mix(in srgb,var(--gc,var(--accent)) 16%,transparent)}
+.ggrp .ghint{margin:2px 8px 8px;padding:10px;border-radius:12px;border:1.5px dashed var(--g50);color:var(--sub);font-size:12px;text-align:center}
+.ggrp.dropt,.indep.dropt{outline:2.5px dashed var(--gc,var(--accent));outline-offset:1px;background:var(--g16,var(--accent-soft))}
 .indep{min-height:44px;padding:2px 0;border-radius:14px}
 .indep>.lbl{margin:4px 2px}
 .trow{display:flex;align-items:center;gap:5px;margin-bottom:6px}
@@ -1064,13 +1065,18 @@ button.gchip{cursor:pointer}
 .trow .tp{flex:none;font-size:12px;color:var(--sub);font-weight:700}
 .gpick{display:flex;flex-wrap:wrap;gap:6px}
 .gpc{padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:800;background:var(--accent-soft);color:var(--sub);border:1.5px solid transparent;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gpc[style*="--gc"]{background:color-mix(in srgb,var(--gc) 14%,transparent);color:var(--gc)}
+.gpc[style*="--gc"]{background:var(--g14);color:var(--gc)}
 .gpc.on{border-color:var(--gc,var(--accent));box-shadow:0 0 0 1px var(--gc,var(--accent)) inset;color:var(--gc,var(--accent))}
 .gpc.add{border:1.5px dashed var(--accent);color:var(--accent);background:transparent}
 .donesec{margin:8px 0 4px;padding-top:6px;border-top:1px dashed var(--line)}
 .donesec .dhead{display:flex;align-items:center;gap:6px;padding:2px 2px 6px;width:100%;text-align:left}
 .donesec .dhead b{font-size:13px;font-weight:800;color:var(--sub)}
 .donesec .dhead small{font-size:11.5px;font-weight:700;color:var(--sub)}
+.cbar.gbar{background:linear-gradient(90deg,var(--cu) var(--f),var(--c) var(--f));clip-path:none;box-shadow:inset 0 0 0 1px rgba(120,120,125,.45);text-shadow:0 1px 1px rgba(0,0,0,.55);font-weight:800;padding:0 6px;border-radius:7px;display:flex;align-items:center}
+.cbar.gbar.cl{margin-left:0;border-top-left-radius:0;border-bottom-left-radius:0}
+.cbar.gbar.cr{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
+.cbar.gbar .gcv{font-style:normal;font-size:9px;margin-right:4px;flex:none;cursor:pointer;padding:0 2px}
+.cbar.gbar span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
 
 .evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
 @media(min-width:821px){
@@ -2854,7 +2860,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610221020';
+const APP_VER = '202610221035';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4862,6 +4868,12 @@ function ordGrip(ev, ds){
 
 /* ===================== 일정 그룹 (관련 일정을 묶어서 보기) ===================== */
 // 일정마다 ev.grp(그룹 이름) · ev.gcol(그룹 색). 빈 그룹·템플릿은 이 기기(localStorage)에 저장.
+/* 색 변수: color-mix 를 못 쓰는 브라우저에서도 보이도록 미리 계산해서 넘긴다 */
+function gv(c){
+  const m = /^#?([0-9a-f]{6})$/i.exec(c||''), v = m ? [0,2,4].map(i => parseInt(m[1].substr(i,2),16)) : [91,108,255];
+  const a = al => 'rgba('+v[0]+','+v[1]+','+v[2]+','+al+')', mx = (w, t) => 'rgb('+v.map(x => Math.round(x*(1-t)+w*t)).join(',')+')';
+  return '--gc:'+c+';--g9:'+a(.09)+';--g14:'+a(.14)+';--g15:'+a(.15)+';--g16:'+a(.16)+';--g18:'+a(.18)+';--g35:'+a(.35)+';--g50:'+a(.5)+';--g55:'+a(.55)+';--cl:'+mx(255,.76)+';--cd:'+mx(0,.45)+';--cu:'+mx(0,.28)+';';
+}
 const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(e){ return d; } };
 const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
 const regLoad = () => { const a = lsGet('mm_grp_reg', []); return Array.isArray(a) ? a.filter(x => x && x.name) : []; };
@@ -4884,6 +4896,7 @@ function grpList(){
     g.evs.sort((a, b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||'') || a.title.localeCompare(b.title));
     const cnt = g.evs.filter(e => !isRep(e));
     g.total = cnt.length; g.done = cnt.filter(e => doneOf(e, e.date)).length;
+    g.nf = cnt.length ? cnt[0].date : ''; g.nt = cnt.length ? cnt.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, cnt[0].date) : '';
     g.from = g.evs.length ? g.evs[0].date : ''; g.to = g.evs.length ? g.evs.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, g.evs[0].date) : '';
     return g;
   }).sort((a, b) => (a.total && a.done===a.total ? 1 : 0)-(b.total && b.done===b.total ? 1 : 0) || (a.from||'9999').localeCompare(b.from||'9999') || a.name.localeCompare(b.name));
@@ -4909,20 +4922,22 @@ function setEvGroup(id, name){
   toast(name ? '「'+name+'」 그룹에 넣었어요' : '그룹에서 뺐어요', { label:'취소', fn:() => { if(o.grp){ ev.grp = o.grp; ev.gcol = o.gcol; } else { delete ev.grp; delete ev.gcol; } saveSoon(); refreshEvViews(); } });
 }
 function grpChip(ev, live){
-  const c = evColor(ev), el = h(live ? 'button' : 'span',{ class:'gchip'+(cal.grp===ev.grp ? ' on' : ''), style:'--gc:'+c, title:'그룹: '+ev.grp+(live ? ' (누르면 이 그룹만 강조)' : '') }, ev.grp);
+  const c = evColor(ev), el = h(live ? 'button' : 'span',{ class:'gchip'+(cal.grp===ev.grp ? ' on' : ''), style:gv(c), title:'그룹: '+ev.grp+(live ? ' (누르면 이 그룹만 강조)' : '') }, ev.grp);
   if(live) el.addEventListener('click', e => { e.stopPropagation(); cal.grp = cal.grp===ev.grp ? '' : ev.grp; renderCal(); });
   return el;
 }
 function grpFocusBar(){
   const g = grpList().find(x => x.name===cal.grp);
   if(!g){ cal.grp = ''; return null; }
-  return h('div',{ class:'grpbar', style:'--gc:'+g.color },
+  return h('div',{ class:'grpbar', style:gv(g.color) },
     h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : g.evs.length+'개'),
     h('span',{ class:'sp' }),
     h('button',{ type:'button', class:'gb', onclick:() => openGroupDetail(g.name) }, '상세'),
     h('button',{ type:'button', class:'gx', 'aria-label':'강조 끄기', title:'강조 끄기', onclick:() => { cal.grp = ''; renderCal(); } }, '✕'));
 }
 let grpRedraw = null;
+const gexp = () => new Set(lsGet('mm_grp_exp', []));
+function gexpToggle(k){ const s = gexp(); s.has(k) ? s.delete(k) : s.add(k); lsSet('mm_grp_exp', [...s]); }
 const gfold = () => new Set(lsGet('mm_grp_fold', []));
 function gfoldSet(k, on){ const s = gfold(); on ? s.add(k) : s.delete(k); lsSet('mm_grp_fold', [...s]); }
 /* ---- 일정 목록 위 그룹 영역 ---- */
@@ -4938,7 +4953,7 @@ function grpArea(){
   if(!gs_.length) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
   gs_.forEach(g => {
     const closed = fold.has(g.name);
-    const box = h('div',{ class:'ggrp'+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:'--gc:'+g.color });
+    const box = h('div',{ class:'ggrp'+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:gv(g.color) });
     box.append(h('div',{ class:'ghead' },
       h('button',{ type:'button', class:'gtog', 'aria-label':'접기·펴기', onclick:() => { gfoldSet(g.name, !closed); renderCal(); } }, closed ? '▸' : '▾'),
       h('button',{ type:'button', class:'gname', title:'누르면 달력에서 이 그룹만 강조', onclick:() => { cal.grp = cal.grp===g.name ? '' : g.name; renderCal(); } },
@@ -4980,7 +4995,7 @@ function openGroupDetail(name){
     const g = grpList().find(x => x.name===name);
     if(!g){ closeSheet(true); return; }
     const pct = g.total ? Math.round(g.done*100/g.total) : 0;
-    b.append(h('div',{ class:'gprog', style:'--gc:'+g.color },
+    b.append(h('div',{ class:'gprog', style:gv(g.color) },
       h('div',{ class:'gbar' }, h('i',{ style:'width:'+pct+'%' })),
       h('small',{}, (g.total ? g.done+'/'+g.total+' 완료' : '일정 '+g.evs.length+'개')+(g.from ? ' · '+fmtMD(g.from)+(g.to!==g.from ? ' ~ '+fmtMD(g.to) : '') : ''))));
     b.append(h('div',{ class:'row', style:'gap:6px;margin:8px 0' },
@@ -5515,7 +5530,7 @@ const isSpan = ev => !!(ev.endDate && ev.endDate > ev.date && (!ev.repeat || ev.
 function packBars(items, maxLanes){
   const occ = [], bars = [], more = [0,0,0,0,0,0,0];
   for(const it of items){
-    let ln = 0;
+    let ln = (it.after && it.after.lane!=null) ? it.after.lane+1 : 0;   // 그룹 펼침: 그룹 막대 바로 아래줄부터
     for(;; ln++){
       if(!occ[ln]) occ[ln] = new Array(7).fill(false);
       let free = true; for(let c=it.c1;c<=it.c2;c++){ if(occ[ln][c]){ free = false; break; } }
@@ -5530,14 +5545,30 @@ function packBars(items, maxLanes){
 // 한 주(ws부터 7일)의 일정을 막대 조각으로 만든다. withSingles 이면 하루짜리 일정도 막대로 만든다.
 function spanBars(ws, maxLanes, withSingles){
   const we = addDays(ws, 6);
-  const evs = Object.values(data.events).filter(ev => isSpan(ev) && !doneOf(ev, ev.date) && ev.date<=we && ev.endDate>=ws);
+  const gitems = [], colp = new Set(), gopen = gexp();
+  grpList().forEach(g => {
+    if(!g.nf) return; const open = gopen.has(g.name); if(!open) colp.add(g.name);
+    if(g.nf>we || g.nt<ws) return;
+    const pct = g.total ? Math.round(g.done*100/g.total) : 0, label = g.name+(g.total ? ' · '+pct+'%' : '');
+    const c1 = Math.max(0, dayDiff(ws, g.nf)), cr = Math.min(6, dayDiff(ws, g.nt));
+    let w = 30; for(const ch of label) w += ch.charCodeAt(0)>255 ? 10.5 : 6.2;
+    const calW = (window.matchMedia && matchMedia('(min-width:821px)').matches) ? Math.min(window.innerWidth, 1200)*0.62 : window.innerWidth-24, cellW = Math.max(36, (calW-30)/7);
+    const c2 = Math.max(cr, Math.min(6, c1+Math.ceil(w/cellW)-1));
+    const tot = dayDiff(g.nf, g.nt)+1, fd = Math.round(tot*pct/100), off = dayDiff(g.nf, addDays(ws, c1)), seg = cr-c1+1;
+    const fill = Math.max(0, Math.min(seg, fd-off))/(c2-c1+1)*100;
+    gitems.push({ gbar:g, label, pct, open, fill, ev:{ id:'g:'+g.name, title:g.name, date:g.nf }, c1, c2, l:g.nf<ws, r:g.nt>we });
+  });
+  const inCol = ev => ev.grp && !isRep(ev) && colp.has(ev.grp);
+  const evs = Object.values(data.events).filter(ev => isSpan(ev) && !inCol(ev) && !doneOf(ev, ev.date) && ev.date<=we && ev.endDate>=ws);
   evs.sort((a, b) => a.date.localeCompare(b.date) || b.endDate.localeCompare(a.endDate) || (a.title||'').localeCompare(b.title||''));
   const items = evs.map(ev => ({ ev, c1:Math.max(0, dayDiff(ws, ev.date)), c2:Math.min(6, dayDiff(ws, ev.endDate)), l:ev.date<ws, r:ev.endDate>we }));   // l: 앞 주에서 이어짐 · r: 다음 주로 이어짐
   if(withSingles){
-    for(let i=0;i<7;i++){ const ds = addDays(ws, i); eventsOn(ds).forEach(ev => { if(!isSpan(ev)) items.push({ ev, c1:i, c2:i, l:false, r:false, single:true, ds }); }); }
+    for(let i=0;i<7;i++){ const ds = addDays(ws, i); eventsOn(ds).forEach(ev => { if(!isSpan(ev) && !inCol(ev)) items.push({ ev, c1:i, c2:i, l:false, r:false, single:true, ds }); }); }
   }
   items.sort((a, b) => (a.ev.ord==null ? 1e15 : a.ev.ord)-(b.ev.ord==null ? 1e15 : b.ev.ord));   // 정렬은 안정적이라 순서 미지정 일정은 기존 순서 유지
-  return packBars(items, maxLanes);
+  const rest = items.slice(), ord2 = [];
+  gitems.forEach(gi => { ord2.push(gi); if(gi.open){ for(let k=0;k<rest.length;){ if(rest[k].ev.grp===gi.gbar.name && !rest[k].gray){ rest[k].after = gi; ord2.push(rest.splice(k,1)[0]); } else k++; } } });
+  return packBars(ord2.concat(rest), maxLanes);
 }
 // 완료 기록: 일정의 시점(s)에서 완료한 날(d)까지
 function doneItems(){
@@ -5560,16 +5591,22 @@ function doneBars(ws, maxLanes){
   return packBars(items, maxLanes);
 }
 function barEl(b, ds0, pos, ctx){
+  if(b.gbar){
+    const g = b.gbar, tog = () => { gexpToggle(g.name); renderCal(); };
+    return h('div',{ class:'cbar gbar'+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
+      title:g.name+(g.total ? ' · '+g.done+'/'+g.total+' 완료 ('+b.pct+'%)' : '')+' · '+fmtMD(g.nf)+(g.nt!==g.nf ? ' ~ '+fmtMD(g.nt) : '')+'\n두 번 누르면 '+(b.open ? '접기' : '펼치기'),
+      onclick:onDbl(tog), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
+      h('i',{ class:'gcv', onclick:e => { e.stopPropagation(); tog(); } }, b.open ? '▾' : '▸'), h('span',{}, b.label));
+  }
   const ev = b.ev, gray = !!b.gray, tc = gray ? '#fff' : (evColor(ev)==='#eab308' ? '#422006' : '#fff');
   const tip = (ev.grp ? '['+ev.grp+'] ' : '')+(ev.title||'(제목 없음)')+' · '+(gray ? '시작 '+b.s+' → 완료 '+b.d : evDateText(ev));
   const kids = [h('span',{}, ev.title||'(제목 없음)')];
-  if(ev.grp && !gray) kids.unshift(h('i',{ class:'gm' }, ev.grp[0]));
   if(ctx && !gray && !isRep(ev)){
     if(!b.l) kids.unshift(rzHandle('s', ev, ctx, ds0));
     if(!b.r) kids.push(rzHandle('e', ev, ctx, ds0));
   }
   const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 가운데를 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
-    style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+pos, onclick:openEvOnDbl(ev, ds0), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
+    style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+((ev.grp && !gray) ? gv(evColor(ev)) : '')+pos, onclick:openEvOnDbl(ev, ds0), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
   if(ctx && !gray && !isRep(ev)) props.onpointerdown = e => startMove(e, ev, ctx, ds0);
   return h('div', props, kids);
 }
@@ -5751,7 +5788,7 @@ function openEventEditor(id, o){
     const grpRow = h('div',{class:'gpick'});
     const gdraw = () => {
       grpRow.innerHTML = '';
-      const chip = (label, val, col, extra) => h('button',{type:'button',class:'gpc'+((grpSel.value===val) ? ' on' : '')+(extra||''),style:col ? '--gc:'+col : '',onclick:() => { grpSel.value = val; grpNew.classList.toggle('hidden', val!=='__new'); if(val==='__new') grpNew.focus(); gdraw(); }}, label);
+      const chip = (label, val, col, extra) => h('button',{type:'button',class:'gpc'+((grpSel.value===val) ? ' on' : '')+(extra||''),style:col ? gv(col) : '',onclick:() => { grpSel.value = val; grpNew.classList.toggle('hidden', val!=='__new'); if(val==='__new') grpNew.focus(); gdraw(); }}, label);
       grpRow.append(chip('단독 일정', '', ''));
       gl.forEach(g => grpRow.append(chip(g.name, g.name, g.color)));
       if(curG && !gl.some(g => g.name===curG)) grpRow.append(chip(curG, curG, ''));
