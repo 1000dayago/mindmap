@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610220929">
+<meta name="app-version" content="202610221020">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1038,16 +1038,45 @@ button.gchip{cursor:pointer}
 .gprog .gbar{height:9px;border-radius:99px;background:color-mix(in srgb,var(--gc) 18%,transparent);overflow:hidden}
 .gprog .gbar i{display:block;height:100%;border-radius:99px;background:var(--gc);transition:width .25s}
 .gprog small{display:block;margin-top:6px;color:var(--sub);font-size:12px;font-weight:700}
-.ggrp{margin:0 0 10px;padding:4px 4px 2px;border-radius:18px;background:color-mix(in srgb,var(--gc) 9%,transparent);border:1.5px solid color-mix(in srgb,var(--gc) 35%,transparent)}
-.ggrp .ghead{display:flex;align-items:center;gap:7px;width:100%;padding:6px 8px 6px 10px;text-align:left}
-.ggrp .ghead .gd{width:10px;height:10px;border-radius:50%;background:var(--gc);flex:none}
-.ggrp .ghead b{font-size:13px;font-weight:800;color:var(--gc)}
-.ggrp .ghead small{font-size:11.5px;font-weight:700;color:var(--sub)}
-.ggrp .ghead .sp{flex:1}
-.ggrp .ghead i{font-style:normal;font-size:18px;color:var(--sub)}
+.ggrp{margin:0 0 10px;padding:2px 4px 2px;border-radius:18px;background:color-mix(in srgb,var(--gc) 9%,transparent);border:1.5px solid color-mix(in srgb,var(--gc) 35%,transparent)}
 .ggrp .evrow{margin-bottom:6px}
 .ggrp .gchip{display:none}
+.garea{margin:0 0 8px}
+.gahead{display:flex;align-items:center;gap:6px;padding:2px 2px 6px}
+.gahead b{font-size:13px;font-weight:800}
+.gahead small{color:var(--sub);font-size:11.5px;font-weight:700}
+.gahead .sp{flex:1}
+.gahead .gab{padding:5px 11px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800}
+.gtog{width:24px;height:24px;border-radius:8px;color:var(--sub);font-size:13px;flex:none}
+.ggrp{position:relative}
+.ggrp .ghead{display:flex;align-items:center;gap:2px;padding:0 4px 0 2px}
+.ggrp .gname{display:flex;align-items:center;gap:7px;flex:1;min-width:0;padding:6px 6px;text-align:left}
+.ggrp .gname b{font-size:13px;font-weight:800;color:var(--gc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ggrp .gname small{font-size:11.5px;font-weight:700;color:var(--sub);white-space:nowrap}
+.ggrp .gedit{width:30px;height:30px;border-radius:50%;color:var(--sub);font-size:15px;flex:none}
+.ggrp.foc{box-shadow:0 0 0 2px var(--gc)}
+.ggrp .ghint{margin:2px 8px 8px;padding:10px;border-radius:12px;border:1.5px dashed color-mix(in srgb,var(--gc) 50%,transparent);color:var(--sub);font-size:12px;text-align:center}
+.ggrp.dropt,.indep.dropt{outline:2.5px dashed var(--gc,var(--accent));outline-offset:1px;background:color-mix(in srgb,var(--gc,var(--accent)) 16%,transparent)}
+.indep{min-height:44px;padding:2px 0;border-radius:14px}
+.indep>.lbl{margin:4px 2px}
+.trow{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.trow .tn{width:18px;flex:none;text-align:center;font-size:12px;font-weight:800;color:var(--sub)}
+.trow .tp{flex:none;font-size:12px;color:var(--sub);font-weight:700}
+.gpick{display:flex;flex-wrap:wrap;gap:6px}
+.gpc{padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:800;background:var(--accent-soft);color:var(--sub);border:1.5px solid transparent;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gpc[style*="--gc"]{background:color-mix(in srgb,var(--gc) 14%,transparent);color:var(--gc)}
+.gpc.on{border-color:var(--gc,var(--accent));box-shadow:0 0 0 1px var(--gc,var(--accent)) inset;color:var(--gc,var(--accent))}
+.gpc.add{border:1.5px dashed var(--accent);color:var(--accent);background:transparent}
+.donesec{margin:8px 0 4px;padding-top:6px;border-top:1px dashed var(--line)}
+.donesec .dhead{display:flex;align-items:center;gap:6px;padding:2px 2px 6px;width:100%;text-align:left}
+.donesec .dhead b{font-size:13px;font-weight:800;color:var(--sub)}
+.donesec .dhead small{font-size:11.5px;font-weight:700;color:var(--sub)}
 
+.evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
+@media(min-width:821px){
+  #sheet:has(.evmemo){width:min(780px,94vw);max-height:92vh;max-height:92dvh}
+  .evmemo{min-height:300px}
+}
 </style>
 </head>
 <body>
@@ -2825,7 +2854,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610220929';
+const APP_VER = '202610221020';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4832,35 +4861,52 @@ function ordGrip(ev, ds){
 }
 
 /* ===================== 일정 그룹 (관련 일정을 묶어서 보기) ===================== */
-// 일정마다 ev.grp(그룹 이름) · ev.gcol(그룹 색)을 가진다. 같은 이름 = 같은 그룹.
-function grpColorOf(name){ for(const id in data.events){ const e = data.events[id]; if(e.grp===name && e.gcol) return e.gcol; } return ''; }
+// 일정마다 ev.grp(그룹 이름) · ev.gcol(그룹 색). 빈 그룹·템플릿은 이 기기(localStorage)에 저장.
+const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(e){ return d; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+const regLoad = () => { const a = lsGet('mm_grp_reg', []); return Array.isArray(a) ? a.filter(x => x && x.name) : []; };
+const regSet = (name, color) => { const a = regLoad().filter(x => x.name!==name); a.push({ name, color }); lsSet('mm_grp_reg', a); };
+const regDel = name => lsSet('mm_grp_reg', regLoad().filter(x => x.name!==name));
+function grpColorOf(name){
+  const r = regLoad().find(x => x.name===name); if(r && r.color) return r.color;
+  for(const id in data.events){ const e = data.events[id]; if(e.grp===name && e.gcol) return e.gcol; } return '';
+}
 function evColor(ev){ return (ev.grp && ev.gcol) ? ev.gcol : ev.color; }
 function grpList(){
   const m = {};
+  regLoad().forEach(r => { m[r.name] = { name:r.name, color:r.color||EV_COLORS[0], reg:true, evs:[] }; });
   Object.values(data.events).forEach(ev => {
     if(!ev.grp) return;
     const g = m[ev.grp] || (m[ev.grp] = { name:ev.grp, color:ev.gcol||EV_COLORS[0], evs:[] });
-    if(ev.gcol) g.color = ev.gcol; g.evs.push(ev);
+    if(!g.reg && ev.gcol) g.color = ev.gcol; g.evs.push(ev);
   });
   return Object.values(m).map(g => {
     g.evs.sort((a, b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||'') || a.title.localeCompare(b.title));
     const cnt = g.evs.filter(e => !isRep(e));
     g.total = cnt.length; g.done = cnt.filter(e => doneOf(e, e.date)).length;
-    g.from = g.evs[0].date; g.to = g.evs.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, g.evs[0].date);
+    g.from = g.evs.length ? g.evs[0].date : ''; g.to = g.evs.length ? g.evs.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, g.evs[0].date) : '';
     return g;
-  }).sort((a, b) => (a.total && a.done===a.total ? 1 : 0)-(b.total && b.done===b.total ? 1 : 0) || a.from.localeCompare(b.from) || a.name.localeCompare(b.name));
+  }).sort((a, b) => (a.total && a.done===a.total ? 1 : 0)-(b.total && b.done===b.total ? 1 : 0) || (a.from||'9999').localeCompare(b.from||'9999') || a.name.localeCompare(b.name));
 }
-function nextGrpColor(){ const used = new Set(grpList().map(g => g.color)); return EV_COLORS.find(c => !used.has(c)) || EV_COLORS[grpList().length % EV_COLORS.length]; }
+function nextGrpColor(){ const used = new Set(grpList().map(g => g.color)), pool = EV_COLORS.slice(1); return pool.find(c => !used.has(c)) || pool[grpList().length % pool.length]; }
+function grpEnsure(name){ let c = grpColorOf(name); if(!c){ c = nextGrpColor(); } if(!regLoad().some(x => x.name===name)) regSet(name, c); return c; }
 function grpEdit(name, newName, color){
   newName = (newName||'').trim().slice(0,40) || name;
-  Object.values(data.events).forEach(ev => { if(ev.grp===name){ ev.grp = newName; ev.gcol = color || ev.gcol; } });
-  if(newName!==name){ const c = grpColorOf(newName); if(c) Object.values(data.events).forEach(ev => { if(ev.grp===newName) ev.gcol = c; }); }
+  const col = color || grpColorOf(name) || EV_COLORS[0];
+  if(newName!==name){ const ex = grpColorOf(newName); if(ex && !color) color = ex; }
+  Object.values(data.events).forEach(ev => { if(ev.grp===name){ ev.grp = newName; ev.gcol = color||col; } });
+  regDel(name); regSet(newName, color||col);
   if(cal.grp===name) cal.grp = newName;
   saveSoon(); refreshEvViews();
 }
-function grpClear(name){ Object.values(data.events).forEach(ev => { if(ev.grp===name){ delete ev.grp; delete ev.gcol; } }); if(cal.grp===name) cal.grp = ''; saveSoon(); refreshEvViews(); }
-function grpBtn(){
-  return h('button',{ class:'mini ordtg'+(cal.grp ? ' on' : ''), type:'button', title:'그룹 보기', 'aria-label':'그룹 보기', html:ic('group',16), onclick:e => { e.stopPropagation(); openGroupList(); } });
+function grpClear(name){ Object.values(data.events).forEach(ev => { if(ev.grp===name){ delete ev.grp; delete ev.gcol; } }); regDel(name); if(cal.grp===name) cal.grp = ''; saveSoon(); refreshEvViews(); }
+function setEvGroup(id, name){
+  const ev = data.events[id]; if(!ev || (ev.grp||'')===name) return;
+  if(S().lock){ lockedMsg(); return; }
+  const o = { grp:ev.grp, gcol:ev.gcol };
+  if(name){ ev.grp = name; ev.gcol = grpEnsure(name); } else { delete ev.grp; delete ev.gcol; }
+  saveSoon(); refreshEvViews();
+  toast(name ? '「'+name+'」 그룹에 넣었어요' : '그룹에서 뺐어요', { label:'취소', fn:() => { if(o.grp){ ev.grp = o.grp; ev.gcol = o.gcol; } else { delete ev.grp; delete ev.gcol; } saveSoon(); refreshEvViews(); } });
 }
 function grpChip(ev, live){
   const c = evColor(ev), el = h(live ? 'button' : 'span',{ class:'gchip'+(cal.grp===ev.grp ? ' on' : ''), style:'--gc:'+c, title:'그룹: '+ev.grp+(live ? ' (누르면 이 그룹만 강조)' : '') }, ev.grp);
@@ -4877,14 +4923,55 @@ function grpFocusBar(){
     h('button',{ type:'button', class:'gx', 'aria-label':'강조 끄기', title:'강조 끄기', onclick:() => { cal.grp = ''; renderCal(); } }, '✕'));
 }
 let grpRedraw = null;
-function openGroupList(){
-  openSheet('그룹', b => {
-    const gs_ = grpList();
-    b.append(h('button',{ class:'btn primary', type:'button', style:'width:100%;margin-bottom:8px', onclick:() => { closeSheet(true); setTimeout(openGroupTpl, 60); } }, '템플릿으로 새 그룹 만들기'));
-    if(!gs_.length){ b.append(h('p',{ class:'note' }, '아직 그룹이 없어요. 일정 편집창의 「그룹」 칸에서 새 그룹을 만들면 관련 일정을 묶어서 볼 수 있어요.')); return; }
-    b.append(h('div',{ class:'list' }, gs_.map(g => h('button',{ class:'item', type:'button', onclick:() => openGroupDetail(g.name) },
-      h('span',{ class:'ico', style:'--c:'+g.color, html:ic('group',20) }),
-      h('span',{ class:'t' }, h('b',{ style:'display:block' }, g.name), h('small',{ style:'color:var(--sub);font-size:11.5px' }, (g.total ? g.done+'/'+g.total+' 완료 · ' : '')+fmtMD(g.from)+(g.to!==g.from ? ' ~ '+fmtMD(g.to) : '')))))));
+const gfold = () => new Set(lsGet('mm_grp_fold', []));
+function gfoldSet(k, on){ const s = gfold(); on ? s.add(k) : s.delete(k); lsSet('mm_grp_fold', [...s]); }
+/* ---- 일정 목록 위 그룹 영역 ---- */
+function grpArea(){
+  const gs_ = grpList(), fold = gfold(), area = fold.has('*');
+  const wrap = h('div',{ class:'garea' });
+  wrap.append(h('div',{ class:'gahead' },
+    h('button',{ type:'button', class:'gtog', 'aria-label':'그룹 영역 접기·펴기', onclick:() => { gfoldSet('*', !area); renderCal(); } }, area ? '▸' : '▾'),
+    h('b',{}, '그룹'), h('small',{}, gs_.length ? String(gs_.length) : ''), h('span',{ class:'sp' }),
+    h('button',{ type:'button', class:'gab', onclick:() => openGroupNew() }, '+ 그룹'),
+    h('button',{ type:'button', class:'gab', onclick:() => openTplList() }, '템플릿')));
+  if(area) return wrap;
+  if(!gs_.length) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
+  gs_.forEach(g => {
+    const closed = fold.has(g.name);
+    const box = h('div',{ class:'ggrp'+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:'--gc:'+g.color });
+    box.append(h('div',{ class:'ghead' },
+      h('button',{ type:'button', class:'gtog', 'aria-label':'접기·펴기', onclick:() => { gfoldSet(g.name, !closed); renderCal(); } }, closed ? '▸' : '▾'),
+      h('button',{ type:'button', class:'gname', title:'누르면 달력에서 이 그룹만 강조', onclick:() => { cal.grp = cal.grp===g.name ? '' : g.name; renderCal(); } },
+        h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음'))),
+      h('button',{ type:'button', class:'gedit', title:'그룹 편집 (이름·색·템플릿)', 'aria-label':'그룹 편집', onclick:() => openGroupDetail(g.name) }, '✎')));
+    if(!closed){
+      if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
+      const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
+      g.evs.filter(ev => !dn(ev)).concat(g.evs.filter(dn)).forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
+    }
+    wrap.append(box);
+  });
+  return wrap;
+}
+function openGroupNew(){
+  openSheet('새 그룹', b => {
+    const tpls = tplLoad(); let col = nextGrpColor();
+    const nm = h('input',{ class:'field', type:'text', maxlength:40, placeholder:'그룹 이름 (예: A사 반품)' });
+    const sw = h('div',{ class:'grid sw', style:'grid-template-columns:repeat(8,1fr)' });
+    EV_COLORS.forEach(c => { const bt = h('button',{ class:'swatch'+(c===col ? ' on' : ''), type:'button', style:'background:'+c+';min-height:30px', 'aria-label':c, onclick:() => { col = c; [...sw.children].forEach(x => x.classList.remove('on')); bt.classList.add('on'); } }); sw.append(bt); });
+    const ts = h('select',{ class:'field' }, h('option',{ value:'' }, '템플릿 없음 (빈 그룹)'), tpls.map((t, i) => h('option',{ value:i }, t.name+' ('+t.steps.length+'단계)')));
+    const st = h('input',{ class:'field', type:'date', value:todayStr() });
+    const stBox = h('div',{ class:'hidden' }, h('div',{ class:'lbl' }, '시작일 (첫 단계 날짜)'), st);
+    ts.addEventListener('change', () => stBox.classList.toggle('hidden', ts.value===''));
+    b.append(h('div',{ class:'lbl' }, '그룹 이름'), nm, h('div',{ class:'lbl' }, '색'), sw, h('div',{ class:'lbl' }, '템플릿 지정'), ts, stBox,
+      h('div',{ class:'row end', style:'margin-top:12px' }, h('button',{ class:'btn primary', type:'button', onclick:() => {
+        const name = nm.value.trim().slice(0,40); if(!name){ toast('그룹 이름을 입력해 주세요'); return; }
+        if(grpList().some(g => g.name===name)){ toast('같은 이름의 그룹이 이미 있어요'); return; }
+        regSet(name, col); let n = 0;
+        if(ts.value!=='' && tpls[+ts.value]){ if(!st.value){ toast('시작일을 정해 주세요'); return; } gtplApply(tpls[+ts.value], name, st.value); n = tpls[+ts.value].steps.length; }
+        closeSheet(true); saveSoon(); refreshEvViews(); toast(n ? '그룹과 일정 '+n+'개를 만들었어요' : '그룹을 만들었어요');
+      } }, '만들기')));
+    setTimeout(() => nm.focus(), 120);
   });
 }
 function openGroupDetail(name){
@@ -4895,66 +4982,94 @@ function openGroupDetail(name){
     const pct = g.total ? Math.round(g.done*100/g.total) : 0;
     b.append(h('div',{ class:'gprog', style:'--gc:'+g.color },
       h('div',{ class:'gbar' }, h('i',{ style:'width:'+pct+'%' })),
-      h('small',{}, (g.total ? g.done+'/'+g.total+' 완료' : '일정 '+g.evs.length+'개')+' · '+fmtMD(g.from)+(g.to!==g.from ? ' ~ '+fmtMD(g.to) : ''))));
+      h('small',{}, (g.total ? g.done+'/'+g.total+' 완료' : '일정 '+g.evs.length+'개')+(g.from ? ' · '+fmtMD(g.from)+(g.to!==g.from ? ' ~ '+fmtMD(g.to) : '') : ''))));
     b.append(h('div',{ class:'row', style:'gap:6px;margin:8px 0' },
-      h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => { cal.grp = g.name; cal.date = g.from; cal.sel = g.from; closeSheet(true); renderCal(); } }, '달력에서 보기'),
-      h('button',{ class:'btn primary', type:'button', style:'flex:1', onclick:() => { closeSheet(true); openEventEditor(null,{ grp:g.name, ds:g.to>=todayStr() ? (todayStr()>g.from ? todayStr() : g.from) : g.to }); } }, '+ 일정 추가')));
-    b.append(h('div',{ class:'lbl' }, '그룹 일정 (날짜 순)'));
-    const list = h('div',{ class:'agenda' }); g.evs.forEach(ev => list.append(evRow(ev, ev.date, { showDate:true, memo:true, dbl:false }))); b.append(list);
-    // 같은 기간의 다른 일정
-    const others = [], seen = new Set(), n = Math.min(120, dayDiff(g.from, g.to)+1);
-    for(let i=0;i<n && others.length<12;i++){ const ds = addDays(g.from, i); eventsOn(ds).forEach(ev => { if(ev.grp!==g.name && !seen.has(ev.id) && others.length<12){ seen.add(ev.id); others.push({ ev, ds }); } }); }
-    b.append(h('div',{ class:'lbl' }, '같은 기간의 다른 일정'+(others.length ? ' ('+others.length+(others.length>=12 ? '+' : '')+')' : '')));
-    if(others.length){ const o = h('div',{ class:'agenda' }); others.forEach(x => o.append(evRow(x.ev, x.ds, { showDate:true, dbl:false }))); b.append(o); }
-    else b.append(h('p',{ class:'note', style:'margin:2px 2px 8px' }, '겹치는 다른 일정이 없어요.'));
-    // 이름 · 색
+      g.from ? h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => { cal.grp = g.name; cal.date = g.from; cal.sel = g.from; closeSheet(true); renderCal(); } }, '달력에서 보기') : null,
+      h('button',{ class:'btn primary', type:'button', style:'flex:1', onclick:() => { closeSheet(true); openEventEditor(null,{ grp:g.name, ds:(g.to && g.to>=todayStr()) ? (todayStr()>g.from ? todayStr() : g.from) : (g.to||todayStr()) }); } }, '+ 일정 추가')));
+    b.append(h('button',{ class:'btn', type:'button', style:'width:100%;margin-bottom:6px', onclick:() => { closeSheet(true); setTimeout(() => openTplApply(g.name), 60); } }, '템플릿 단계 추가'));
+    if(g.evs.length){
+      b.append(h('div',{ class:'lbl' }, '그룹 일정 (날짜 순)'));
+      const list = h('div',{ class:'agenda' }); g.evs.forEach(ev => list.append(evRow(ev, ev.date, { showDate:true, memo:true, dbl:false }))); b.append(list);
+      const others = [], seen = new Set(), n = Math.min(120, dayDiff(g.from, g.to)+1);
+      for(let i=0;i<n && others.length<12;i++){ const ds = addDays(g.from, i); eventsOn(ds).forEach(ev => { if(ev.grp!==g.name && !seen.has(ev.id) && others.length<12){ seen.add(ev.id); others.push({ ev, ds }); } }); }
+      b.append(h('div',{ class:'lbl' }, '같은 기간의 다른 일정'+(others.length ? ' ('+others.length+(others.length>=12 ? '+' : '')+')' : '')));
+      if(others.length){ const o = h('div',{ class:'agenda' }); others.forEach(x => o.append(evRow(x.ev, x.ds, { showDate:true, dbl:false }))); b.append(o); }
+      else b.append(h('p',{ class:'note', style:'margin:2px 2px 8px' }, '겹치는 다른 일정이 없어요.'));
+    }
     let col = g.color; const nm = h('input',{ class:'field', type:'text', value:g.name, maxlength:40 });
     const sw = h('div',{ class:'grid sw', style:'grid-template-columns:repeat(8,1fr)' });
     EV_COLORS.forEach(c => { const bt = h('button',{ class:'swatch'+(c===col ? ' on' : ''), type:'button', style:'background:'+c+';min-height:30px', 'aria-label':c, onclick:() => { col = c; [...sw.children].forEach(x => x.classList.remove('on')); bt.classList.add('on'); } }); sw.append(bt); });
     b.append(h('div',{ class:'lbl' }, '그룹 이름 · 색'), nm, h('div',{ style:'height:6px' }), sw,
-      h('div',{ class:'row end', style:'margin-top:10px' },
-        h('button',{ class:'btn', type:'button', onclick:() => gtplSaveFrom(g) }, '템플릿 저장'),
-        h('button',{ class:'btn', type:'button', style:'color:var(--danger)', onclick:() => askDlg({ title:'그룹을 해제할까요?', sub:'일정은 그대로 남고 그룹 표시만 사라져요.', ok:'해제', danger:true }, () => { grpClear(g.name); closeSheet(true); toast('그룹을 해제했어요'); }) }, '그룹 해제'),
-        h('button',{ class:'btn primary', type:'button', onclick:() => { const old = g.name; grpEdit(old, nm.value, col); name = (nm.value.trim().slice(0,40) || old); toast('저장했어요'); } }, '이름 · 색 저장')));
+      h('div',{ class:'row end', style:'margin-top:10px;gap:6px' },
+        h('button',{ class:'btn', type:'button', style:'margin-right:auto;color:var(--danger)', onclick:() => askDlg({ title:'그룹을 해제할까요?', sub:'일정은 그대로 남고 그룹 표시만 사라져요.', ok:'해제', danger:true }, () => { grpClear(g.name); closeSheet(true); toast('그룹을 해제했어요'); }) }, '그룹 해제'),
+        g.evs.length ? h('button',{ class:'btn', type:'button', onclick:() => gtplSaveFrom(g) }, '템플릿 저장') : null,
+        h('button',{ class:'btn primary', type:'button', onclick:() => { const old = g.name; const nn = (nm.value.trim().slice(0,40) || old); if(nn!==old && grpList().some(x => x.name===nn)){ toast('같은 이름의 그룹이 이미 있어요'); return; } grpEdit(old, nn, col); name = nn; toast('저장했어요'); } }, '이름 · 색 저장')));
   };
   openSheet('그룹', b => { draw(b); grpRedraw = () => { if(sheetWrap.classList.contains('hidden')){ grpRedraw = null; return; } draw(sheetBody); }; });
 }
-/* ---- 그룹 템플릿: 단계(제목 + 시작일 기준 +n일)로 일정을 한 번에 만든다 ---- */
+/* ---- 그룹 템플릿 (단계 = 제목 + 시작일 기준 +n일). 모두 수정·삭제 가능 ---- */
 const GTPL_BASE = [
   { name:'반품 처리', steps:[['물건 확인',0],['수량 확정',1],['금액 확정',2],['회수',5]] },
   { name:'발주 처리', steps:[['견적 확인',0],['발주',1],['입고 확인',4],['대금 지급',7]] }
 ];
-function gtplLoad(){ try{ const a = JSON.parse(localStorage.getItem('mm_grp_tpl')||'[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
-function gtplSave(a){ try{ localStorage.setItem('mm_grp_tpl', JSON.stringify(a)); }catch(e){} }
+function tplLoad(){ const a = lsGet('mm_grp_tpl2', null); return Array.isArray(a) ? a : JSON.parse(JSON.stringify(GTPL_BASE)); }
+const tplSave = a => lsSet('mm_grp_tpl2', a);
 function gtplSaveFrom(g){
   const base = g.evs[0].date, steps = g.evs.map(e => [e.title, dayDiff(base, e.date)]);
-  const a = gtplLoad().filter(t => t.name!==g.name); a.push({ name:g.name, steps }); gtplSave(a); toast('템플릿으로 저장했어요');
+  const a = tplLoad().filter(t => t.name!==g.name); a.push({ name:g.name, steps }); tplSave(a); toast('템플릿으로 저장했어요');
 }
 function gtplApply(t, gname, start){
-  let nm = (gname||t.name).trim().slice(0,40) || t.name;
-  const col = grpColorOf(nm) || nextGrpColor();
+  const nm = (gname||t.name).trim().slice(0,40) || t.name, col = grpEnsure(nm);
   mutate(() => { t.steps.forEach(s => { const id = uid(); data.events[id] = normEvent({ id, title:s[0], date:addDays(start, s[1]), endDate:'', allDay:true, time:'', endTime:'', repeat:'none', until:'', alarm:null, memo:'', color:EV_COLORS[0], link:null, created:Date.now(), grp:nm, gcol:col }); }); });
-  saveSoon(); refreshEvViews();
-  return nm;
+  saveSoon(); refreshEvViews(); return nm;
 }
-function openGroupTpl(){
-  openSheet('그룹 템플릿', b => {
-    const mine = gtplLoad(), all = GTPL_BASE.map(t => ({ t, own:false })).concat(mine.map(t => ({ t, own:true })));
-    b.append(h('p',{ class:'note' }, '단계가 정해진 일을 한 번에 만들어요. 템플릿을 고르고 시작일을 정하세요.'));
-    const nm = h('input',{ class:'field', type:'text', maxlength:40, placeholder:'그룹 이름 (예: A사 반품)' });
+function openTplApply(name){
+  openSheet('템플릿 단계 추가', b => {
+    const tpls = tplLoad();
+    if(!tpls.length){ b.append(h('p',{ class:'note' }, '템플릿이 없어요. 그룹 영역의 「템플릿」에서 만들어 주세요.')); return; }
+    const ts = h('select',{ class:'field' }, tpls.map((t, i) => h('option',{ value:i }, t.name+' ('+t.steps.length+'단계)')));
     const st = h('input',{ class:'field', type:'date', value:todayStr() });
-    let pick = all[0];
-    const box = h('div',{ class:'list' });
-    const drawBox = () => { box.innerHTML = ''; all.forEach(x => box.append(h('div',{ class:'item', style:'align-items:flex-start;'+(x===pick ? 'outline:2px solid var(--accent)' : ''), onclick:() => { pick = x; drawBox(); } },
-      h('span',{ class:'t' }, h('b',{ style:'display:block' }, x.t.name),
-        h('small',{ style:'color:var(--sub);font-size:11.5px' }, x.t.steps.map(s => s[0]+(s[1] ? ' +'+s[1]+'일' : '')).join(' → '))),
-      x.own ? h('button',{ class:'mini', type:'button', title:'템플릿 삭제', 'aria-label':'템플릿 삭제', html:ic('trash',16), onclick:e => { e.stopPropagation(); const a = gtplLoad().filter(t => t.name!==x.t.name); gtplSave(a); all.splice(all.indexOf(x),1); if(pick===x) pick = all[0]; drawBox(); } }) : null))); };
-    drawBox();
-    b.append(box, h('div',{ class:'lbl' }, '그룹 이름'), nm, h('div',{ class:'lbl' }, '시작일'), st,
+    b.append(h('p',{ class:'note' }, '「'+name+'」 그룹에 템플릿의 단계를 일정으로 추가해요.'), h('div',{ class:'lbl' }, '템플릿'), ts, h('div',{ class:'lbl' }, '시작일 (첫 단계 날짜)'), st,
       h('div',{ class:'row end', style:'margin-top:12px' }, h('button',{ class:'btn primary', type:'button', onclick:() => {
         if(!st.value){ toast('시작일을 정해 주세요'); return; }
-        const made = gtplApply(pick.t, nm.value, st.value); closeSheet(true); cal.grp = made; cal.date = st.value; cal.sel = st.value; renderCal(); toast(pick.t.steps.length+'개 일정을 만들었어요');
-      } }, '일정 만들기')));
+        const t = tpls[+ts.value]; gtplApply(t, name, st.value); closeSheet(true); toast(t.steps.length+'개 일정을 추가했어요');
+      } }, '추가')));
+  });
+}
+function openTplList(){
+  openSheet('그룹 템플릿', b => {
+    const tpls = tplLoad();
+    b.append(h('p',{ class:'note' }, '단계가 정해진 일의 틀이에요. 눌러서 수정하고, 그룹을 만들 때 지정하면 단계마다 일정이 만들어져요.'));
+    b.append(h('div',{ class:'list' }, tpls.map((t, i) => h('button',{ class:'item', type:'button', onclick:() => { closeSheet(true); setTimeout(() => openTplEdit(i), 60); } },
+      h('span',{ class:'t' }, h('b',{ style:'display:block' }, t.name), h('small',{ style:'color:var(--sub);font-size:11.5px' }, t.steps.map(s => s[0]+(s[1] ? ' +'+s[1]+'일' : '')).join(' → ')))))));
+    b.append(h('div',{ class:'row', style:'margin-top:10px' }, h('button',{ class:'btn primary', type:'button', style:'width:100%', onclick:() => { closeSheet(true); setTimeout(() => openTplEdit(-1), 60); } }, '+ 새 템플릿')));
+  });
+}
+function openTplEdit(i){
+  openSheet(i>=0 ? '템플릿 수정' : '새 템플릿', b => {
+    const all = tplLoad(), t = i>=0 ? JSON.parse(JSON.stringify(all[i])) : { name:'', steps:[['',0]] };
+    const nm = h('input',{ class:'field', type:'text', maxlength:40, placeholder:'템플릿 이름', value:t.name });
+    const box = h('div',{ class:'tsteps' });
+    const rows = [];
+    const addRow = (title, off) => {
+      const ti = h('input',{ class:'field', type:'text', maxlength:60, placeholder:'단계 이름', value:title||'', style:'flex:1;min-width:0' });
+      const of = h('input',{ class:'field', type:'number', min:0, max:365, step:1, value:off||0, style:'width:64px;flex:none;text-align:center' });
+      const row = h('div',{ class:'trow' }, h('span',{ class:'tn' }), ti, h('span',{ class:'tp' }, '+'), of, h('span',{ class:'tp' }, '일'),
+        h('button',{ class:'mini', type:'button', 'aria-label':'단계 삭제', title:'단계 삭제', html:ic('trash',16), onclick:() => { const k = rows.indexOf(row); if(rows.length<=1){ toast('단계는 하나 이상 필요해요'); return; } rows.splice(k, 1); row.remove(); num(); } }));
+      row._v = () => [ti.value.trim().slice(0,60), Math.max(0, Math.min(365, parseInt(of.value, 10)||0))];
+      rows.push(row); box.append(row); num();
+    };
+    const num = () => rows.forEach((r, k) => { r.firstChild.textContent = k+1; });
+    t.steps.forEach(s => addRow(s[0], s[1]));
+    b.append(h('div',{ class:'lbl' }, '템플릿 이름'), nm, h('div',{ class:'lbl' }, '단계 (시작일 기준 +며칠 뒤)'), box,
+      h('button',{ class:'btn', type:'button', style:'width:100%;margin-top:6px', onclick:() => addRow('', (rows.length ? rows[rows.length-1]._v()[1] : 0)+1) }, '+ 단계 추가'),
+      h('div',{ class:'row end', style:'margin-top:12px;gap:6px' },
+        i>=0 ? h('button',{ class:'btn', type:'button', style:'margin-right:auto;color:var(--danger)', onclick:() => askDlg({ title:'템플릿을 삭제할까요?', sub:'이미 만든 일정에는 영향이 없어요.', ok:'삭제', danger:true }, () => { all.splice(i, 1); tplSave(all); closeSheet(true); setTimeout(openTplList, 60); }) }, '삭제') : null,
+        h('button',{ class:'btn primary', type:'button', onclick:() => {
+          const name = nm.value.trim().slice(0,40); if(!name){ toast('템플릿 이름을 입력해 주세요'); return; }
+          const steps = rows.map(r => r._v()).filter(s => s[0]); if(!steps.length){ toast('단계 이름을 입력해 주세요'); return; }
+          const nt = { name, steps }; if(i>=0) all[i] = nt; else all.push(nt); tplSave(all); closeSheet(true); setTimeout(openTplList, 60);
+        } }, '저장')));
   });
 }
 
@@ -5043,7 +5158,7 @@ function evDragOn(row, ev, ds){
     dndCur = { id:ev.id, ds };
     try{
       e.dataTransfer.setData('text/plain', ev.id+'|'+ds); e.dataTransfer.effectAllowed = 'move';
-      const g = h('div',{ class:'dragghost', style:'--c:'+ev.color }, ev.title||'(제목 없음)');   // 쪼그라든 모습으로 손가락에 잡힌다
+      const g = h('div',{ class:'dragghost', style:'--c:'+evColor(ev) }, ev.title||'(제목 없음)');   // 쪼그라든 모습으로 손가락에 잡힌다
       document.body.append(g); e.dataTransfer.setDragImage(g, 16, 16); setTimeout(() => g.remove(), 0);
     }catch(_){}
     setTimeout(() => row.classList.add('lifting'), 0);
@@ -5062,14 +5177,15 @@ function moveEvTo(id, from, to){
   toast('일정을 '+fmtMD(to)+'로 옮겼어요', { label:'취소', fn:() => { ev.date = orig.date; ev.endDate = orig.endDate; cal.sel = orig.sel; if(ev.link) pushEventToMap(ev); saveSoon(); refreshEvViews(); } });
 }
 function dndInit(){
-  const cellOf = e => e.target && e.target.closest ? e.target.closest('.cday[data-ds], .wkd[data-ds]') : null;
+  const cellOf = e => e.target && e.target.closest ? e.target.closest('.cday[data-ds], .wkd[data-ds], .ggrp[data-g], .indep') : null;
   document.addEventListener('dragover', e => {
     if(!dndCur) return; const c = cellOf(e); clearDrop();
     if(c){ e.preventDefault(); try{ e.dataTransfer.dropEffect = 'move'; }catch(_){} c.classList.add('dropt'); }
   });
   document.addEventListener('drop', e => {
     if(!dndCur) return; const c = cellOf(e); clearDrop(); if(!c) return;
-    e.preventDefault(); const cur = dndCur; dndCur = null; moveEvTo(cur.id, cur.ds, c.dataset.ds);
+    e.preventDefault(); const cur = dndCur; dndCur = null;
+    if(c.dataset.g) setEvGroup(cur.id, c.dataset.g); else if(c.classList.contains('indep')) setEvGroup(cur.id, ''); else moveEvTo(cur.id, cur.ds, c.dataset.ds);
   });
 }
 
@@ -5204,20 +5320,25 @@ function evRow0(ev, ds, o){
 function calAgenda(ds){
   const evs = eventsOn(ds, true);
   const box = h('div',{class:'agenda'},
-    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('span',{class:'hbtns'}, grpBtn(), ordToggle(), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정'))));
-  if(!evs.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
-  if(cal.rord){ evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:cal.rord }))); return box; }
-  const gm = {}, order = [];
-  evs.forEach(ev => { if(ev.grp){ if(!gm[ev.grp]){ gm[ev.grp] = []; order.push({ g:ev.grp }); } gm[ev.grp].push(ev); } else order.push({ ev }); });
-  order.forEach(x => {
-    if(x.ev){ box.append(evRow(x.ev, ds, { memo:true })); return; }
-    const info = grpList().find(g => g.name===x.g), col = info ? info.color : '#888';
-    const wrap = h('div',{ class:'ggrp', style:'--gc:'+col });
-    wrap.append(h('button',{ type:'button', class:'ghead', onclick:() => openGroupDetail(x.g) },
-      h('span',{ class:'gd' }), h('b',{}, x.g), h('small',{}, info && info.total ? info.done+'/'+info.total+' 완료' : ''), h('span',{ class:'sp' }), h('i',{ html:'›' })));
-    gm[x.g].forEach(ev => wrap.append(evRow(ev, ds, { memo:true })));
-    box.append(wrap);
-  });
+    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('span',{class:'hbtns'}, ordToggle(), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정'))));
+  if(cal.rord){
+    if(!evs.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
+    evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:true })));
+    return box;
+  }
+  box.append(grpArea());
+  const solo0 = evs.filter(ev => !ev.grp), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
+  const ind = h('div',{ class:'indep' });
+  if(hasG) ind.append(h('div',{ class:'lbl' }, '단독 일정'));
+  if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 단독 일정이 없어요.' : evs.length ? '이 날의 단독 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
+  solo.forEach(ev => ind.append(evRow(ev, ds, { memo:true })));
+  box.append(ind);
+  if(fin.length){
+    const fold = gfold().has('#done');
+    box.append(h('div',{ class:'donesec' },
+      h('button',{ type:'button', class:'dhead', onclick:() => { gfoldSet('#done', !fold); renderCal(); } }, h('span',{ class:'gtog' }, fold ? '▸' : '▾'), h('b',{}, '완료 일정'), h('small',{}, String(fin.length))),
+      fold ? null : fin.map(ev => evRow(ev, ds, { memo:true }))));
+  }
   return box;
 }
 /* ===================== 대한민국 공휴일 · 주 번호 ===================== */
@@ -5518,7 +5639,7 @@ function calDay(body){
   const ds = cal.date, evs = eventsOn(ds, true);
   const wrap = h('div',{class:'cdy'});
   if(!evs.length) wrap.append(h('p',{class:'note',style:'text-align:center;padding:30px 0'},'이 날은 일정이 없어요.'));
-  if(evs.length) wrap.prepend(h('div',{class:'ordrow'}, grpBtn(), ordToggle()));
+  if(evs.length) wrap.prepend(h('div',{class:'ordrow'}, ordToggle()));
   evs.forEach((ev, i) => wrap.append(evRow(ev, ds, { memo:true, ord:cal.rord })));
   body.append(wrap);
 }
@@ -5601,7 +5722,7 @@ function openEventEditor(id, o){
     const rep = h('select',{class:'field'}, Object.keys(REPEAT_LABEL).map(k => h('option',{value:k}, REPEAT_LABEL[k]))); rep.value = f.repeat||'none';
     const untilI = h('input',{class:'field',type:'date',value:f.until||''});
     const alarm = h('select',{class:'field'});
-    const memo = h('textarea',{class:'field',rows:3,placeholder:'내용 (선택)'}); memo.value = f.memo||'';
+    const memo = h('textarea',{class:'field evmemo',rows:6,placeholder:'내용 (선택)'}); memo.value = f.memo||'';
     const mmic = micBtn(memo);
     const timeBox = h('div',{class:'frow'}, h('div',{style:'flex:1'}, h('div',{class:'lbl'},'시작 시간'), timeI), h('div',{style:'flex:1'}, h('div',{class:'lbl'},'종료 시간'), etimeI));
     const endBox = h('div',{}, h('div',{class:'lbl'},'종료 날짜 (여러 날 일정일 때만)'), endI);
@@ -5624,12 +5745,19 @@ function openEventEditor(id, o){
     const allRow = toggleRow('종일', allDay, v => { allDay = v; sync(); });
     const sw = h('div',{class:'grid sw',style:'grid-template-columns:repeat(8,1fr)'});
     EV_COLORS.forEach(c => { const bt = h('button',{ class:'swatch'+(c===color?' on':''), type:'button', style:'background:'+c+';min-height:30px', 'aria-label':c, onclick:() => { color = c; [...sw.children].forEach(x => x.classList.remove('on')); bt.classList.add('on'); } }); sw.append(bt); });
-    const gnames = grpList().map(g => g.name), curG = (ex ? ex.grp : o.grp) || '';
-    const grpSel = h('select',{class:'field'}, h('option',{value:''}, '없음'), gnames.map(n => h('option',{value:n}, n)), h('option',{value:'__new'}, '+ 새 그룹 만들기…'));
-    if(curG && !gnames.includes(curG)) grpSel.append(h('option',{value:curG}, curG));
-    grpSel.value = curG;
+    const gl = grpList(), curG = (ex ? ex.grp : o.grp) || '';
+    const grpSel = { value:curG };
     const grpNew = h('input',{class:'field hidden',type:'text',placeholder:'새 그룹 이름 (예: A사 반품)',maxlength:40,style:'margin-top:6px'});
-    grpSel.addEventListener('change', () => { grpNew.classList.toggle('hidden', grpSel.value!=='__new'); if(grpSel.value==='__new') grpNew.focus(); });
+    const grpRow = h('div',{class:'gpick'});
+    const gdraw = () => {
+      grpRow.innerHTML = '';
+      const chip = (label, val, col, extra) => h('button',{type:'button',class:'gpc'+((grpSel.value===val) ? ' on' : '')+(extra||''),style:col ? '--gc:'+col : '',onclick:() => { grpSel.value = val; grpNew.classList.toggle('hidden', val!=='__new'); if(val==='__new') grpNew.focus(); gdraw(); }}, label);
+      grpRow.append(chip('단독 일정', '', ''));
+      gl.forEach(g => grpRow.append(chip(g.name, g.name, g.color)));
+      if(curG && !gl.some(g => g.name===curG)) grpRow.append(chip(curG, curG, ''));
+      grpRow.append(chip('+ 새 그룹', '__new', '', ' add'));
+    };
+    gdraw();
     let gcalPick = null;
     function save(){
       const t = title.value.trim();
@@ -5646,7 +5774,7 @@ function openEventEditor(id, o){
       ev.alarm = alarm.value==='' ? null : Number(alarm.value);
       ev.memo = memo.value.slice(0,5000); ev.color = color;
       { const gn = grpSel.value==='__new' ? grpNew.value.trim().slice(0,40) : grpSel.value;
-        if(gn){ ev.grp = gn; ev.gcol = grpColorOf(gn) || nextGrpColor(); } else { delete ev.grp; delete ev.gcol; } }
+        if(gn){ ev.grp = gn; ev.gcol = grpEnsure(gn); } else { delete ev.grp; delete ev.gcol; } }
       if(ev.dn && ev.repeat==='none'){ const v = Object.values(ev.dn)[0]; if(v) ev.dn = { [ev.date]: v }; else delete ev.dn; }
       if(gcalPick) ev.gcal = gcalPick();
       data.events[ev.id] = ev; saveSoon();
@@ -5656,11 +5784,11 @@ function openEventEditor(id, o){
     }
     title.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); if(save()){ closeSheet(true); checkAlarms(); } } });
     b.append(h('div',{style:'display:flex;gap:8px;align-items:center'}, h('div',{style:'flex:1'}, title), tmic),
+      h('div',{class:'lbl'},'그룹 (선택 사항)'), grpRow, grpNew,
       h('div',{class:'lbl'},'날짜'), dateI, endBox, allRow, timeBox,
       h('div',{class:'lbl'},'반복'), rep, untilBox,
       h('div',{class:'lbl'},'알림 (앱이 열려 있을 때만 울려요)'), alarm,
       h('p',{class:'note',style:'margin:2px 2px 8px;font-size:11.5px'},'앱을 닫으면 알림이 울리지 않아요 · 중요한 일정은 구글 캘린더로 올려 두세요'),
-      h('div',{class:'lbl'},'그룹 (관련 일정 묶어서 보기)'), grpSel, grpNew,
       h('div',{class:'lbl'},'색상'), sw,
       h('div',{class:'lbl',style:'display:flex;align-items:center;justify-content:space-between'}, h('span',{},'내용'), mmic), memo);
     sync();
