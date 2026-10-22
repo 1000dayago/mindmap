@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610221825">
+<meta name="app-version" content="202610221858">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1667,13 +1667,32 @@ function edgeReach(n, ux, uy){
   if(n.shape === 'diamond') return 1 / (ax / a + ay / b);
   return Math.min(ax > 1e-6 ? a / ax : 1e9, ay > 1e-6 ? b / ay : 1e9);
 }
+function segHitsRect(x1, y1, x2, y2, l, t, r, b){
+  let t0 = 0, t1 = 1; const dx = x2-x1, dy = y2-y1;
+  const clip = (pp, qq) => { if(pp===0) return qq >= 0; const u = qq/pp; if(pp<0){ if(u>t1) return false; if(u>t0) t0 = u; } else { if(u<t0) return false; if(u<t1) t1 = u; } return true; };
+  return clip(-dx, x1-l) && clip(dx, r-x1) && clip(-dy, y1-t) && clip(dy, b-y1);
+}
+function edgeBlocked(p, n, x1, y1, x2, y2){
+  const ns = N(), x0 = Math.min(x1, x2)-6, x9 = Math.max(x1, x2)+6, y0 = Math.min(y1, y2)-6, y9 = Math.max(y1, y2)+6;
+  for(const id in ns){
+    const q = ns[id]; if(q===p || q===n) continue;
+    const l = q.x-q.w/2-4, r = q.x+q.w/2+4, t = q.y-q.h/2-4, b = q.y+q.h/2+4;
+    if(r<x0 || l>x9 || b<y0 || t>y9) continue;
+    if(segHitsRect(x1, y1, x2, y2, l, t, r, b)) return true;
+  }
+  return false;
+}
 function edgeSvg(p, n, dark, focusSet, opt){
   const cc = nodeColors(n, dark);
   const isYN = S().yesNoColor && (n.kind==='yes' || n.kind==='no');
   const col = isYN ? (n.kind==='yes' ? YES_C : NO_C) : cc.base;
   const dx = n.x-p.x, dy = n.y-p.y, adx = Math.abs(dx), ady = Math.abs(dy);
   let x1,y1,x2,y2, sx0 = 0, sy0 = 0, style = 'h';     // sx0,sy0 = 부모에서 자식 쪽으로 나가는 방향
-  const diag = adx > 1 && ady > 1 && ady/adx > .6 && ady/adx < 1.67;   // 대각선(약 31°~59°)
+  let diag = adx > 1 && ady > 1 && ady/adx > .6 && ady/adx < 1.67;   // 대각선(약 31°~59°)
+  if(diag){   // 직선이 다른 노드를 지나가면 대각선을 쓰지 않고 옆으로 돌아가는 곡선으로 바꾼다
+    const L0 = Math.hypot(dx, dy), ux = dx/L0, uy = dy/L0, a1 = edgeReach(p, ux, uy), a2 = edgeReach(n, ux, uy);
+    if(edgeBlocked(p, n, p.x+ux*a1, p.y+uy*a1, n.x-ux*a2, n.y-uy*a2)) diag = false;
+  }
   if(diag){
     // 대각선: 두 노드의 중심을 잇는 방향 그대로, 부모 테두리 → 자식 테두리 직선
     const L = Math.hypot(dx, dy); sx0 = dx / L; sy0 = dy / L; style = 'd';
@@ -2766,6 +2785,8 @@ function openLayoutSheet(){
   const m = cur(), tid = sel || m.rootId, tn = m.nodes[tid];
   openSheet('정렬', b => {
     b.append(h('p',{class:'note'}, sel ? '선택한 “'+short(tn.text)+'”와 그 하위 노드를 정렬해요. 선택한 노드는 제자리에 둬요.' : '선택된 노드가 없어서 맵 전체를 정렬해요.'));
+    b.append(h('div',{class:'list'}, menuItem('✨', '맵 전체 다시 정리 (지금 배치 방식 유지)', () => { closeSheet(true); mutate(mm => { tidyMap(mm); }); fitAll(); toast('맵 전체를 다시 정리했어요'); })));
+    b.append(h('div',{class:'lbl'},'배치 방식'));
     b.append(h('div',{class:'list'}, LAYOUTS.map(([id,label,ic]) => menuItem(ic, label, () => applyLayout(tid,id), { chk:tn.layout===id }))));
     b.append(h('div',{class:'lbl'},'노드 간격'));
     const seg = h('div',{class:'seg'});
@@ -2888,7 +2909,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610221825';
+const APP_VER = '202610221858';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
