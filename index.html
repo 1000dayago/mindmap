@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610221150">
+<meta name="app-version" content="202610221258">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1077,6 +1077,9 @@ button.gchip{cursor:pointer}
 .cbar.gbar.cr{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
 .cbar.gbar .gcv{font-style:normal;font-size:9px;margin-right:4px;flex:none;cursor:pointer;padding:0 2px}
 .cbar.gbar span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cday.sw{min-height:158px}
+.cday.ow{min-height:54px}
+@media(min-width:821px){ .cday.sw{min-height:210px} .cday.ow{min-height:72px} }
 
 .evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
 @media(min-width:821px){
@@ -1099,6 +1102,14 @@ button.gchip{cursor:pointer}
 @keyframes rflash{0%,100%{box-shadow:0 0 0 0 transparent}30%{box-shadow:0 0 0 4px var(--accent),0 0 18px var(--accent)}}
 .flash{animation:rflash .8s ease 3}
 
+@media(min-width:821px){
+  #sheet:has(.evright){width:min(1080px,95vw);max-height:94vh;max-height:94dvh}
+  #sheetBody:has(.evright){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);column-gap:22px;align-content:start;grid-auto-rows:min-content}
+  #sheetBody:has(.evright) > .evright{grid-column:2;grid-row:1 / span 40;display:flex;flex-direction:column;min-width:0}
+  #sheetBody:has(.evright) > *:not(.evright){grid-column:1;min-width:0}
+  #sheetBody:has(.evright) > .row.end:last-child{grid-column:1 / -1}
+  .evright .evmemo{min-height:clamp(240px,40dvh,440px)}
+}
 </style>
 </head>
 <body>
@@ -2877,7 +2888,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610221150';
+const APP_VER = '202610221258';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5774,16 +5785,19 @@ function monthGrid(body, done){
   const a = parseYmd(cal.date), y = a.getFullYear(), mo = a.getMonth();
   const first = ymd(new Date(y,mo,1)), start = addDays(first, -dow(first));
   const weeks = Math.ceil((dow(first)+daysIn(y,mo+1))/7), today = todayStr();
-  const maxL = (window.matchMedia && matchMedia('(min-width:821px)').matches) ? 4 : 3;
+  const isPC = !!(window.matchMedia && matchMedia('(min-width:821px)').matches), maxL = isPC ? 4 : 3;
+  // 선택한 날의 주는 높이를 키워 일정을 더 많이, 나머지 주는 줄여서 보여준다
+  const gEnd = addDays(start, weeks*7), refD = (cal.sel>=start && cal.sel<gEnd) ? cal.sel : cal.date;
+  const selWi = done ? -1 : Math.floor(dayDiff(start, refD)/7), maxSel = isPC ? 8 : 7, maxOth = 2;
   const grid = h('div',{class:'cgrid wk'});
   grid.append(h('div',{class:'cdow cwn0', style:'grid-row:1;grid-column:1'}, '주'));
   DOW.forEach((d,i) => grid.append(h('div',{class:'cdow'+(i===0?' sun':i===6?' sat':''), style:'grid-row:1;grid-column:'+(i+2)}, d)));
   for(let w=0; w<weeks; w++){
-    const ws = addDays(start, w*7), sp = done ? doneBars(ws, maxL) : spanBars(ws, maxL, true);
+    const ws = addDays(start, w*7), sp = done ? doneBars(ws, maxL) : spanBars(ws, w===selWi ? maxSel : maxOth, true);
     grid.append(h('div',{class:'cwn', style:'grid-row:'+(w+2)+';grid-column:1', title:isoWeek(addDays(ws,4))+'주'}, isoWeek(addDays(ws,4))));
     for(let wd=0; wd<7; wd++){
       const ds = addDays(ws, wd), dd = parseYmd(ds), hol = krHoliday(ds);
-      const cell = h('div',{ 'data-ds':ds, class:'cday'+(dd.getMonth()!==mo?' oth':'')+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
+      const cell = h('div',{ 'data-ds':ds, class:'cday'+(dd.getMonth()!==mo?' oth':'')+(done ? '' : (w===selWi ? ' sw' : ' ow'))+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
         onclick:() => { if(!done){ cal.sel = ds; renderCal(); } }, ondblclick:() => { if(!done) openEventEditor(null,{ ds }); } },
         h('span',{class:'dn'+(wd===0||hol?' sun':wd===6?' sat':'')}, dd.getDate()));
       const hn = hol ? h('span',{class:'hn'}, hol) : null;
@@ -5989,9 +6003,10 @@ function openEventEditor(id, o){
       h('div',{class:'lbl'},'반복'), rep, untilBox,
       h('div',{class:'lbl'},'알림 (앱이 열려 있을 때만 울려요)'), alarm,
       h('p',{class:'note',style:'margin:2px 2px 8px;font-size:11.5px'},'앱을 닫으면 알림이 울리지 않아요 · 중요한 일정은 구글 캘린더로 올려 두세요'),
-      h('div',{class:'lbl'},'관련 마인드맵 노드'), refBox,
-      h('div',{class:'lbl'},'색상'), sw,
-      h('div',{class:'lbl',style:'display:flex;align-items:center;justify-content:space-between'}, h('span',{},'내용'), mmic), memo);
+      h('div',{class:'evright'},
+        h('div',{class:'lbl',style:'display:flex;align-items:center;justify-content:space-between'}, h('span',{},'내용'), mmic), memo,
+        h('div',{class:'lbl'},'관련 마인드맵 노드'), refBox,
+        h('div',{class:'lbl'},'색상'), sw));
     sync();
     alarm.value = f.alarm==null ? '' : (Array.from(alarm.options).some(x => x.value===String(f.alarm)) ? String(f.alarm) : '');
     // 마인드맵 연동 (기본은 연결 안 됨)
