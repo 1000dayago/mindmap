@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610232131">
+<meta name="app-version" content="202610232139">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3150,7 +3150,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610232131';
+const APP_VER = '202610232139';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -9218,7 +9218,11 @@ function searchAll(qs){
   return out;
 }
 /* ===================== 노드 위치를 단계별로 보여주기 (i. 최상위 → ii. 2단계 → iii. 3단계 …) ===================== */
-function lvNum(L){ return L<=6 ? 'i'.repeat(L)+'.' : '('+L+')'; }
+function lvNum(L){   // 로마자 소문자: i ii iii iv v vi vii viii ix x xi …
+  let n = Math.max(1, L|0), r = '';
+  [[1000,'m'],[900,'cm'],[500,'d'],[400,'cd'],[100,'c'],[90,'xc'],[50,'l'],[40,'xl'],[10,'x'],[9,'ix'],[5,'v'],[4,'iv'],[1,'i']].forEach(p => { while(n>=p[0]){ r += p[1]; n -= p[0]; } });
+  return r+'.';
+}
 function lvChain(mapId, nid){
   const m = data.maps[mapId]; if(!m || !m.nodes[nid]) return [];
   const out = []; let n = m.nodes[nid], g = 0;
