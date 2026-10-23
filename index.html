@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610232139">
+<meta name="app-version" content="202610232146">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1236,6 +1236,11 @@ button.gchip{cursor:pointer}
 .rchip.add{padding:3px 10px !important;font-size:11.5px !important}
 .rchip .rc{padding:4px 5px 4px 8px !important}
 .rchip .rx{padding:4px 8px 4px 3px !important}
+/* ⋯ 메뉴: 글자·아이콘 작게 */
+.mmenu .item{min-height:38px !important;padding:5px 10px !important;gap:9px !important;border-radius:11px !important;font-size:13px !important}
+.mmenu .item .ico{width:26px !important;height:26px !important;border-radius:8px !important;font-size:14px !important}
+.mmenu .item .ico svg{width:15px !important;height:15px !important}
+.mmenu .item .s{font-size:11px}
 
 /* 도구 막대: 띠 배경 없이, 아이콘마다 둥근 네모 칸 · 왼쪽 정렬 (PC · 모바일 공통) */
 #toolbar{background:transparent !important;height:0 !important;min-height:0 !important;overflow:visible !important;position:fixed !important;left:64px;bottom:16px;top:auto !important;width:auto !important;z-index:20;align-items:flex-end !important;pointer-events:none;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;padding:8px 12px;gap:8px;align-items:center;justify-content:flex-start}
@@ -3150,7 +3155,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610232139';
+const APP_VER = '202610232146';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3282,7 +3287,7 @@ function openHelp(){
 }
 function openMore(){
   openSheet('메뉴', b => {
-    b.append(h('div',{class:'list'},
+    b.append(h('div',{class:'list mmenu'},
       menuItem('📁','맵 목록 / 새 맵', openMapList),
       menuItem('✏️','맵 이름 변경', () => renameMap(data.current)),
       menuItem('💾','현재 맵 JSON 저장', exportCurrent),
