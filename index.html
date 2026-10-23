@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610232110">
+<meta name="app-version" content="202610232121">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3138,7 +3138,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610232110';
+const APP_VER = '202610232121';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5963,8 +5963,8 @@ function nodePicker(onPick){
     walk(m.rootId, 0); Object.keys(m.nodes).forEach(id => walk(id, 0));
     const shown = out.filter(x => !term || String(x.n.text||'').toLowerCase().includes(term)).slice(0, 40);
     if(!shown.length) list.append(h('p',{ class:'note', style:'margin:6px 2px' }, '찾는 노드가 없어요.'));
-    shown.forEach(x => list.append(h('button',{ class:'item', type:'button', style:term ? '' : 'padding-left:'+(10+Math.min(x.d, 6)*10)+'px', onclick:() => onPick({ m:m.id, n:x.n.id }) },
-      h('span',{ class:'t lvx' }, term ? lvTree(m.id, x.n.id) : h('span',{ class:'lvtree' }, h('span',{ class:'lv last' }, h('b',{ class:'lvn' }, lvNum(x.d+1)), h('span',{ class:'lvt' }, String(x.n.text||'(이름 없음)').replace(/\s*\n\s*/g, ' ').slice(0, 50))))))));
+    shown.forEach(x => list.append(h('button',{ class:'item', type:'button', onclick:() => onPick({ m:m.id, n:x.n.id }) },
+      h('span',{ class:'t lvx' }, term ? lvTree(m.id, x.n.id) : h('span',{ class:'lvtree' }, h('span',{ class:'lv last'+(x.d ? ' d' : ''), style:'padding-left:'+(Math.min(x.d, 10)*18)+'px' }, h('b',{ class:'lvn' }, lvNum(x.d+1)), h('span',{ class:'lvt' }, String(x.n.text||'(이름 없음)').replace(/\s*\n\s*/g, ' ').slice(0, 50))))))));
   };
   ms.addEventListener('change', draw); q.addEventListener('input', draw); draw();
   return h('div',{ class:'rpick' }, ms, q, list);
