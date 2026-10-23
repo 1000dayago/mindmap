@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231247">
+<meta name="app-version" content="202610231256">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -2977,7 +2977,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231247';
+const APP_VER = '202610231256';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5521,7 +5521,7 @@ function refField(getRefs, setRefs, nav){
 }
 // 노드 쪽: 연결된 일정·그룹 보기 / 연결 추가
 function openNodeSched(mapId, nid){
-  let tab = 'ev', term = '';
+  let tab = 'ev', term = '', adding = false;
   const key = mapId+'|'+nid, mine = r => r.m===mapId && r.n===nid, lock = () => { if(S().lock){ lockedMsg(); return true; } return false; };
   const draw = b => {
     b.innerHTML = '';
@@ -5537,7 +5537,11 @@ function openNodeSched(mapId, nid){
       h('button',{ class:'item', type:'button', onclick:() => goToEvent(ev.id) }, h('span',{ class:'ico', style:'--c:'+evColor(ev), html:ic('calendar',20) }), h('span',{ class:'t' }, h('b',{ style:'display:block' }, ev.title||'(제목 없음)'), h('small',{ style:'color:var(--sub);font-size:11.5px' }, fmtMD(ev.date)+(ev.grp ? ' · '+ev.grp : '')))),
       h('button',{ class:'mini d', type:'button', title:'연결 해제', 'aria-label':'연결 해제', html:ic('x',14), onclick:() => { if(lock()) return; ev.refs = (ev.refs||[]).filter(r => !mine(r)); if(!ev.refs.length) delete ev.refs; saveSoon(); refDirty(); render(); draw(b); } }))));
     b.append(rows);
-    b.append(h('div',{ class:'lbl' }, '연결 추가'));
+    if(!adding){   // 평소에는 이 노드에 연결된 것만 보여준다. 다른 일정은 '연결 추가'를 눌러야 나온다
+      b.append(h('div',{ class:'row', style:'margin-top:10px' }, h('button',{ class:'btn', type:'button', onclick:() => { adding = true; draw(b); } }, '+ 연결 추가')));
+      return;
+    }
+    b.append(h('div',{ class:'lbl', style:'display:flex;align-items:center;justify-content:space-between' }, h('span',{}, '연결 추가'), h('button',{ class:'btn', type:'button', onclick:() => { adding = false; term = ''; draw(b); } }, '접기')));
     b.append(h('div',{ class:'seg' }, ['ev','grp'].map(t => h('button',{ type:'button', class:tab===t ? 'on' : '', onclick:() => { tab = t; term = ''; draw(b); } }, t==='ev' ? '일정' : '그룹'))));
     if(tab==='ev'){
       const q = h('input',{ class:'field', type:'text', placeholder:'일정 검색', value:term, style:'margin-top:6px' });
