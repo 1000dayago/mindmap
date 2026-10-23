@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610221858">
+<meta name="app-version" content="202610231000">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1080,6 +1080,13 @@ button.gchip{cursor:pointer}
 .cday.sw{min-height:158px}
 .cday.ow{min-height:54px}
 @media(min-width:821px){ .cday.sw{min-height:210px} .cday.ow{min-height:72px} }
+.cbar.pdim{opacity:.3;filter:saturate(.45)}
+.cbar.psel{box-shadow:0 0 0 2.5px #1f2937,0 3px 8px rgba(0,0,0,.28)!important;z-index:4}
+.pickbar{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:7px 8px 7px 12px;border-radius:999px;background:var(--panel-solid);border:1.5px solid #1f2937}
+.pickbar b{font-size:13px;font-weight:800;white-space:nowrap}
+.pickbar small{color:var(--sub);font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.pickbar .sp{flex:1}
+.pickbar .gx{padding:5px 12px;border-radius:999px;background:#1f2937;color:#fff;font-size:12px;font-weight:800;white-space:nowrap}
 
 .evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
 @media(min-width:821px){
@@ -2909,7 +2916,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610221858';
+const APP_VER = '202610231000';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4828,6 +4835,7 @@ function renderCal(){
   if(cal.search) calSearch(body);
   else ({ year:calYear, month:calMonth, week:calWeek, day:calDay, done:calDone })[cal.view](body);
   if(cal.grp && !cal.search){ const gb = grpFocusBar(); if(gb) body.prepend(gb); }
+  if(cal.view==='month' && (cal.pick||[]).length && !cal.search){ body.prepend(pickBar()); }
   body.scrollTop = st;
 }
 /* ===================== 일정 완료 체크 (달력에서는 숨기고 목록에는 취소선) ===================== */
@@ -5139,6 +5147,31 @@ function openTplEdit(i){
           const nt = { name, steps }; if(i>=0) all[i] = nt; else all.push(nt); tplSave(all); closeSheet(true); setTimeout(openTplList, 60);
         } }, '저장')));
   });
+}
+
+/* ---- 달력 막대 선택: 선택한 일정(최대 3)이 걸친 주를 펼치고 맨 위 줄에 올린다 ---- */
+function pickToggle(key){
+  const a = (cal.pick||[]).slice(), i = a.indexOf(key);
+  if(i>=0) a.splice(i, 1); else { a.push(key); while(a.length>3) a.shift(); }
+  cal.pick = a; renderCal();
+}
+function barClick(key, openFn, pickFn){
+  return e => {
+    if(e && e.stopPropagation) e.stopPropagation();
+    const n = performance.now();
+    if(barClick.k===key && n-barClick.t<420 && n-(onDbl.drag||0)>350){ clearTimeout(barClick.tm); barClick.k = null; openFn(e); }
+    else { barClick.k = key; barClick.t = n; clearTimeout(barClick.tm); barClick.tm = setTimeout(pickFn, 280); }   // 더블클릭인지 보고 나서 선택 (선택하면 막대가 움직여서)
+  };
+}
+function pickCls(key, gray){
+  const pk = (cal.view==='month' && !gray) ? (cal.pick||[]) : [];
+  if(!pk.length) return '';
+  return pk.includes(key) ? ' psel' : ' pdim';
+}
+function pickBar(){
+  const names = (cal.pick||[]).map(k => k.startsWith('g:') ? k.slice(2) : ((data.events[k]||{}).title||''));
+  return h('div',{ class:'pickbar' }, h('b',{}, '선택 '+names.length+'/3'), h('small',{}, names.join(' · ')), h('span',{ class:'sp' }),
+    h('button',{ type:'button', class:'gx', onclick:() => { cal.pick = []; renderCal(); } }, '✕ 선택 해제'));
 }
 
 /* ===================== 일정 · 그룹 ↔ 마인드맵 노드 연결 (참조 링크) ===================== */
@@ -5758,8 +5791,14 @@ function spanBars(ws, maxLanes, withSingles){
     for(let i=0;i<7;i++){ const ds = addDays(ws, i); eventsOn(ds).forEach(ev => { if(!isSpan(ev) && !inCol(ev)) items.push({ ev, c1:i, c2:i, l:false, r:false, single:true, ds }); }); }
   }
   items.sort((a, b) => (a.ev.ord==null ? 1e15 : a.ev.ord)-(b.ev.ord==null ? 1e15 : b.ev.ord));   // 정렬은 안정적이라 순서 미지정 일정은 기존 순서 유지
-  const rest = items.slice(), ord2 = [];
-  gitems.forEach(gi => { ord2.push(gi); if(gi.open){ for(let k=0;k<rest.length;){ if(rest[k].ev.grp===gi.gbar.name && !rest[k].gray){ rest[k].after = gi; ord2.push(rest.splice(k,1)[0]); } else k++; } } });
+  const rest = items.slice(), ord2 = [], pk = (cal.view==='month' ? (cal.pick||[]) : []);
+  const takeG = gi => { ord2.push(gi); if(gi.open){ for(let k=0;k<rest.length;){ if(rest[k].ev.grp===gi.gbar.name && !rest[k].gray){ rest[k].after = gi; ord2.push(rest.splice(k,1)[0]); } else k++; } } };
+  pk.forEach(key => {   // 선택한 일정을 맨 위 줄로
+    if(key.startsWith('g:')){ const gi = gitems.find(x => x.gbar.name===key.slice(2)); if(gi && !ord2.includes(gi)) takeG(gi); return; }
+    const pe = data.events[key], pg = pe && pe.grp && gitems.find(x => x.gbar.name===pe.grp && x.open); if(pg && !ord2.includes(pg)) takeG(pg);
+    for(let k=0;k<rest.length;){ if(rest[k].ev.id===key && !rest[k].gray){ ord2.push(rest.splice(k,1)[0]); } else k++; }
+  });
+  gitems.forEach(gi => { if(!ord2.includes(gi)) takeG(gi); });
   return packBars(ord2.concat(rest), maxLanes);
 }
 // 완료 기록: 일정의 시점(s)에서 완료한 날(d)까지
@@ -5785,9 +5824,9 @@ function doneBars(ws, maxLanes){
 function barEl(b, ds0, pos, ctx){
   if(b.gbar){
     const g = b.gbar, tog = () => { gexpToggle(g.name); renderCal(); };
-    return h('div',{ class:'cbar gbar'+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
+    return h('div',{ class:'cbar gbar'+pickCls('g:'+g.name, false)+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
       title:g.name+(g.total ? ' · '+g.done+'/'+g.total+' 완료 ('+b.pct+'%)' : '')+' · '+fmtMD(g.nf)+(g.nt!==g.nf ? ' ~ '+fmtMD(g.nt) : '')+'\n두 번 누르면 '+(b.open ? '접기' : '펼치기'),
-      onclick:onDbl(tog), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
+      onclick:barClick('g:'+g.name, tog, () => pickToggle('g:'+g.name)), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
       h('i',{ class:'gcv', onclick:e => { e.stopPropagation(); tog(); } }, b.open ? '▾' : '▸'), h('span',{}, b.label));
   }
   const ev = b.ev, gray = !!b.gray, tc = gray ? '#fff' : (evColor(ev)==='#eab308' ? '#422006' : '#fff');
@@ -5797,8 +5836,8 @@ function barEl(b, ds0, pos, ctx){
     if(!b.l) kids.unshift(rzHandle('s', ev, ctx, ds0));
     if(!b.r) kids.push(rzHandle('e', ev, ctx, ds0));
   }
-  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 가운데를 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
-    style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+((ev.grp && !gray) ? gv(evColor(ev)) : '')+pos, onclick:openEvOnDbl(ev, ds0), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
+  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+(pickCls(ev.id, gray))+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 가운데를 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
+    style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+((ev.grp && !gray) ? gv(evColor(ev)) : '')+pos, onclick:(gray || isRep(ev)) ? openEvOnDbl(ev, ds0) : barClick(ev.id, () => openEventEditor(ev.id,{ ds:ds0 }), () => pickToggle(ev.id)), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
   if(ctx && !gray && !isRep(ev)) props.onpointerdown = e => startMove(e, ev, ctx, ds0);
   return h('div', props, kids);
 }
@@ -5811,16 +5850,27 @@ function monthGrid(body, done){
   // 선택한 날의 주는 높이를 키워 일정을 더 많이, 나머지 주는 줄여서 보여준다
   const gEnd = addDays(start, weeks*7), refD = (cal.sel>=start && cal.sel<gEnd) ? cal.sel : cal.date;
   const selWi = done ? -1 : Math.floor(dayDiff(start, refD)/7), maxSel = isPC ? 8 : 7, maxOth = 2;
+  const picks0 = (cal.pick||[]).filter(k => k.startsWith('g:') ? grpList().some(g => g.name===k.slice(2)) : !!data.events[k]);
+  if(picks0.length!==(cal.pick||[]).length) cal.pick = picks0;
+  let selW = new Set([selWi]);   // 크게 펼칠 주: 선택한 일정이 걸친 주(최대 3주) 또는 선택한 날의 주
+  if(!done && picks0.length){
+    const ws0 = new Set();
+    picks0.forEach(k => { let a0, b0;
+      if(k.startsWith('g:')){ const g = grpList().find(x => x.name===k.slice(2)); a0 = g && g.nf; b0 = g && g.nt; } else { const ev = data.events[k]; a0 = ev.date; b0 = ev.endDate || ev.date; }
+      if(!a0) return; const i0 = Math.max(0, Math.floor(dayDiff(start, a0)/7)), i1 = Math.min(weeks-1, Math.floor(dayDiff(start, b0)/7));
+      for(let i=i0;i<=i1;i++) ws0.add(i); });
+    const arr = [...ws0].sort((x, y) => x-y).slice(0, 3); if(arr.length) selW = new Set(arr);
+  }
   const grid = h('div',{class:'cgrid wk'});
   grid.append(h('div',{class:'cdow cwn0', style:'grid-row:1;grid-column:1'}, '주'));
   DOW.forEach((d,i) => grid.append(h('div',{class:'cdow'+(i===0?' sun':i===6?' sat':''), style:'grid-row:1;grid-column:'+(i+2)}, d)));
   for(let w=0; w<weeks; w++){
-    const ws = addDays(start, w*7), sp = done ? doneBars(ws, maxL) : spanBars(ws, w===selWi ? maxSel : maxOth, true);
+    const ws = addDays(start, w*7), sp = done ? doneBars(ws, maxL) : spanBars(ws, selW.has(w) ? maxSel : maxOth, true);
     grid.append(h('div',{class:'cwn', style:'grid-row:'+(w+2)+';grid-column:1', title:isoWeek(addDays(ws,4))+'주'}, isoWeek(addDays(ws,4))));
     for(let wd=0; wd<7; wd++){
       const ds = addDays(ws, wd), dd = parseYmd(ds), hol = krHoliday(ds);
-      const cell = h('div',{ 'data-ds':ds, class:'cday'+(dd.getMonth()!==mo?' oth':'')+(done ? '' : (w===selWi ? ' sw' : ' ow'))+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
-        onclick:() => { if(!done){ cal.sel = ds; renderCal(); } }, ondblclick:() => { if(!done) openEventEditor(null,{ ds }); } },
+      const cell = h('div',{ 'data-ds':ds, class:'cday'+(dd.getMonth()!==mo?' oth':'')+(done ? '' : (selW.has(w) ? ' sw' : ' ow'))+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
+        onclick:() => { if(!done){ cal.pick = []; cal.sel = ds; renderCal(); } }, ondblclick:() => { if(!done) openEventEditor(null,{ ds }); } },
         h('span',{class:'dn'+(wd===0||hol?' sun':wd===6?' sat':'')}, dd.getDate()));
       const hn = hol ? h('span',{class:'hn'}, hol) : null;
       if(sp.n) cell.append(h('div',{class:'cspc', style:'--n:'+sp.n}, hn)); else if(hn) cell.append(hn);
