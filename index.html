@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231349">
+<meta name="app-version" content="202610231511">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1207,6 +1207,15 @@ button.gchip{cursor:pointer}
 .layrow.lvl{align-items:center;gap:6px}
 .layrow.lvl .lvic{flex:none;width:30px;display:inline-flex;justify-content:center;color:var(--sub)}
 .layib.num{min-width:36px;height:36px;padding:0;font-size:14px;font-weight:800;flex-direction:row}
+.repwrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 6px}
+.reprow{display:flex;gap:6px}
+.repib{width:44px;height:38px;min-height:0;padding:0;border-radius:11px;border:1.5px solid var(--line);background:color-mix(in srgb,var(--bg) 70%,transparent);color:var(--text);display:inline-flex;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.repib.on{border-color:var(--accent,#5b6cff);color:var(--accent,#5b6cff);background:color-mix(in srgb,var(--accent,#5b6cff) 13%,transparent)}
+.repcap{font-size:12.5px;font-weight:700;color:var(--sub)}
+.repcap.act{color:var(--accent,#5b6cff)}
+.qtip{position:fixed;z-index:99999;pointer-events:none;background:#2b2130;color:#fff;font-size:12.5px;font-weight:600;line-height:1.35;padding:7px 11px;border-radius:10px;max-width:260px;box-shadow:0 6px 18px rgba(0,0,0,.28);opacity:0;transform:translateY(3px);transition:opacity .12s,transform .12s}
+.qtip.on{opacity:1;transform:none}
+
 </style>
 </head>
 <body>
@@ -1222,9 +1231,10 @@ button.gchip{cursor:pointer}
       <div class="tdd"><b id="tdDate"></b><small id="tdSub"></small></div>
       <span class="sp"></span>
       <button class="ibtn" id="tdSearch" data-ic="zoom" data-sz="20" title="검색"></button>
-      <button class="ibtn" id="tdAddEv" data-ic="plus" data-sz="20" title="일정 추가"></button>
+      <button class="ibtn" id="tdAddEv" data-q="ev" title="일정 빠른 입력" aria-label="일정 빠른 입력"></button>
+      <button class="ibtn" id="tdAddMap" data-q="map" title="노드 빠른 입력" aria-label="노드 빠른 입력"></button>
+      <button class="ibtn" id="tdAddBoth" data-q="both" title="일정 + 노드 동시 저장" aria-label="일정과 노드 동시 저장"></button>
     </header>
-    <div id="tdQuick"></div>
     <div id="tdBody"></div>
   </main>
 
@@ -1560,6 +1570,7 @@ function normEvent(r){
   if(r.ord!=null && r.ord!=='' && isFinite(+r.ord)) ev.ord = +r.ord;
   if(r.grp){ ev.grp = String(r.grp).slice(0,40); ev.gcol = /^#[0-9a-fA-F]{6}$/.test(r.gcol||'') ? r.gcol : ''; }
   if(Array.isArray(r.refs)){ const rr = r.refs.filter(x => x && x.m && x.n).slice(0,20).map(x => { const o = { m:String(x.m), n:String(x.n) }; if(x.k) o.k = String(x.k); return o; }); if(rr.length) ev.refs = rr; }
+  if(r.sn && r.sn.m && r.sn.n) ev.sn = { m:String(r.sn.m), n:String(r.sn.n) };
   evNormContent(ev, r);
   if(r.dn && typeof r.dn==='object'){ const dn = {}; Object.keys(r.dn).slice(0,400).forEach(k => { if(isD(k) && isD(r.dn[k])) dn[k] = r.dn[k]; }); if(Object.keys(dn).length) ev.dn = dn; }
   if(ev.dn && ev.repeat==='none'){ const v = Object.values(ev.dn)[0]; ev.dn = { [ev.date]: v }; }
@@ -3070,7 +3081,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231349';
+const APP_VER = '202610231511';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5683,7 +5694,7 @@ function evnWithMap(mid, fn){
   if(ch){ m.updated = Date.now(); saveSoon(); }
   return ch;
 }
-function evnReconcile(force){
+function evnReconcile(force){   // (ev.sn = 빠른 입력으로 만든 독립 노드)
   if(evnBusy) return; evnBusy = true;
   let curChanged = false, evCh = false;
   try{
@@ -5739,6 +5750,11 @@ function evnReconcile(force){
               resolved.add(n.id); sync(n, ev);
             }
           }
+        }
+        // 2.5) 빠른 입력으로 만든 독립 일정 노드 (붙이거나 옮겨도 그대로 맞춰 둔다)
+        for(const ev of evs){
+          if(!ev.sn || ev.sn.m!==mid) continue; const n = nodes[ev.sn.n];
+          if(n && n.evRole==='evn' && n.evId===ev.id){ resolved.add(n.id); sync(n, ev); }
         }
         // 3) 더 이상 연결되지 않은 노드 정리 (연결을 푼 일정 · 그룹에서 빠진 일정)
         Object.values(nodes).forEach(n => {
@@ -6705,7 +6721,7 @@ function openEventEditor(id, o){
       dnRow,
       h('div',{class:'lbl'},'그룹 (선택 사항)'), grpRow, grpNew,
       h('div',{class:'lbl'},'날짜'), dateI, endBox, allRow, timeBox,
-      h('div',{class:'lbl'},'반복'), rep, untilBox,
+      h('div',{class:'lbl'},'반복'), repIcons(rep), untilBox,
       h('div',{class:'lbl'},'알림 (앱이 열려 있을 때만 울려요)'), alarm,
       h('p',{class:'note',style:'margin:2px 2px 8px;font-size:11.5px'},'앱을 닫으면 알림이 울리지 않아요 · 중요한 일정은 구글 캘린더로 올려 두세요'),
       h('div',{class:'evright'},
@@ -9637,7 +9653,7 @@ function renderToday(){
   list('rec', '최근 본 노드', recent, x => taskRow(x, { nock:true }), '', 5);
 
   if(!tasks.length && !inbox.length && !evsT.length && !evsM.length && !recent.length){
-    body.append(h('p',{ class:'note tdnone', style:'margin-top:22px' }, '아직 비어 있어요. 위 입력칸에 떠오른 걸 적으면 받은편지함에 모이고, 노드에 기한을 정하면 여기에 나와요.'));
+    body.append(h('p',{ class:'note tdnone', style:'margin-top:22px' }, '아직 비어 있어요. 위 ＋ 아이콘으로 일정·노드를 바로 적고, 노드에 기한을 정하면 여기에 나와요.'));
   }
   { // 접은 구역은 머리글만 남기고 숨긴다
     let hid = false;
@@ -9647,21 +9663,146 @@ function renderToday(){
 }
 
 /* ---------- 시작: 입력줄 · URL 인자(바로가기 · 공유) ---------- */
-function prodInit(){
-  const wrap = $('#tdQuick'); if(!wrap) return;
-  const inp = h('input',{ type:'text', placeholder:'떠오른 생각 바로 적기', enterkeyhint:'done', autocomplete:'off', 'aria-label':'빠른 입력' });
-  const mic = micBtn(inp);
-  const send = h('button',{ type:'button', class:'qsend', title:'받은편지함에 담기', 'aria-label':'받은편지함에 담기', html:ic('send',18) });
-  const go = () => {
-    const lines = inp.value.split(/\n+/).map(s => s.trim()).filter(Boolean); if(!lines.length) return;
-    if(addToInbox(lines.map(s => ({ text:s })))) inp.value = '';
+/* ===================== 첫 화면 빠른 입력: ＋일정 · ＋맵 · ＋일정+맵 동시 ===================== */
+const QI = {
+  cal:'<rect x="3" y="5" width="15" height="14" rx="3"/><path d="M3 10h15M8 3v4M13 3v4"/><circle cx="18" cy="18" r="5" fill="var(--bg,#fff)" stroke="none"/><path d="M18 15v6M15 18h6"/>',
+  map:'<circle cx="9" cy="12" r="2.5"/><circle cx="4.5" cy="5" r="1.9"/><circle cx="14.5" cy="5" r="1.9"/><circle cx="4.5" cy="19" r="1.9"/><path d="M7.3 10.2L5.7 6.7M11 10.5l2.4-3.8M7.3 13.8l-1.6 3.6"/><circle cx="18" cy="18" r="5" fill="var(--bg,#fff)" stroke="none"/><path d="M18 15v6M15 18h6"/>',
+  both:'<path d="M12 5H6a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h6"/><path d="M3 10h9M8 3v4"/><circle cx="17" cy="11" r="2.2"/><circle cx="21" cy="5.5" r="1.6"/><circle cx="21" cy="16.5" r="1.6"/><path d="M15.4 9.7L19.8 6.6M15.4 12.5l4.4 3"/><circle cx="12" cy="19" r="4.2" fill="var(--bg,#fff)" stroke="none"/><path d="M12 16.6v4.8M9.6 19h4.8"/>'
+};
+function qIcon(k, sz){ return '<svg viewBox="0 0 24 24" width="'+(sz||23)+'" height="'+(sz||23)+'" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+QI[k]+'</svg>'; }
+// 중심 노드 가까이의 빈 자리 (나중에 필요한 곳에 붙이면 돼요)
+function quickSpot(m, c){
+  fitNode(c);
+  const root = m.nodes[m.rootId];
+  const rects = Object.values(m.nodes).filter(n => n!==c).map(n => ({ l:n.x-n.w/2-12, r:n.x+n.w/2+12, t:n.y-n.h/2-12, b:n.y+n.h/2+12 }));
+  const angs = [90, 270, 0, 180, 45, 135, 225, 315, 68, 112, 248, 292, 22, 158, 202, 338];
+  for(let k=1;k<=8;k++) for(const a of angs){
+    const rad = a*Math.PI/180, x = Math.round(root.x + Math.cos(rad)*(root.w/2 + c.w/2 + 30*k)), y = Math.round(root.y + Math.sin(rad)*(root.h/2 + c.h/2 + 40*k));
+    const L = x-c.w/2, R = x+c.w/2, T = y-c.h/2, B = y+c.h/2;
+    if(!rects.some(q => L<q.r && R>q.l && T<q.b && B>q.t)){ c.x = x; c.y = y; return; }
+  }
+  c.x = root.x; c.y = root.y + root.h/2 + c.h/2 + 400;
+}
+function quickMake(kind, f){
+  if(S().lock){ lockedMsg(); return null; }
+  const lines = String(f.text||'').split(/\r?\n/), title = (lines[0]||'').trim().slice(0, 200), memo = lines.slice(1).join('\n').trim();
+  if(!title){ toast('내용을 입력하세요'); return null; }
+  let ev = null, nid = '';
+  if(kind!=='map'){
+    ev = normEvent({ id:uid(), title, date:f.ds||todayStr(), allDay:!!f.allDay, time:f.time||'09:00', repeat:f.repeat||'none', alarm:f.alarm, memo, color:EV_COLORS[0], created:Date.now() });
+    if(!ev){ toast('날짜를 확인하세요'); return null; }
+    data.events[ev.id] = ev;
+  }
+  const mid = data.current;
+  mutate(m => {
+    if(kind==='ev') return;
+    const c = mkNode({ parent:null, text:title, memo:kind==='map' ? memo.slice(0, 20000) : '' });
+    m.nodes[c.id] = c; nid = c.id;
+    if(ev){ c.evId = ev.id; c.evRole = 'evn'; c.color = ev.color; ev.sn = { m:mid, n:c.id }; evnPushNode(c, ev); }
+    quickSpot(m, c);
+  });
+  saveSoon(); refDirty();
+  const lab = kind==='ev' ? '일정을 저장했어요' : kind==='map' ? '노드를 만들었어요 (중심 노드 옆)' : '일정과 노드를 같이 만들었어요';
+  toast(lab, nid ? { label:'노드 보기', fn:() => { showTab('map'); sel = nid; render(); setTimeout(() => { if(N()[nid]) ensureVisible(nid); }, 150); } } : null);
+  try{ refreshEvViews(); }catch(e){}
+  return { ev, nid };
+}
+function openQuick(kind){
+  const T = { ev:'＋ 일정 빠른 입력', map:'＋ 노드 빠른 입력', both:'＋ 일정 + 노드 동시 저장' }[kind];
+  openSheet(T, b => {
+    const ta = h('textarea',{ class:'field', rows:4, placeholder:kind==='ev' ? '일정 제목 (줄바꿈하면 아래는 내용)' : '내용 — 첫 줄은 제목, 아래는 메모', enterkeyhint:'enter', style:'min-height:96px' });
+    const mic = micBtn(ta);
+    b.append(h('div',{ style:'display:flex;gap:8px;align-items:flex-start' }, h('div',{ style:'flex:1' }, ta), mic));
+    let ds = todayStr(), allDay = true, alarm = '';
+    const repSel = h('select',{}, Object.keys(REPEAT_LABEL).map(k => h('option',{ value:k }, REPEAT_LABEL[k])));
+    let dI, tI, alSel, tmBox;
+    if(kind!=='map'){
+      dI = h('input',{ class:'field', type:'date', value:ds, style:'flex:1' });
+      const chips = h('div',{ class:'gpick', style:'margin:8px 0 4px' });
+      const drawChips = () => {
+        chips.innerHTML = '';
+        [['오늘', 0], ['내일', 1], ['모레', 2], ['다음 주', 7]].forEach(([l, o]) => { const v = addDays(todayStr(), o); chips.append(h('button',{ type:'button', class:'gpc'+(dI.value===v ? ' on' : ''), onclick:() => { dI.value = v; drawChips(); } }, l)); });
+      };
+      dI.addEventListener('change', drawChips); drawChips();
+      tI = h('input',{ class:'field', type:'time', value:'09:00', style:'flex:1' });
+      alSel = h('select',{ class:'field', style:'flex:1' });
+      const fillAl = () => { const keep = alSel.value; alSel.innerHTML = ''; (allDay ? ALARM_ALL : ALARM_TIMED).forEach(([v, l]) => alSel.append(h('option',{ value:v }, l))); alSel.value = [...alSel.options].some(o => o.value===keep) ? keep : ''; };
+      fillAl();
+      tmBox = h('div',{ class:'hidden', style:'display:flex;gap:8px;margin-top:6px' }, tI); tmBox.classList.add('hidden');
+      const allRow = toggleRow('종일', allDay, v => { allDay = v; tmBox.classList.toggle('hidden', allDay); fillAl(); });
+      b.append(h('div',{ class:'lbl' }, '날짜'), chips, h('div',{ style:'display:flex;gap:8px' }, dI), allRow, tmBox, h('div',{ class:'lbl' }, '반복'), repIcons(repSel), h('div',{ class:'lbl' }, '알림 (앱이 열려 있을 때만)'), alSel);
+    }
+    const go = () => {
+      const r = quickMake(kind, { text:ta.value, ds:dI ? dI.value : '', allDay, time:tI ? tI.value : '', alarm:alSel && alSel.value!=='' ? Number(alSel.value) : null, repeat:repSel.value });
+      if(r) closeSheet(true);
+    };
+    b.append(h('div',{ class:'row end', style:'margin-top:12px' },
+      kind==='ev' ? h('button',{ class:'btn', type:'button', style:'margin-right:auto', onclick:() => { const t = ta.value.split(/\n/)[0].trim(), d = dI.value; closeSheet(true); openEventEditor(null, { title:t, ds:d }); } }, '자세히') : null,
+      h('button',{ class:'btn', type:'button', onclick:() => closeSheet() }, '취소'),
+      h('button',{ class:'btn primary', type:'button', onclick:go }, '저장')));
+    setTimeout(() => ta.focus(), 80);
+  });
+}
+
+/* ===================== 반복 아이콘 선택 (설명 말풍선: PC는 마우스를 올리면 · 모바일은 길게 누르면) ===================== */
+const REP_ICON = {
+  none:'<circle cx="12" cy="12" r="8"/><path d="M6.4 17.6L17.6 6.4"/>',
+  daily:'M', weekly:'M', monthly:'M', yearly:'M'
+};
+const REP_CH = { daily:'일', weekly:'주', monthly:'월', yearly:'년' };
+const REP_TIP = { none:'반복 안 함 — 한 번만', daily:'매일 반복 — 하루도 빠짐없이', weekly:'매주 반복 — 매주 같은 요일마다', monthly:'매월 반복 — 매월 같은 날짜마다', yearly:'매년 반복 — 매년 같은 날짜마다' };
+function repSvg(k, sz){
+  const inner = k==='none' ? REP_ICON.none : '<path d="M20 12a8 8 0 0 1-13.6 5.7M4 12a8 8 0 0 1 13.6-5.7"/><path d="M18 3v4h-4M6 21v-4h4"/><text x="12" y="15.3" font-size="9.4" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none" font-family="inherit">'+REP_CH[k]+'</text>';
+  return '<svg viewBox="0 0 24 24" width="'+(sz||24)+'" height="'+(sz||24)+'" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+inner+'</svg>';
+}
+let qtipEl = null, qtipT = 0;
+function qtipShow(el, text){
+  clearTimeout(qtipT);
+  if(!qtipEl){ qtipEl = document.createElement('div'); qtipEl.className = 'qtip'; document.body.append(qtipEl); }
+  qtipEl.textContent = text; qtipEl.classList.add('on');
+  const r = el.getBoundingClientRect(), w = qtipEl.offsetWidth;
+  let x = r.left + r.width/2 - w/2; x = Math.max(8, Math.min(innerWidth - w - 8, x));
+  const up = r.top > 56;
+  qtipEl.style.left = x+'px'; qtipEl.style.top = (up ? r.top - qtipEl.offsetHeight - 8 : r.bottom + 8)+'px';
+}
+function qtipHide(delay){ clearTimeout(qtipT); qtipT = setTimeout(() => { if(qtipEl) qtipEl.classList.remove('on'); }, delay||0); }
+// 아이콘 버튼에 설명 달기: 마우스를 올리면 바로, 터치는 길게(0.45초) 누르면 나온다. 길게 눌러 본 뒤에는 선택이 되지 않는다.
+function qtipBind(btn, text){
+  let timer = 0, held = false;
+  btn.setAttribute('aria-label', text);
+  btn.addEventListener('pointerenter', e => { if(e.pointerType==='mouse') qtipShow(btn, text); });
+  btn.addEventListener('pointerleave', e => { if(e.pointerType==='mouse') qtipHide(0); });
+  btn.addEventListener('pointerdown', e => {
+    if(e.pointerType==='mouse') return;
+    held = false; clearTimeout(timer);
+    timer = setTimeout(() => { held = true; btn._held = true; qtipShow(btn, text); try{ navigator.vibrate && navigator.vibrate(12); }catch(_){} }, 450);
+  });
+  const up = () => { clearTimeout(timer); if(held){ qtipHide(1400); setTimeout(() => { btn._held = false; }, 50); } held = false; };
+  ['pointerup','pointercancel','pointerleave'].forEach(t => btn.addEventListener(t, e => { if(e.pointerType!=='mouse') up(); }));
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+  btn.addEventListener('click', e => { if(btn._held){ e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+}
+// sel: 실제 값을 들고 있는 <select> (화면에는 안 붙임). 아이콘을 누르면 sel.value를 바꾸고 change 이벤트를 낸다.
+function repIcons(sel){
+  const row = h('div',{ class:'reprow' }), cap = h('div',{ class:'repcap' });
+  const draw = () => {
+    row.innerHTML = '';
+    ['none','daily','weekly','monthly','yearly'].forEach(k => {
+      const b = h('button',{ type:'button', class:'repib'+(sel.value===k ? ' on' : ''), html:repSvg(k) });
+      qtipBind(b, REP_TIP[k]);
+      b.addEventListener('click', () => { sel.value = k; sel.dispatchEvent(new Event('change')); draw(); });
+      row.append(b);
+    });
+    cap.textContent = REPEAT_LABEL[sel.value] || '';   // 고른 것은 글자로도 바로 보인다 (눌러서 확인할 필요 없이)
+    cap.classList.toggle('act', sel.value!=='none');
   };
-  send.addEventListener('click', go);
-  send.addEventListener('mousedown', e => e.preventDefault());
-  inp.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); go(); } });
-  wrap.append(inp, mic, send);
+  draw();
+  return h('div',{ class:'repwrap' }, row, cap);
+}
+
+function prodInit(){
   $('#tdSearch').addEventListener('click', openSearch);
-  $('#tdAddEv').addEventListener('click', () => openEventEditor(null,{ ds:todayStr() }));
+  document.querySelectorAll('#tdTop [data-q]').forEach(bt => { bt.innerHTML = qIcon({ ev:'cal', map:'map', both:'both' }[bt.dataset.q]); bt.addEventListener('click', () => openQuick(bt.dataset.q)); });
   document.addEventListener('visibilitychange', () => { if(!document.hidden && !$('#pageToday').classList.contains('hidden')) renderToday(); });
 
   let q = null; try{ q = new URLSearchParams(location.search); }catch(e){}
@@ -9678,7 +9819,7 @@ function prodInit(){
     addToInbox([{ text:headT, memo:rest, urls }]);
   }else if(q.get('quick')==='1' || q.get('tab')==='today'){
     showTab('today');
-    if(q.get('quick')==='1') setTimeout(() => { try{ inp.focus(); }catch(e){} }, 350);
+    if(q.get('quick')==='1') setTimeout(() => openQuick('map'), 350);
   }
   try{ history.replaceState(null, '', location.pathname); }catch(e){}
 }
