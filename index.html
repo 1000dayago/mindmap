@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610232059">
+<meta name="app-version" content="202610232110">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1223,6 +1223,7 @@ button.gchip{cursor:pointer}
 .lvtree .lv.last{color:var(--text);font-size:13.5px;font-weight:700}
 .srlist .item .t.lvx,.rplist .item .t.lvx{white-space:normal;overflow:visible}
 .lvx small{display:block;color:var(--sub);font-size:11.5px;margin-top:2px}
+.lvtree .lv.d::before{content:'';flex:none;width:7px;height:7px;margin-right:1px;align-self:center;transform:translateY(-3px);border-left:1.5px solid var(--accent,#5b6cff);border-bottom:1.5px solid var(--accent,#5b6cff);opacity:.45;border-bottom-left-radius:3px}
 
 /* 도구 막대: 띠 배경 없이, 아이콘마다 둥근 네모 칸 · 왼쪽 정렬 (PC · 모바일 공통) */
 #toolbar{background:transparent !important;height:0 !important;min-height:0 !important;overflow:visible !important;position:fixed !important;left:64px;bottom:16px;top:auto !important;width:auto !important;z-index:20;align-items:flex-end !important;pointer-events:none;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;padding:8px 12px;gap:8px;align-items:center;justify-content:flex-start}
@@ -3137,7 +3138,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610232059';
+const APP_VER = '202610232110';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -9217,7 +9218,7 @@ function lvTree(mapId, nid, hit){
   const chain = lvChain(mapId, nid), box = h('span',{ class:'lvtree' });
   chain.forEach((n, k) => {
     const last = k===chain.length-1, tx = String(n.text||'(이름 없음)').replace(/\s*\n\s*/g, ' ');
-    const line = h('span',{ class:'lv'+(last ? ' last' : ''), style:'padding-left:'+(Math.min(k, 8)*12)+'px' }, h('b',{ class:'lvn' }, lvNum(k+1)));
+    const line = h('span',{ class:'lv'+(k ? ' d' : '')+(last ? ' last' : ''), style:'padding-left:'+(Math.min(k, 10)*18)+'px' }, h('b',{ class:'lvn' }, lvNum(k+1)));
     const t = h('span',{ class:'lvt' });
     if(last && hit && hit.len) t.innerHTML = snippet(tx, Math.min(hit.i, tx.length), hit.len); else t.textContent = tx.slice(0, 60);
     line.append(t); box.append(line);
