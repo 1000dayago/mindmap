@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231217">
+<meta name="app-version" content="202610231233">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1176,6 +1176,9 @@ button.gchip{cursor:pointer}
   #sheetBody:has(.evright) > .row.end:last-child{grid-column:1 / -1}
   .evright .evmemo{min-height:clamp(240px,40dvh,440px)}
 }
+#toolbar button[data-mk]{touch-action:none;user-select:none}
+#toolbar .mkic{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px}
+.mkghost{position:fixed;z-index:10000;pointer-events:none;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
 </style>
 </head>
 <body>
@@ -1233,6 +1236,9 @@ button.gchip{cursor:pointer}
       <span class="vsep"></span>
       <button data-act="detail" style="--c:#6366f1" title="작업창 — 노드 · 메모 · 체크 · 링크 · 표"><span data-ic="note" data-sz="17"></span><span class="lb">작업창</span></button>
       <button data-act="group" style="--c:#f97316" title="그룹"><span data-ic="group" data-sz="17"></span><span class="lb">그룹</span></button>
+      <button data-mk="check" style="--c:#10b981" title="체크 아이콘 — 노드를 선택하고 누르거나, 노드로 끌어다 놓으세요"><span class="mkic"></span><span class="lb">체크</span></button>
+      <button data-mk="clock" style="--c:#f97316" title="진행률 아이콘(시계) — 노드를 선택하고 누르거나, 노드로 끌어다 놓으세요"><span class="mkic"></span><span class="lb">진행률</span></button>
+      <span class="vsep"></span>
       <button data-act="link" style="--c:#0ea5e9" title="다른 노드와 점선으로 연결"><span data-ic="dots" data-sz="17"></span><span class="lb">연결</span></button>
     </div>
     <div id="quickStyle" class="hidden" aria-label="빠른 노드 서식"></div>
@@ -1479,7 +1485,7 @@ function normalizeMap(raw, keepId){
       color:/^#[0-9a-f]{6}$/i.test(r.color||'')?r.color:null, colorOnly:!!r.colorOnly, dashed:!!r.dashed, collapsed:!!r.collapsed,
       layout:LAYOUT_IDS.includes(r.layout)?r.layout:null, label:String(r.label||''), kind:(r.kind==='yes'||r.kind==='no')?r.kind:'',
       memo:String(r.memo||'').slice(0,20000), memoH:cleanMemoH(r.memoH, String(r.memo||'').slice(0,20000)), hideDone:!!r.hideDone,
-      tag:TAG_IDS.includes(r.tag)?r.tag:'', bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox, val:(typeof r.val==='number' && isFinite(r.val)) ? r.val : null, unit:String(r.unit||'').slice(0,8), agg:['sum','avg','max','min','cnt'].includes(r.agg)?r.agg:'',
+      tag:TAG_IDS.includes(r.tag)?r.tag:'', mk:(r.mk==='check'||r.mk==='clock')?r.mk:'', mv:Math.max(0, Math.min(4, parseInt(r.mv,10)||0)), bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox, val:(typeof r.val==='number' && isFinite(r.val)) ? r.val : null, unit:String(r.unit||'').slice(0,8), agg:['sum','avg','max','min','cnt'].includes(r.agg)?r.agg:'',
       checks:(Array.isArray(r.checks)?r.checks:[]).slice(0,500).map(c => ({ id:String((c&&c.id)||uid()), t:String((c&&c.t)||'').slice(0,500), d:!!(c&&c.d) })),
       urls:(Array.isArray(r.urls)?r.urls:[]).slice(0,100).map(u => ({ id:String((u&&u.id)||uid()), name:String((u&&u.name)||'').slice(0,100), url:cleanUrl(u&&u.url), path:String((u&&u.path)||'').slice(0,500), k:String((u&&u.k)||'').slice(0,12) })).filter(u => u.url || u.path),
       evId:String(r.evId||''), evRole:['root','title','date','body'].includes(r.evRole)?r.evRole:'',
@@ -1688,6 +1694,7 @@ function colorInfo(n){
 }
 const isDark = () => document.documentElement.dataset.theme === 'dark';
 function nodeColors(n, dark){
+  if(mkDone(n)) return mkDoneColors(n, dark);
   const ci = colorInfo(n);
   if(ci.root){
     const fill = dark ? mix(ci.base, '#ffffff', .14) : ci.base;
@@ -1826,6 +1833,7 @@ function nodeSvg(n, dark, focusSet, opt){
   s += `</text>`;
   s += chipsSvg(n, dark);
   s += tagSvg(n, dark);
+  s += mkSvg(n, dark);
   if(n.children.length && n.collapsed){
     const nodes = N(), c0 = nodes[n.children[0]];
     let bx, by;
@@ -2975,7 +2983,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231217';
+const APP_VER = '202610231233';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3488,7 +3496,7 @@ function nbTrashUpdate(e){
 function tagSvg(n, dark){
   let s = '';
   if(n.tag && TAGMAP[n.tag]){
-    s += '<g transform="translate('+(-n.w/2+3)+','+(-n.h/2+1)+')" style="pointer-events:none"><circle r="9.5" fill="'+(dark?'#201a26':'#fff')+'" stroke="'+(dark?'#ff8a65':'#ef5b36')+'" stroke-width="1.4"/>'+
+    s += '<g transform="translate('+(-n.w/2+3+(n.mk ? 22 : 0))+','+(-n.h/2+1)+')" style="pointer-events:none"><circle r="9.5" fill="'+(dark?'#201a26':'#fff')+'" stroke="'+(dark?'#ff8a65':'#ef5b36')+'" stroke-width="1.4"/>'+
          '<text font-size="11" text-anchor="middle" dominant-baseline="central" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">'+TAGMAP[n.tag][1]+'</text></g>';
   }
   if(n.pin){
@@ -8914,8 +8922,80 @@ document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click
 function ensureView(){ if(viewReady) return; const r = svg.getBoundingClientRect(); if(!r.width) return; viewReady = true; loadView(); }
 
 /* ===================== 할 일 · 오늘 · 빠른 입력 (v27) ===================== */
-const isDoneN = n => n.tag==='done';
-const isTaskN = n => !!n.due || n.tag==='doing' || n.tag==='done';
+/* ===================== 노드 완료 아이콘: 체크 · 진행률(시계 1/4~4/4) ===================== */
+// n.mk = 'check' | 'clock', n.mv = 체크 0/1 · 시계 0~4.  완료 = 체크 1 또는 시계 4  → 노드가 초록색으로 바뀐다
+function mkDone(n){ return !!n && ((n.mk==='check' && n.mv>=1) || (n.mk==='clock' && n.mv>=4)); }
+function mkDoneColors(n, dark){
+  const base = colorInfo(n).base;
+  return dark ? { fill:'#173a2b', stroke:'#4ade80', text:'#bbf7d0', base } : { fill:'#d6f2e1', stroke:'#2fa866', text:'#14532d', base };
+}
+function mkInner(kind, v, bg, sz){
+  // 중심 (0,0), 반지름 sz 안에 그린다
+  const done = kind==='check' ? v>=1 : v>=4, tick = (s) => `<path d="M${-.5*s} ${.04*s} L${-.14*s} ${.42*s} L${.5*s} ${-.38*s}" fill="none" stroke="#fff" stroke-width="${Math.max(1.6, s*.28)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(kind==='check'){
+    const w = sz*.9;
+    return `<rect x="${-w}" y="${-w}" width="${w*2}" height="${w*2}" rx="${w*.28}" fill="${done ? '#2fa866' : bg}" stroke="${done ? '#2fa866' : '#94a3b8'}" stroke-width="1.7"/>` + (done ? tick(w*.62) : '');
+  }
+  const r = sz, st = done ? '#2fa866' : '#f97316';
+  let pie = '';
+  if(v>=4) pie = `<circle r="${r}" fill="#2fa866"/>`;
+  else if(v>0){ const a = v*Math.PI/2, ex = r*Math.sin(a), ey = -r*Math.cos(a); pie = `<path d="M0 0 L0 ${-r} A${r} ${r} 0 ${v>=3 ? 1 : 0} 1 ${ex.toFixed(2)} ${ey.toFixed(2)} Z" fill="#f97316"/>`; }
+  const hands = v===0 ? `<path d="M0 ${-r*.62} L0 0 L${r*.45} ${r*.2}" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+  return `<circle r="${r}" fill="${bg}" stroke="${st}" stroke-width="1.7"/>` + pie + (v>=4 ? tick(r*.8) : hands);
+}
+function mkLabel(n){ return n.mk==='check' ? (n.mv>=1 ? '체크 완료' : '체크 (누르면 완료)') : (n.mv>=4 ? '진행률 4/4 완료' : '진행률 '+(n.mv||0)+'/4 (누르면 다음)'); }
+function mkSvg(n, dark){
+  if(!n.mk) return '';
+  const bg = dark ? '#201a26' : '#fff', done = mkDone(n);
+  return `<g data-badge="${n.id}" data-bt="mk" transform="translate(${-n.w/2+3},${-n.h/2+1})" style="cursor:pointer"><title>${mkLabel(n)}</title>`+
+    `<circle r="13" fill="transparent"/><circle r="10.5" fill="${bg}" stroke="${done ? '#2fa866' : (dark ? '#ff8a65' : '#ef5b36')}" stroke-width="1.4"/>`+
+    `<g style="pointer-events:none">${mkInner(n.mk, n.mv||0, bg, 6.4)}</g></g>`;
+}
+function mkApply(id, kind){
+  if(S().lock){ lockedMsg(); return; }
+  const n = N()[id]; if(!n) return;
+  const off = n.mk===kind;
+  mutate(m => { const q = m.nodes[id]; if(!q) return; if(off){ q.mk = ''; q.mv = 0; } else { q.mk = kind; q.mv = 0; } });
+  sel = id; render();
+  toast(off ? (kind==='check' ? '체크 아이콘을 뺐어요' : '진행률 아이콘을 뺐어요') : (kind==='check' ? '체크 아이콘을 붙였어요 · 아이콘을 누르면 완료' : '진행률 아이콘을 붙였어요 · 아이콘을 누를 때마다 1/4씩'));
+}
+function mkCycle(id){
+  if(S().lock){ lockedMsg(); return; }
+  const n = N()[id]; if(!n || !n.mk) return;
+  let nv;
+  mutate(m => { const q = m.nodes[id]; if(!q) return; q.mv = q.mk==='check' ? (q.mv>=1 ? 0 : 1) : ((q.mv||0)>=4 ? 0 : (q.mv||0)+1); nv = q.mv; });
+  const q = N()[id]; if(q) toast(mkDone(q) ? '✓ 완료했어요' : (q.mk==='clock' ? '진행률 '+nv+'/4' : '완료를 풀었어요'));
+}
+function mkPaletteInit(){
+  document.querySelectorAll('#toolbar button[data-mk]').forEach(b => {
+    const k = b.dataset.mk, ic0 = b.querySelector('.mkic');
+    if(ic0) ic0.innerHTML = `<svg viewBox="-10 -10 20 20" width="19" height="19">${mkInner(k, k==='check' ? 0 : 2, 'var(--panel-solid,#fff)', 7.5)}</svg>`;
+    b.addEventListener('pointerdown', e => {
+      if(e.button!=null && e.button!==0) return;
+      const x0 = e.clientX, y0 = e.clientY; let ghost = null, moved = false;
+      try{ b.setPointerCapture(e.pointerId); }catch(_){}
+      const mv = m => {
+        if(!moved && Math.abs(m.clientX-x0)+Math.abs(m.clientY-y0)>8){ moved = true; ghost = h('div',{ class:'mkghost', html:`<svg viewBox="-10 -10 20 20" width="34" height="34">${mkInner(k, k==='check' ? 0 : 2, '#fff', 8)}</svg>` }); document.body.append(ghost); }
+        if(ghost){ ghost.style.left = m.clientX+'px'; ghost.style.top = m.clientY+'px'; }
+      };
+      const end = m => {
+        b.removeEventListener('pointermove', mv); b.removeEventListener('pointercancel', cancel);
+        if(ghost) ghost.remove();
+        if(moved){
+          const el = document.elementFromPoint(m.clientX, m.clientY), g = el && el.closest ? el.closest('[data-nid]') : null;
+          if(g) mkApply(g.getAttribute('data-nid'), k); else toast('노드 위에 놓아 주세요');
+        }else{
+          if(!sel || !N()[sel]) toast('먼저 노드를 선택하거나, 아이콘을 노드로 끌어다 놓으세요'); else mkApply(sel, k);
+        }
+      };
+      const cancel = () => { b.removeEventListener('pointermove', mv); b.removeEventListener('pointerup', end); if(ghost) ghost.remove(); };
+      b.addEventListener('pointermove', mv); b.addEventListener('pointerup', end, { once:true }); b.addEventListener('pointercancel', cancel, { once:true });
+    });
+  });
+}
+
+const isDoneN = n => n.tag==='done' || mkDone(n);
+const isTaskN = n => !!n.due || n.tag==='doing' || n.tag==='done' || !!n.mk;
 
 // 하위 할 일 진행률: 각 노드의 "자손" 중 할 일(기한 있음 · 진행중 · 완료)의 개수와 완료 개수
 function computeProg(m){
@@ -8975,6 +9055,7 @@ function openDueSheet(id){
   });
 }
 function badgeAct(id, bt){
+  if(bt==='mk') return mkCycle(id);
   if(bt==='sched') return openNodeSched(data.current, id);
   if(bt==='due') return openDueSheet(id);
   if(bt==='val') return openValSheet(id);
@@ -9075,7 +9156,7 @@ function addToInbox(items){
 /* ---------- 완료 토글 (다른 맵의 노드도) ---------- */
 function toggleDone(mid, id){
   if(S().lock){ lockedMsg(); return; }
-  inMap(mid, () => { if(N()[id]) mutate(m => { const q = m.nodes[id]; q.tag = q.tag==='done' ? '' : 'done'; }); });
+  inMap(mid, () => { if(N()[id]) mutate(m => { const q = m.nodes[id]; if(q.mk){ q.mv = mkDone(q) ? 0 : (q.mk==='check' ? 1 : 4); } else q.tag = q.tag==='done' ? '' : 'done'; }); });
   renderToday();
 }
 
@@ -9239,6 +9320,7 @@ prodInit();
 renderCal();
 setTimeout(checkAlarms, 800);
 setTimeout(backupReminder, 2800);
+mkPaletteInit();
 setTimeout(purgeDoneEvents, 1500);
 verInit();
 dndInit();
