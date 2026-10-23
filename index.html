@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231056">
+<meta name="app-version" content="202610231103">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1108,6 +1108,36 @@ button.gchip{cursor:pointer}
 /* 창 안의 일정 목록은 달력 옆 목록(sticky·300px) 규칙을 따르지 않는다 — 스크롤하면 겹치던 문제 */
 #sheetBody .agenda{position:static!important;width:auto!important;flex:none}
 #sheetBody .agenda .evrow{flex:none}
+/* 창 안 버튼을 작게 */
+#sheetBody .btn{padding:7px 14px;min-height:0;font-size:13px;line-height:1.3}
+#sheetBody .row .btn,#sheetBody .gq .btn{padding:6px 10px;font-size:12.5px}
+.gnow .gbtn .btn{padding:8px 12px;font-size:13.5px}
+.gnow{padding:10px 12px}.gnow .gt{font-size:17px}
+#sheetX{width:28px!important;height:28px!important;font-size:13px!important;top:10px!important;right:12px!important}
+.gadd .field{padding:7px 12px}
+/* ===== 작고 내용이 잘 보이는 컴팩트 버튼 (앱 전체) ===== */
+.btn{padding:7px 14px!important;min-height:34px!important;font-size:13.5px!important}
+#sheetBody .btn{font-size:13px!important}
+.gnow .gq .btn{padding:6px 8px!important;font-size:12.5px!important}
+.seg button{min-height:32px!important;padding:6px 4px!important;font-size:12.5px!important}
+.item{min-height:42px!important;padding:8px 12px!important}
+.ibtn{width:34px!important;height:34px!important}
+.mini{width:24px!important;height:24px!important}
+.fab{width:48px!important;height:48px!important;right:16px!important;bottom:16px!important}
+#tabs button{padding:7px 16px!important;font-size:13px!important}
+.swatch{min-height:28px!important;border-width:2.5px!important}
+.field{padding:10px 13px!important;font-size:15px!important;border-radius:14px!important}
+.evrow{min-height:44px!important;padding:8px 12px!important}
+.evck{width:22px!important;height:22px!important;border-width:2px!important}
+.chipbtn{padding:5px 11px!important;font-size:12.5px!important}
+.ordgrip{width:28px!important;height:32px!important}
+#sheetX{width:28px!important;height:28px!important;font-size:13px!important;top:10px!important;right:12px!important}
+.gnow{padding:10px 12px!important}.gnow .gt{font-size:17px!important}
+.gnow .gbtn .btn{padding:8px 12px!important;font-size:13.5px!important}
+.gadd .field{padding:7px 12px!important}
+.trow .ck{width:22px!important;height:22px!important}
+.gnow .gq .btn{white-space:nowrap;padding:5px 6px!important;min-height:30px!important}
+#sheetBody .btn{white-space:nowrap}
 
 .evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
 @media(min-width:821px){
@@ -2937,7 +2967,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231056';
+const APP_VER = '202610231103';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5295,7 +5325,7 @@ function grpNowCard(g){
     h('div',{ class:'gbtn' }, h('button',{ type:'button', class:'btn primary', onclick:() => grpDoneNext(g) }, '완료하고 다음으로 →')),
     h('div',{ class:'gq' },
       h('button',{ type:'button', class:'btn', onclick:() => grpShift([nx], 1, '“'+nx.title+'”을 하루 미뤘어요') }, '하루 미루기'),
-      h('button',{ type:'button', class:'btn', onclick:() => grpShift(later, 1, '이 단계부터 뒤 '+later.length+'개를 하루씩 밀었어요') }, '뒤 단계 전부 밀기'),
+      h('button',{ type:'button', class:'btn', onclick:() => grpShift(later, 1, '이 단계부터 뒤 '+later.length+'개를 하루씩 밀었어요') }, '뒤로 전부 밀기'),
       h('button',{ type:'button', class:'btn', onclick:() => openEventEditor(nx.id,{ ds:nx.date, back:() => openGroupDetail(g.name) }) }, '수정')));
 }
 function grpStepAdd(g){
