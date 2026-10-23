@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231902">
+<meta name="app-version" content="202610231922">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1216,6 +1216,14 @@ button.gchip{cursor:pointer}
 .qtip{position:fixed;z-index:99999;pointer-events:none;background:#2b2130;color:#fff;font-size:12.5px;font-weight:600;line-height:1.35;padding:7px 11px;border-radius:10px;max-width:260px;box-shadow:0 6px 18px rgba(0,0,0,.28);opacity:0;transform:translateY(3px);transition:opacity .12s,transform .12s}
 .qtip.on{opacity:1;transform:none}
 
+.lvtree{display:block;min-width:0}
+.lvtree .lv{display:flex;gap:5px;align-items:baseline;white-space:nowrap;overflow:hidden;font-size:12px;line-height:1.5;color:var(--sub)}
+.lvtree .lv .lvn{flex:none;font-weight:800;font-size:11px;color:var(--accent,#5b6cff);letter-spacing:-.5px}
+.lvtree .lv .lvt{overflow:hidden;text-overflow:ellipsis}
+.lvtree .lv.last{color:var(--text);font-size:13.5px;font-weight:700}
+.srlist .item .t.lvx,.rplist .item .t.lvx{white-space:normal;overflow:visible}
+.lvx small{display:block;color:var(--sub);font-size:11.5px;margin-top:2px}
+
 </style>
 </head>
 <body>
@@ -1703,6 +1711,7 @@ function fit(n, depth){
   n.w = Math.round(Math.max(w, minW));
   n.h = Math.round(Math.max(hh, n.shape==='diamond' ? 60 : 36));
   n._lines = lines; n._fs = fs; n._bold = bold; n._lh = lh; n._depth = depth;
+  { const cp = evCapNeed(n); n._cap = !!cp; if(cp){ n.h += 14; n.w = Math.max(n.w, Math.round(textW(cp, 9.5, true) + 22)); } }   // 일정 노드: 날짜 한 줄을 노드 안에 넣는다
 }
 function fitNode(n){ fit(n, depthOf(n)); }
 function refitAll(m){
@@ -1862,7 +1871,8 @@ function nodeSvg(n, dark, focusSet, opt){
     if(mode.type==='link' && mode.from===n.id) s += `<g opacity=".6">${shapeSvg(n.shape, n.w+14, n.h+14, 'rgba(139,92,246,.15)', '#8b5cf6', 4, true)}</g>`;
   }
   s += `<g filter="url(#sh)">${shapeSvg(n.shape, n.w, n.h, cc.fill, selected ? acc : cc.stroke, selected ? 2.6 : 1.3, n.dashed)}</g>`;
-  const lines = n._lines || [''], lh = n._lh || 18, y0 = -(lines.length-1)*lh/2;
+  if(!!evCapNeed(n)!==!!n._cap) fitNode(n);
+  const lines = n._lines || [''], lh = n._lh || 18, y0 = -(lines.length-1)*lh/2 - (n._cap ? 7 : 0);
   const empty = !n.text;
   s += `<text font-size="${n._fs||14}" font-weight="${n._bold?600:500}" fill="${cc.text}" fill-opacity="${empty?0.45:1}"${n.tag==='done'?' text-decoration="line-through"':''} text-anchor="middle" dominant-baseline="central" font-family='${FONT}' style="pointer-events:none">`;
   if(empty) s += `<tspan x="0" y="0">내용</tspan>`;
@@ -1871,7 +1881,7 @@ function nodeSvg(n, dark, focusSet, opt){
   s += chipsSvg(n, dark);
   s += tagSvg(n, dark);
   s += mkSvg(n, dark);
-  s += evCapSvg(n, dark);
+  s += evCapSvg(n, dark, cc);
   if(n.children.length && n.collapsed){
     const nodes = N(), c0 = nodes[n.children[0]];
     let bx, by;
@@ -3081,7 +3091,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231902';
+const APP_VER = '202610231922';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5819,14 +5829,17 @@ function evnDropEvent(id){
   });
 }
 
-/* ---------- 노드에 일정 날짜를 작게 표시 ---------- */
-function evCapSvg(n, dark){
-  let t = '', c = '#ec4899';
-  if(n.evRole==='evn'){ const ev = data.events[n.evId]; if(!ev) return ''; t = evCapText(ev); const t0 = todayStr(), z = ev.endDate || ev.date; c = (!isRep(ev) && doneOf(ev, ev.date)) ? '#10b981' : (z<t0 && !isRep(ev)) ? '#ef4444' : (ev.date<=t0 && z>=t0) ? '#f97316' : '#ec4899'; }
-  else if(n.evRole==='grp'){ const g = grpList().find(x => x.name===String(n.evId).slice(2)); if(!g || !g.from) return ''; t = fmtRangeCompact(g.from, g.to); c = (g.total && g.done===g.total) ? '#10b981' : '#ec4899'; }
-  else return '';
-  const w = textW(t, 9, true) + 8, chips = !!((n.memo||'').trim() || (n.checks && n.checks.length) || (n.urls && n.urls.length) || n.table || n.due || n.val!=null), dy = n.h/2 + (chips ? 19 : 9);   // 아래 칩과 겹치지 않게
-  return `<g transform="translate(0,${dy})" style="pointer-events:none"><rect x="${-w/2}" y="-6.5" width="${w}" height="12.5" rx="6" fill="${dark ? '#1b1626' : '#ffffff'}" fill-opacity=".92" stroke="${c}" stroke-opacity=".55" stroke-width=".8"/><text text-anchor="middle" y=".5" font-size="9" font-weight="700" dominant-baseline="central" fill="${c}" font-family='${FONT}'>${t}</text></g>`;
+/* ---------- 노드에 일정 날짜를 작게 표시 (노드 안 아랫줄) ---------- */
+function evCapNeed(n){
+  if(!n) return '';
+  if(n.evRole==='evn'){ const ev = data.events[n.evId]; return ev ? evCapText(ev) : ''; }
+  if(n.evRole==='grp'){ const g = grpList().find(x => x.name===String(n.evId).slice(2)); return (g && g.from) ? fmtRangeCompact(g.from, g.to) : ''; }
+  return '';
+}
+function evCapSvg(n, dark, cc){
+  if(!n._cap) return '';
+  const t = evCapNeed(n); if(!t) return '';
+  return `<text x="0" y="${n.h/2-9}" text-anchor="middle" dominant-baseline="central" font-size="9.5" font-weight="700" fill="${(cc && cc.text) || '#555'}" fill-opacity=".72" font-family='${FONT}' style="pointer-events:none">${t}</text>`;
 }
 
 /* ===================== 일정 · 그룹 ↔ 마인드맵 노드 연결 (참조 링크) ===================== */
@@ -5903,8 +5916,8 @@ function nodePicker(onPick){
     walk(m.rootId, 0); Object.keys(m.nodes).forEach(id => walk(id, 0));
     const shown = out.filter(x => !term || String(x.n.text||'').toLowerCase().includes(term)).slice(0, 40);
     if(!shown.length) list.append(h('p',{ class:'note', style:'margin:6px 2px' }, '찾는 노드가 없어요.'));
-    shown.forEach(x => list.append(h('button',{ class:'item', type:'button', style:'padding-left:'+(10+Math.min(x.d, 6)*10)+'px', onclick:() => onPick({ m:m.id, n:x.n.id }) },
-      h('span',{ class:'t' }, String(x.n.text||'(이름 없음)').replace(/\s*\n\s*/g, ' ').slice(0, 50)))));
+    shown.forEach(x => list.append(h('button',{ class:'item', type:'button', style:term ? '' : 'padding-left:'+(10+Math.min(x.d, 6)*10)+'px', onclick:() => onPick({ m:m.id, n:x.n.id }) },
+      h('span',{ class:'t lvx' }, term ? lvTree(m.id, x.n.id) : h('span',{ class:'lvtree' }, h('span',{ class:'lv last' }, h('b',{ class:'lvn' }, lvNum(x.d+1)), h('span',{ class:'lvt' }, String(x.n.text||'(이름 없음)').replace(/\s*\n\s*/g, ' ').slice(0, 50))))))));
   };
   ms.addEventListener('change', draw); q.addEventListener('input', draw); draw();
   return h('div',{ class:'rpick' }, ms, q, list);
@@ -9136,6 +9149,27 @@ function searchAll(qs){
   }
   return out;
 }
+/* ===================== 노드 위치를 단계별로 보여주기 (i. 최상위 → ii. 2단계 → iii. 3단계 …) ===================== */
+function lvNum(L){ return L<=6 ? 'i'.repeat(L)+'.' : '('+L+')'; }
+function lvChain(mapId, nid){
+  const m = data.maps[mapId]; if(!m || !m.nodes[nid]) return [];
+  const out = []; let n = m.nodes[nid], g = 0;
+  while(n && g++<40){ out.unshift(n); n = n.parent ? m.nodes[n.parent] : null; }
+  return out;
+}
+// hit: { i, len } 마지막(찾은) 노드 글에 형광 표시
+function lvTree(mapId, nid, hit){
+  const chain = lvChain(mapId, nid), box = h('span',{ class:'lvtree' });
+  chain.forEach((n, k) => {
+    const last = k===chain.length-1, tx = String(n.text||'(이름 없음)').replace(/\s*\n\s*/g, ' ');
+    const line = h('span',{ class:'lv'+(last ? ' last' : ''), style:'padding-left:'+(Math.min(k, 8)*12)+'px' }, h('b',{ class:'lvn' }, lvNum(k+1)));
+    const t = h('span',{ class:'lvt' });
+    if(last && hit && hit.len) t.innerHTML = snippet(tx, Math.min(hit.i, tx.length), hit.len); else t.textContent = tx.slice(0, 60);
+    line.append(t); box.append(line);
+  });
+  return box;
+}
+
 function snippet(text, i, len){
   const s = String(text).replace(/\s+/g,' ');
   const a = Math.max(0, i-14), part = s.slice(a, i+len+34);
@@ -9167,8 +9201,9 @@ function openSearch(){
       res.forEach(r => {
         list.append(h('button',{ class:'item', type:'button', onclick:() => { if(r.kind==='event'){ closeSheet(true); showTab('schedule'); openEventEditor(r.id); } else goNode(r.mapId, r.id, r.tab); } },
           h('span',{ class:'ico', html:ic(r.kind==='event' ? 'calendar' : r.tab==='memo' ? 'note' : r.tab==='checks' ? 'checks' : r.tab==='links' ? 'link' : r.tab==='table' ? 'table' : 'mindmap', 18) }),
-          h('span',{ class:'t', html:snippet(r.text, r.i, r.len==null ? needle.length : r.len) }),
-          h('span',{ class:'s' }, r.where+(r.mapName ? ' · '+r.mapName : ''))));
+          r.kind==='node' ? h('span',{ class:'t lvx' }, lvTree(r.mapId, r.id, r.tab==='node' ? { i:r.i, len:r.len==null ? needle.length : r.len } : null), r.tab!=='node' ? h('small',{ html:r.where+' · '+snippet(r.text, r.i, r.len==null ? needle.length : r.len) }) : null)
+          : h('span',{ class:'t', html:snippet(r.text, r.i, r.len==null ? needle.length : r.len) }),
+          r.kind==='node' ? h('span',{ class:'s' }, r.mapName||'') : h('span',{ class:'s' }, r.where+(r.mapName ? ' · '+r.mapName : ''))));
       });
     };
     q.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(run, 120); });
