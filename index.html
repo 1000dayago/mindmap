@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231833">
+<meta name="app-version" content="202610231902">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3081,7 +3081,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231833';
+const APP_VER = '202610231902';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5358,7 +5358,7 @@ function openTplEdit(i){
       const mi = h('input',{ class:'field', type:'text', maxlength:300, placeholder:'메모 (선택)', value:xo.m||'', style:'flex:1 1 100%;min-width:0;font-size:12.5px;margin-top:4px' });
       const ti = h('input',{ class:'field', type:'text', maxlength:60, placeholder:'단계 이름', value:title||'', style:'flex:1;min-width:0' });
       const of = h('input',{ class:'field', type:'number', min:0, max:365, step:1, value:off||0, style:'width:64px;flex:none;text-align:center' });
-      const row = h('div',{ class:'trow', style:'flex-wrap:wrap' }, h('span',{ class:'tn' }), ti, h('span',{ class:'tp' }, '+'), of, h('span',{ class:'tp' }, '일'),
+      const row = h('div',{ class:'trow', style:'flex-wrap:wrap' }, h('span',{ class:'tn' }), h('span',{ class:'ordgrip', title:'끌어서 단계 순서 바꾸기', 'aria-label':'끌어서 단계 순서 바꾸기', style:'position:static;flex:none', html:ic('grip',18), onpointerdown:e => vDragRows(e, rows, rows.indexOf(row), (from, to) => { const [mv] = rows.splice(from, 1); rows.splice(to, 0, mv); rows.forEach(r => { r.style.transform = ''; r.style.transition = ''; r.style.position = ''; r.style.zIndex = ''; r.style.boxShadow = ''; box.append(r); }); num(); }) }), ti, h('span',{ class:'tp' }, '+'), of, h('span',{ class:'tp' }, '일'),
         h('button',{ class:'mini', type:'button', 'aria-label':'단계 삭제', title:'단계 삭제', html:ic('trash',16), onclick:() => { const k = rows.indexOf(row); if(rows.length<=1){ toast('단계는 하나 이상 필요해요'); return; } rows.splice(k, 1); row.remove(); num(); } }), mi);
       row._v = () => { const x = Object.assign({}, xo); if(mi.value.trim()) x.m = mi.value.trim().slice(0,300); else delete x.m; return [ti.value.trim().slice(0,60), Math.max(0, Math.min(365, parseInt(of.value, 10)||0)), x]; };
       rows.push(row); box.append(row); num();
