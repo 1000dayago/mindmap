@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231256">
+<meta name="app-version" content="202610231320">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1176,6 +1176,29 @@ button.gchip{cursor:pointer}
   #sheetBody:has(.evright) > .row.end:last-child{grid-column:1 / -1}
   .evright .evmemo{min-height:clamp(240px,40dvh,440px)}
 }
+/* 일정 내용(서식 메모·체크·링크·표) */
+.evcont{display:flex;flex-direction:column;gap:6px}
+.evcont .field.memoed{min-height:120px}
+.evsec{border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--bg) 60%,transparent)}
+.evsec>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--sub);min-height:30px}
+.evsec>summary::-webkit-details-marker{display:none}
+.evsec>summary::before{content:'▸';margin-right:6px;font-size:11px;transition:transform .15s}
+.evsec[open]>summary::before{transform:rotate(90deg)}
+.evsec>summary span{flex:1}
+.evsec>summary .cnt{font-size:11px;color:var(--accent,#5b6cff)}
+.evsec[open]{padding-bottom:8px}
+.evbody{padding:0 8px;display:flex;flex-direction:column;gap:5px}
+.eclist{display:flex;flex-direction:column;gap:4px}
+.ecrow{display:flex;align-items:center;gap:6px}
+.evin{width:100%;box-sizing:border-box;min-height:32px;padding:4px 8px;font-size:13.5px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text);font-family:inherit}
+.ecrow .evin{flex:1;min-width:0}
+.ecrow.done .evin{text-decoration:line-through;opacity:.55}
+.evbx{width:22px;height:22px;min-height:0;border-radius:7px;border:1.5px solid var(--line);flex:none;display:inline-flex;align-items:center;justify-content:center;color:#fff;padding:0;background:transparent}
+.ecrow.done .evbx{background:#10b981;border-color:#10b981}
+.evx{width:26px;height:26px;min-height:0;flex:none;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--danger,#ef4444);padding:0;background:transparent}
+.evlk{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#0ea5e9;text-decoration:none;padding:4px 2px}
+.evtsv{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre;overflow:auto;min-height:90px;resize:vertical}
+
 </style>
 </head>
 <body>
@@ -1482,7 +1505,7 @@ function normalizeMap(raw, keepId){
       tag:TAG_IDS.includes(r.tag)?r.tag:'', mk:(r.mk==='check'||r.mk==='clock')?r.mk:'', mv:Math.max(0, Math.min(4, parseInt(r.mv,10)||0)), bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox, val:(typeof r.val==='number' && isFinite(r.val)) ? r.val : null, unit:String(r.unit||'').slice(0,8), agg:['sum','avg','max','min','cnt'].includes(r.agg)?r.agg:'',
       checks:(Array.isArray(r.checks)?r.checks:[]).slice(0,500).map(c => ({ id:String((c&&c.id)||uid()), t:String((c&&c.t)||'').slice(0,500), d:!!(c&&c.d) })),
       urls:(Array.isArray(r.urls)?r.urls:[]).slice(0,100).map(u => ({ id:String((u&&u.id)||uid()), name:String((u&&u.name)||'').slice(0,100), url:cleanUrl(u&&u.url), path:String((u&&u.path)||'').slice(0,500), k:String((u&&u.k)||'').slice(0,12) })).filter(u => u.url || u.path),
-      evId:String(r.evId||''), evRole:['root','title','date','body'].includes(r.evRole)?r.evRole:'',
+      evId:String(r.evId||''), evRole:['root','title','date','body','evn','grp'].includes(r.evRole)?r.evRole:'', esig:String(r.esig||'').slice(0,12),
       table:(r.table && Array.isArray(r.table.cells) && r.table.cells.length) ? (() => {
         const rows = r.table.cells.slice(0,MAXR).map(row => (Array.isArray(row)?row:[]).slice(0,MAXC).map(x => String(x==null?'':x).slice(0,2000)));
         const C = Math.max(1, ...rows.map(x => x.length));
@@ -1523,12 +1546,13 @@ function normEvent(r){
     time:isT(r.time)?r.time:'', endTime:isT(r.endTime)?r.endTime:'',
     repeat:['none','daily','weekly','monthly','yearly'].includes(r.repeat)?r.repeat:'none',
     until:isD(r.until)?r.until:'', alarm:(r.alarm===null||r.alarm===undefined||r.alarm==='')?null:(isFinite(+r.alarm)?+r.alarm:null),
-    memo:String(r.memo||'').slice(0,5000), gcal:String(r.gcal||'').slice(0,200), gimp:(r.gimp && r.gimp.key) ? { key:String(r.gimp.key).slice(0,300), cal:String(r.gimp.cal||'').slice(0,200), sig:String(r.gimp.sig||'').slice(0,100) } : null, color:EV_COLORS.includes(r.color)?r.color:EV_COLORS[0],
+    memo:String(r.memo||'').slice(0,20000), gcal:String(r.gcal||'').slice(0,200), gimp:(r.gimp && r.gimp.key) ? { key:String(r.gimp.key).slice(0,300), cal:String(r.gimp.cal||'').slice(0,200), sig:String(r.gimp.sig||'').slice(0,100) } : null, color:EV_COLORS.includes(r.color)?r.color:EV_COLORS[0],
     link:(r.link && r.link.mapId && r.link.titleId) ? { mapId:String(r.link.mapId), titleId:String(r.link.titleId), dateId:String(r.link.dateId||''), bodyId:String(r.link.bodyId||'') } : null,
     created:+r.created||Date.now() };
   if(r.ord!=null && r.ord!=='' && isFinite(+r.ord)) ev.ord = +r.ord;
   if(r.grp){ ev.grp = String(r.grp).slice(0,40); ev.gcol = /^#[0-9a-fA-F]{6}$/.test(r.gcol||'') ? r.gcol : ''; }
-  if(Array.isArray(r.refs)){ const rr = r.refs.filter(x => x && x.m && x.n).slice(0,20).map(x => ({ m:String(x.m), n:String(x.n) })); if(rr.length) ev.refs = rr; }
+  if(Array.isArray(r.refs)){ const rr = r.refs.filter(x => x && x.m && x.n).slice(0,20).map(x => { const o = { m:String(x.m), n:String(x.n) }; if(x.k) o.k = String(x.k); return o; }); if(rr.length) ev.refs = rr; }
+  evNormContent(ev, r);
   if(r.dn && typeof r.dn==='object'){ const dn = {}; Object.keys(r.dn).slice(0,400).forEach(k => { if(isD(k) && isD(r.dn[k])) dn[k] = r.dn[k]; }); if(Object.keys(dn).length) ev.dn = dn; }
   if(ev.dn && ev.repeat==='none'){ const v = Object.values(ev.dn)[0]; ev.dn = { [ev.date]: v }; }
   if(ev.allDay){ ev.time = ''; ev.endTime = ''; }
@@ -1828,6 +1852,7 @@ function nodeSvg(n, dark, focusSet, opt){
   s += chipsSvg(n, dark);
   s += tagSvg(n, dark);
   s += mkSvg(n, dark);
+  s += evCapSvg(n, dark);
   if(n.children.length && n.collapsed){
     const nodes = N(), c0 = nodes[n.children[0]];
     let bx, by;
@@ -2977,7 +3002,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231256';
+const APP_VER = '202610231320';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3736,6 +3761,7 @@ function liveSet(fn){
   if(S().lock){ lockedMsg(); return; }
   if(!live) live = { before:snap(m) };
   fn(m.nodes[pn.id]);
+  if(m.nodes[pn.id].evRole==='evn') evnPullNode(m.nodes[pn.id]);
   saveSoon(); renderSoon(); updatePanelTabs();
 }
 function liveEnd(){
@@ -4290,7 +4316,7 @@ function cleanMemoH(hh, memo){
   return memoText(s).trim()===String(memo||'').trim() ? s : '';
 }
 
-function bodyMemo(body, n){
+function bodyMemo(body, n, io){   // io: 일정 편집창 등 노드 밖에서 쓸 때 { set(memo, memoH), end() }
   const ed = h('div',{ class:'field memoed', contenteditable:'true', spellcheck:'false', 'data-ph':'메모를 입력하세요', role:'textbox', 'aria-multiline':'true' });
   ed.innerHTML = memoSan(n.memoH || memoFromPlain(n.memo));
   try{ document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); }catch(_){}
@@ -4304,14 +4330,16 @@ function bodyMemo(body, n){
   const save = () => {
     if(!ed.querySelector('.mck') && !ed.textContent.replace(/ /g,' ').trim() && !ed.querySelector('li')) { if(ed.innerHTML) ed.innerHTML = ''; }
     const s = memoSan(ed.innerHTML), t = memoText(s);
-    liveSet(nn => { nn.memo = t; nn.memoH = (t.trim() && s.length<=80000) ? s : ''; });
+    const mh = (t.trim() && s.length<=80000) ? s : '';
+    if(io) io.set(t, mh); else liveSet(nn => { nn.memo = t; nn.memoH = mh; });
   };
   ed.addEventListener('input', save);
-  ed.addEventListener('blur', liveEnd);
+  ed.addEventListener('blur', () => { if(io){ if(io.end) io.end(); } else liveEnd(); });
   ed.addEventListener('focus', () => { setTimeout(fitNpanelToViewport, 50); setTimeout(fitNpanelToViewport, 280); });
   ed.addEventListener('paste', e => {
     e.preventDefault();
     const t = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+    if(io && io.onPasteTable && /\t/.test(t) && /\n/.test(t.replace(/\r?\n$/, '')) && io.onPasteTable(t)) return;   // 엑셀에서 복사한 내용이면 표로
     if(t) document.execCommand('insertText', false, t);
   });
   ed.addEventListener('drop', e => e.preventDefault());
@@ -4321,6 +4349,7 @@ function bodyMemo(body, n){
     const a = e.target.closest && e.target.closest('a');
     if(a && ed.contains(a)){
       const hr = cleanUrl(a.getAttribute('href'));
+      if(io){ if(hr && confirm('링크를 열까요?\n'+hr)) window.open(hr, '_blank', 'noopener'); return; }   // 일정 편집창 위에 다른 창을 겹치지 않는다
       openSheet('링크', b => {
         b.append(h('p',{ class:'note', style:'word-break:break-all' }, hr),
           h('div',{ class:'row', style:'gap:8px;margin-top:8px;flex-wrap:wrap' },
@@ -4410,19 +4439,21 @@ function bodyMemo(body, n){
     restoreRg(); keepRg();
     const rg = lastRg ? lastRg.cloneRange() : null;
     const hasSel = !!(rg && !rg.collapsed);
-    askText({ title:hasSel ? '선택한 글자에 링크 걸기' : '링크 넣기', value:'', placeholder:'https://…', onOk: v => {
+    const doIt = v => {
       const cu = cleanUrl(v.trim()); if(!cu){ toast('주소를 확인해 주세요'); return; }
       ed.focus(); if(rg){ const s = getSelection(); s.removeAllRanges(); s.addRange(rg); }
       if(hasSel) document.execCommand('createLink', false, cu);
       else document.execCommand('insertHTML', false, '<a href="'+cu.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">'+hostOf(cu).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</a>&nbsp;');
       keepRg(); save();
-    } });
+    };
+    if(io){ const v = prompt(hasSel ? '선택한 글자에 걸 링크 주소' : '링크 주소', 'https://'); if(v) doIt(v); return; }
+    askText({ title:hasSel ? '선택한 글자에 링크 걸기' : '링크 넣기', value:'', placeholder:'https://…', onOk: doIt });
   };
   const doCheck = () => { restoreRg(); document.execCommand('insertHTML', false, '<span class="mck" contenteditable="false">☐</span>&nbsp;'); keepRg(); save(); };
 
   const mic = micBtn(ed);
   const bar = h('div',{ class:'mtb' },
-    tb('완료', ICO('check'), () => { ed.blur(); liveEnd(); getSelection().removeAllRanges(); toast('저장했어요'); }, 'ok'),
+    tb('완료', ICO('check'), () => { ed.blur(); if(!io) liveEnd(); getSelection().removeAllRanges(); toast('저장했어요'); }, 'ok'),
     mic, h('i',{ class:'sep' }),
     tb('글씨 크기', '<span style="font-weight:800;font-size:13px">가</span>', () => showPop('size')),
     tb('글씨 색', '<span class="dot" style="background:conic-gradient(#dc2626,#ea580c,#16a34a,#2563eb,#9333ea,#dc2626)"></span>', () => showPop('color')),
@@ -5426,6 +5457,270 @@ function grpTodayNext(body, head){
     h('span',{ class:'tt' }, h('b',{}, nx.title||'(제목 없음)'), h('small',{}, g.name+' · '+g.done+'/'+g.total+' · '+fmtMD(nx.date)+(nx.allDay ? '' : ' '+nx.time))))));
 }
 
+/* ===================== 일정 내용(서식 메모 · 체크 · 링크 · 표) + 노드 자동 생성 ===================== */
+// 일정에 노드와 같은 내용 기능이 붙는다:  ev.memo/memoH · ev.checks · ev.urls · ev.table
+// 노드(또는 그룹)에 일정을 연결하면 그 노드 아래에 일정 노드(evRole 'evn')가 생기고, 그룹이면 그룹 노드(evRole 'grp') 아래에 일정 노드들이 생긴다.
+// 일정 ↔ 일정 노드는 서로 내용이 맞춰진다 (일정에서 고치면 노드가, 노드에서 고치면 일정이 바뀐다).
+function fmtRangeCompact(a, b){
+  if(!a) return '';
+  const [y1, m1, d1] = a.split('-');
+  if(!b || b<=a) return y1+'.'+m1+'.'+d1;
+  const [y2, m2, d2] = b.split('-');
+  if(y1!==y2) return y1+'.'+m1+'.'+d1+'~'+y2+'.'+m2+'.'+d2;     // 해가 다르면 전부
+  if(m1!==m2) return y1+'.'+m1+'.'+d1+'~'+m2+'.'+d2;             // 달이 다르면 해 생략
+  return y1+'.'+m1+'.'+d1+'~'+d2;                                  // 같은 달이면 일만
+}
+function evCapText(ev){ return ev ? fmtRangeCompact(ev.date, ev.endDate)+(isRep(ev) ? ' ↻' : '') : ''; }
+function evnClone(x){ return x==null ? x : JSON.parse(JSON.stringify(x)); }
+function evnHash(s){ let h0 = 5381; for(let i=0;i<s.length;i++) h0 = ((h0*33) ^ s.charCodeAt(i)) >>> 0; return h0.toString(36); }
+function evnSig(n){ return evnHash(JSON.stringify([n.text||'', n.memo||'', n.memoH||'', n.checks||[], n.urls||[], n.table||null, n.mk==='check' ? (n.mv>=1 ? 1 : 0) : 0])); }
+
+/* ---------- 일정 내용 정리 (불러올 때 · 저장할 때) ---------- */
+function evNormContent(ev, r){
+  const memo = ev.memo || '';
+  const mh = cleanMemoH(r.memoH, memo); if(mh) ev.memoH = mh; else delete ev.memoH;
+  const ck = (Array.isArray(r.checks) ? r.checks : []).slice(0, 200).map(c => ({ id:String((c && c.id) || uid()), t:String((c && c.t) || '').slice(0, 500), d:!!(c && c.d) })).filter(c => c.t.trim());
+  if(ck.length) ev.checks = ck; else delete ev.checks;
+  const us = (Array.isArray(r.urls) ? r.urls : []).slice(0, 100).map(u => ({ id:String((u && u.id) || uid()), name:String((u && u.name) || '').slice(0, 100), url:cleanUrl(u && u.url), path:String((u && u.path) || '').slice(0, 500), k:String((u && u.k) || '').slice(0, 12) })).filter(u => u.url || u.path);
+  if(us.length) ev.urls = us; else delete ev.urls;
+  const t = r.table;
+  if(t && Array.isArray(t.cells) && t.cells.length){
+    const rows = t.cells.slice(0, MAXR).map(row => (Array.isArray(row) ? row : []).slice(0, MAXC).map(x => String(x==null ? '' : x).slice(0, 2000)));
+    const C = Math.max(1, ...rows.map(x => x.length));
+    const o = evnClone(t); o.cells = rows.map(x => { while(x.length<C) x.push(''); return x; });
+    ev.table = o;
+  }else delete ev.table;
+}
+function evApplyContent(ev, c){
+  ev.memo = String(c.memo||'').slice(0, 20000);
+  evNormContent(ev, { memoH:c.memoH, checks:c.checks, urls:c.urls, table:c.table });
+}
+
+/* ---------- 일정 편집창의 「내용」 칸 ---------- */
+function evContentUI(f){
+  const st = { memo:f.memo||'', memoH:f.memoH||'', checks:evnClone(f.checks||[]), urls:evnClone(f.urls||[]), table:f.table ? evnClone(f.table) : null };
+  const oldUrls = new Set((String(f.memo||'').match(/https?:\/\/[^\s<>"')]+/g) || []).map(cleanUrl));
+  const el = h('div',{ class:'evcont' });
+  const sec = (title, cnt) => { const d = h('details',{ class:'evsec' }), sm = h('summary',{}, h('span',{}, title), h('b',{ class:'cnt' }, cnt ? String(cnt) : '')); d.append(sm); if(cnt) d.open = true; return { d, cnt:sm.querySelector('.cnt') }; };
+
+  // 메모 (노드 메모와 같은 서식 · 메뉴)
+  const mbox = h('div',{ class:'evmemo2' });
+  const tblSec = sec('표 (엑셀)', st.table ? st.table.cells.length : 0), tblTa = h('textarea',{ class:'evin evtsv', rows:5, spellcheck:'false', placeholder:'엑셀에서 복사해 붙여넣으면 표가 돼요 (칸은 Tab으로 구분)' });
+  const tsvOf = t => t ? t.cells.map(r => r.join('\t')).join('\n') : '';
+  const cellsFrom = text => {
+    const rows = parseTSV(text); while(rows.length && rows[rows.length-1].every(x => x==='')) rows.pop();
+    if(!rows.length) return null;
+    const C = clamp(Math.max(...rows.map(r => r.length)), 1, MAXC);
+    return rows.slice(0, MAXR).map(r => { const o = r.slice(0, C).map(x => String(x).slice(0, 1000)); while(o.length<C) o.push(''); return o; });
+  };
+  const setTable = cells => { if(cells) st.table = Object.assign(st.table || {}, { cells }); else st.table = null; tblSec.cnt.textContent = cells ? cells.length+'×'+cells[0].length : ''; };
+  const io = {
+    set:(t, s) => { st.memo = t; st.memoH = s; },
+    end(){},
+    onPasteTable(text){   // 메모에 엑셀 내용을 붙이면 표로 넣는다
+      const cells = cellsFrom(text); if(!cells || (cells.length<2 && cells[0].length<2)) return false;
+      setTable(cells); tblTa.value = tsvOf(st.table); tblSec.d.open = true; toast('엑셀 내용이라 표로 넣었어요 · 노드에도 표로 들어가요'); return true;
+    }
+  };
+  bodyMemo(mbox, { memo:st.memo, memoH:st.memoH }, io);
+  el.append(mbox);
+
+  // 체크리스트
+  const ckSec = sec('체크리스트', st.checks.length), ckList = h('div',{ class:'eclist' });
+  const drawCk = () => {
+    ckList.innerHTML = ''; const d = st.checks.filter(c => c.d).length;
+    ckSec.cnt.textContent = st.checks.length ? d+'/'+st.checks.length : '';
+    st.checks.forEach(c => {
+      const inp = h('input',{ class:'evin', type:'text', value:c.t, enterkeyhint:'done' });
+      inp.addEventListener('input', () => { c.t = inp.value; });
+      inp.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } });
+      ckList.append(h('div',{ class:'ecrow'+(c.d ? ' done' : '') },
+        h('button',{ type:'button', class:'evbx', 'aria-label':'완료 표시', html:c.d ? ic('check',14) : '', onclick:() => { c.d = !c.d; drawCk(); } }),
+        inp,
+        h('button',{ type:'button', class:'evx', title:'삭제', 'aria-label':'삭제', html:ic('x',13), onclick:() => { st.checks = st.checks.filter(x => x!==c); drawCk(); } })));
+    });
+  };
+  const ckAdd = h('input',{ class:'evin add', type:'text', placeholder:'항목 추가 후 Enter', enterkeyhint:'done' });
+  ckAdd.addEventListener('keydown', e => {
+    if(e.isComposing || e.keyCode===229 || e.key!=='Enter') return; e.preventDefault();
+    const t = ckAdd.value.trim(); if(!t) return;
+    st.checks.push({ id:uid(), t:t.slice(0, 500), d:false }); ckAdd.value = ''; drawCk(); ckAdd.focus();
+  });
+  ckSec.d.append(h('div',{ class:'evbody' }, ckList, ckAdd)); drawCk();
+
+  // 링크
+  const lkSec = sec('링크', st.urls.length), lkList = h('div',{ class:'eclist' });
+  const drawLk = () => {
+    lkList.innerHTML = ''; lkSec.cnt.textContent = st.urls.length ? String(st.urls.length) : '';
+    st.urls.forEach(u => lkList.append(h('div',{ class:'ecrow' },
+      h('a',{ class:'evlk', href:u.url || '#', target:'_blank', rel:'noopener', title:u.url }, u.name || hostOf(u.url || u.path || '')),
+      h('button',{ type:'button', class:'evx', title:'삭제', 'aria-label':'삭제', html:ic('x',13), onclick:() => { st.urls = st.urls.filter(x => x!==u); drawLk(); } }))));
+  };
+  const lkAdd = h('input',{ class:'evin add', type:'url', placeholder:'https://… 주소 붙여넣고 Enter', enterkeyhint:'done', autocapitalize:'off' });
+  lkAdd.addEventListener('keydown', e => {
+    if(e.isComposing || e.keyCode===229 || e.key!=='Enter') return; e.preventDefault();
+    const raw = lkAdd.value.trim(); if(!raw) return;
+    const u = cleanUrl(/^[a-z]+:\/\//i.test(raw) ? raw : 'https://'+raw); if(!u){ toast('주소를 확인해 주세요'); return; }
+    if(!st.urls.some(x => x.url===u)) st.urls.push({ id:uid(), name:'', url:u, path:'', k:'' });
+    lkAdd.value = ''; drawLk();
+  });
+  lkSec.d.append(h('div',{ class:'evbody' }, lkList, lkAdd)); drawLk();
+
+  // 표
+  tblTa.value = tsvOf(st.table);
+  tblTa.addEventListener('input', () => setTable(cellsFrom(tblTa.value)));
+  tblSec.d.append(h('div',{ class:'evbody' }, tblTa, h('p',{ class:'note', style:'margin:4px 2px 0;font-size:11.5px' }, '칸 서식·수식은 연결된 노드의 표 탭에서 고칠 수 있어요.')));
+
+  el.append(ckSec.d, lkSec.d, tblSec.d);
+  return { el, get(){
+    const urls = st.urls.slice();
+    (String(st.memo).match(/https?:\/\/[^\s<>"')]+/g) || []).forEach(raw => { const u = cleanUrl(raw); if(u && !oldUrls.has(u) && !urls.some(x => x.url===u)) urls.push({ id:uid(), name:'', url:u, path:'', k:'' }); });   // 메모에 새로 적은 주소는 링크로도 모은다
+    return { memo:st.memo, memoH:st.memoH, checks:st.checks.filter(c => c.t.trim()), urls, table:st.table };
+  } };
+}
+
+/* ---------- 일정 ↔ 일정 노드 내용 맞추기 ---------- */
+function evnPushNode(n, ev){   // 일정 → 노드. 바뀐 게 있으면 true
+  let ch = false;
+  const set = (k, v) => { if(JSON.stringify(n[k])!==JSON.stringify(v)){ n[k] = v; ch = true; } };
+  set('text', ev.title); set('memo', ev.memo||''); set('memoH', ev.memoH||'');
+  set('checks', evnClone(ev.checks||[])); set('urls', evnClone(ev.urls||[])); set('table', ev.table ? evnClone(ev.table) : null);
+  if(!isRep(ev)){ if(n.mk!=='check'){ n.mk = 'check'; ch = true; } const v = doneOf(ev, ev.date) ? 1 : 0; if(n.mv!==v){ n.mv = v; ch = true; } }
+  const sg = evnSig(n); if(n.esig!==sg){ n.esig = sg; ch = true; }
+  return ch;
+}
+function evnPullNode(n){   // 노드 → 일정 (노드 내용이 마지막 맞춤 이후 바뀌었을 때만)
+  const ev = data.events[n.evId]; if(!ev) return false;
+  const sg = evnSig(n); if(n.esig===sg) return false;
+  n.esig = sg; let ch = false;
+  const t = String(n.text||'').replace(/\s*\n\s*/g, ' ').trim();
+  if(t){ if(t.slice(0, 200)!==ev.title){ ev.title = t.slice(0, 200); ch = true; } } else n.text = ev.title;
+  const before = JSON.stringify([ev.memo||'', ev.memoH||'', ev.checks||[], ev.urls||[], ev.table||null]);
+  evApplyContent(ev, { memo:n.memo, memoH:n.memoH, checks:n.checks, urls:n.urls, table:n.table });
+  if(JSON.stringify([ev.memo||'', ev.memoH||'', ev.checks||[], ev.urls||[], ev.table||null])!==before) ch = true;
+  if(n.mk==='check' && !isRep(ev)){ const want = n.mv>=1; if(!!doneOf(ev, ev.date)!==want){ setEvDone(ev, ev.date, want); ch = true; } }
+  if(ch) saveSoon();
+  return ch;
+}
+function evnPullAll(m){ for(const id in m.nodes){ const n = m.nodes[id]; if(n.evRole==='evn' && n.evId) evnPullNode(n); } }
+
+/* ---------- 연결된 노드 아래에 일정 · 그룹 노드 만들기 ---------- */
+var evnBusy = false, evnTimer = 0;
+function evnSoon(force){ clearTimeout(evnTimer); evnTimer = setTimeout(() => evnReconcile(force), 30); }
+function evnWithMap(mid, fn){
+  const m = data.maps[mid]; if(!m) return false;
+  const prev = data.current; data.current = mid; let ch = false;
+  try{ ch = !!fn(m); if(ch){ cleanup(m); refitAll(m); } }
+  finally{ data.current = prev; }
+  if(ch){ m.updated = Date.now(); saveSoon(); }
+  return ch;
+}
+function evnReconcile(force){
+  if(evnBusy) return; evnBusy = true;
+  let curChanged = false, evCh = false;
+  try{
+    const reg = regLoad(); let regCh = false;
+    const regHas = nm => reg.some(g => g.name===nm);
+    const gl = grpList();
+    const evs = Object.values(data.events);
+    for(const mid of data.order){
+      const mp = data.maps[mid]; if(!mp) continue;
+      const targeted = evs.some(e => (e.refs||[]).some(r => r.m===mid)) || reg.some(g => (g.refs||[]).some(r => r.m===mid));
+      const hasGen = Object.values(mp.nodes).some(n => n.evRole==='evn' || n.evRole==='grp');
+      if(!targeted && !hasGen) continue;
+      const ch = evnWithMap(mid, m => {
+        const nodes = m.nodes, resolved = new Set(); let c = false, created = false;
+        const mkChild = (parent, props) => {
+          const k = mkNode(Object.assign({ parent:parent.id }, props)); placeNew(parent, k); nodes[k.id] = k; parent.children.push(k.id); parent.collapsed = false; c = true; created = true; return k;
+        };
+        const del = n => {
+          const par = nodes[n.parent]; if(par) par.children = par.children.filter(x => x!==n.id);
+          (n.children||[]).forEach(x => { if(nodes[x]){ nodes[x].parent = n.parent; if(par) par.children.push(x); } });
+          delete nodes[n.id]; c = true;
+        };
+        const sync = (n, ev) => {   // 노드가 손대지 않았으면 일정 → 노드, 노드가 고쳐졌으면 노드 → 일정
+          if(force===ev.id || !n.esig || n.esig===evnSig(n)){ if(evnPushNode(n, ev)) c = true; }
+          else if(evnPullNode(n)){ c = true; evCh = true; }
+        };
+        const findChild = (P, pred) => P.children.map(x => nodes[x]).find(x => x && pred(x));
+        // 1) 일정에 직접 연결된 노드
+        for(const ev of evs) for(const r of (ev.refs||[])){
+          if(r.m!==mid) continue; const P = nodes[r.n]; if(!P) continue;
+          let n = (r.k && nodes[r.k] && nodes[r.k].evRole==='evn' && nodes[r.k].evId===ev.id) ? nodes[r.k] : findChild(P, x => x.evRole==='evn' && x.evId===ev.id);
+          if(!n){
+            if(r.k) continue;   // 한 번 만들었는데 사라졌으면 사용자가 지운 것 — 다시 만들지 않는다
+            n = mkChild(P, { text:ev.title, evId:ev.id, evRole:'evn', color:ev.color }); r.k = n.id; evCh = true;
+          }else if(r.k!==n.id){ r.k = n.id; evCh = true; }
+          resolved.add(n.id); sync(n, ev);
+        }
+        // 2) 그룹에 연결된 노드: 그룹 노드 + 그 아래 일정 노드들
+        for(const g of reg){
+          const gi = gl.find(x => x.name===g.name); if(!gi) continue;
+          for(const r of (g.refs||[])){
+            if(r.m!==mid) continue; const P = nodes[r.n]; if(!P) continue;
+            let G = (r.k && nodes[r.k] && nodes[r.k].evRole==='grp') ? nodes[r.k] : findChild(P, x => x.evRole==='grp' && x.evId==='g:'+g.name);
+            if(!G){ if(r.k) continue; G = mkChild(P, { text:g.name, evId:'g:'+g.name, evRole:'grp', color:gi.color }); r.k = G.id; regCh = true; }
+            else if(r.k!==G.id){ r.k = G.id; regCh = true; }
+            resolved.add(G.id); r.ek = r.ek || {};
+            for(const ev of gi.evs){
+              let n = (r.ek[ev.id] && nodes[r.ek[ev.id]] && nodes[r.ek[ev.id]].evId===ev.id) ? nodes[r.ek[ev.id]] : findChild(G, x => x.evRole==='evn' && x.evId===ev.id);
+              if(!n){
+                if(r.ek[ev.id]) continue;
+                n = mkChild(G, { text:ev.title, evId:ev.id, evRole:'evn', color:ev.color }); r.ek[ev.id] = n.id; regCh = true;
+              }else if(r.ek[ev.id]!==n.id){ r.ek[ev.id] = n.id; regCh = true; }
+              resolved.add(n.id); sync(n, ev);
+            }
+          }
+        }
+        // 3) 더 이상 연결되지 않은 노드 정리 (연결을 푼 일정 · 그룹에서 빠진 일정)
+        Object.values(nodes).forEach(n => {
+          if(!nodes[n.id] || resolved.has(n.id)) return;
+          if(n.evRole==='evn'){
+            const ev = data.events[n.evId]; if(!ev) return;
+            const par = nodes[n.parent];
+            if(par && par.evRole==='grp' && !regHas(String(par.evId).slice(2))) return;
+            del(n);
+          }else if(n.evRole==='grp'){
+            if(!regHas(String(n.evId).slice(2))) return;
+            del(n);
+          }
+        });
+        if(created && S().auto) tidyMap(m);
+        return c;
+      });
+      if(ch && mid===data.current) curChanged = true;
+    }
+    if(regCh) lsSet('mm_grp_reg', reg);
+    if(evCh) saveSoon();
+    refDirty();
+  }finally{ evnBusy = false; }
+  if(curChanged || evCh){ try{ render(); }catch(e){} }
+}
+// 일정을 지우면 그 일정의 노드도 지운다
+function evnDropEvent(id){
+  for(const mid of data.order) evnWithMap(mid, m => {
+    let c = false;
+    Object.values(m.nodes).forEach(n => {
+      if(n.evRole==='evn' && n.evId===id && m.nodes[n.id]){
+        const par = m.nodes[n.parent]; if(par) par.children = par.children.filter(x => x!==n.id);
+        (n.children||[]).forEach(x => { if(m.nodes[x]){ m.nodes[x].parent = n.parent; if(par) par.children.push(x); } });
+        delete m.nodes[n.id]; c = true;
+      }
+    });
+    return c;
+  });
+}
+
+/* ---------- 노드에 일정 날짜를 작게 표시 ---------- */
+function evCapSvg(n, dark){
+  let t = '', c = '#ec4899';
+  if(n.evRole==='evn'){ const ev = data.events[n.evId]; if(!ev) return ''; t = evCapText(ev); const t0 = todayStr(), z = ev.endDate || ev.date; c = (!isRep(ev) && doneOf(ev, ev.date)) ? '#10b981' : (z<t0 && !isRep(ev)) ? '#ef4444' : (ev.date<=t0 && z>=t0) ? '#f97316' : '#ec4899'; }
+  else if(n.evRole==='grp'){ const g = grpList().find(x => x.name===String(n.evId).slice(2)); if(!g || !g.from) return ''; t = fmtRangeCompact(g.from, g.to); c = (g.total && g.done===g.total) ? '#10b981' : '#ec4899'; }
+  else return '';
+  const w = textW(t, 9, true) + 8, chips = !!((n.memo||'').trim() || (n.checks && n.checks.length) || (n.urls && n.urls.length) || n.table || n.due || n.val!=null), dy = n.h/2 + (chips ? 19 : 9);   // 아래 칩과 겹치지 않게
+  return `<g transform="translate(0,${dy})" style="pointer-events:none"><rect x="${-w/2}" y="-6.5" width="${w}" height="12.5" rx="6" fill="${dark ? '#1b1626' : '#ffffff'}" fill-opacity=".92" stroke="${c}" stroke-opacity=".55" stroke-width=".8"/><text text-anchor="middle" y=".5" font-size="9" font-weight="700" dominant-baseline="central" fill="${c}" font-family='${FONT}'>${t}</text></g>`;
+}
+
 /* ===================== 일정 · 그룹 ↔ 마인드맵 노드 연결 (참조 링크) ===================== */
 // 일정: ev.refs = [{m:맵id, n:노드id}] · 그룹: 그룹 등록(mm_grp_reg)의 refs. 서로의 내용을 바꾸지 않고 가리키기만 한다.
 let refCache = { t:0, idx:null };
@@ -5444,7 +5739,7 @@ function grpRefsSet(name, refs){
   const a = regLoad(); let r = a.find(x => x.name===name);
   if(!r){ r = { name, color:grpColorOf(name)||EV_COLORS[0] }; a.push(r); }
   if(refs.length) r.refs = refs; else delete r.refs;
-  lsSet('mm_grp_reg', a); refDirty();
+  lsSet('mm_grp_reg', a); refDirty(); evnSoon();
 }
 const refSame = (a, b) => a.m===b.m && a.n===b.n;
 function nodePath(r){
@@ -5535,7 +5830,7 @@ function openNodeSched(mapId, nid){
         h('button',{ class:'mini d', type:'button', title:'연결 해제', 'aria-label':'연결 해제', html:ic('x',14), onclick:() => { if(lock()) return; grpRefsSet(name, grpRefsGet(name).filter(r => !mine(r))); render(); draw(b); } }))); });
     sl.evs.forEach(ev => rows.append(h('div',{ class:'rrow' },
       h('button',{ class:'item', type:'button', onclick:() => goToEvent(ev.id) }, h('span',{ class:'ico', style:'--c:'+evColor(ev), html:ic('calendar',20) }), h('span',{ class:'t' }, h('b',{ style:'display:block' }, ev.title||'(제목 없음)'), h('small',{ style:'color:var(--sub);font-size:11.5px' }, fmtMD(ev.date)+(ev.grp ? ' · '+ev.grp : '')))),
-      h('button',{ class:'mini d', type:'button', title:'연결 해제', 'aria-label':'연결 해제', html:ic('x',14), onclick:() => { if(lock()) return; ev.refs = (ev.refs||[]).filter(r => !mine(r)); if(!ev.refs.length) delete ev.refs; saveSoon(); refDirty(); render(); draw(b); } }))));
+      h('button',{ class:'mini d', type:'button', title:'연결 해제', 'aria-label':'연결 해제', html:ic('x',14), onclick:() => { if(lock()) return; ev.refs = (ev.refs||[]).filter(r => !mine(r)); if(!ev.refs.length) delete ev.refs; saveSoon(); refDirty(); evnSoon(); render(); draw(b); } }))));
     b.append(rows);
     if(!adding){   // 평소에는 이 노드에 연결된 것만 보여준다. 다른 일정은 '연결 추가'를 눌러야 나온다
       b.append(h('div',{ class:'row', style:'margin-top:10px' }, h('button',{ class:'btn', type:'button', onclick:() => { adding = true; draw(b); } }, '+ 연결 추가')));
@@ -5553,7 +5848,7 @@ function openNodeSched(mapId, nid){
         const up = all.filter(e => e.date>=addDays(t, -7)).sort((a, c) => a.date.localeCompare(c.date)), old = all.filter(e => e.date<addDays(t, -7)).sort((a, c) => c.date.localeCompare(a.date));
         const shown = up.concat(old).slice(0, 40);
         if(!shown.length) list.append(h('p',{ class:'note', style:'margin:6px 2px' }, '연결할 일정이 없어요.'));
-        shown.forEach(ev => list.append(h('button',{ class:'item', type:'button', onclick:() => { if(lock()) return; ev.refs = (ev.refs||[]).concat([{ m:mapId, n:nid }]); saveSoon(); refDirty(); render(); draw(b); } },
+        shown.forEach(ev => list.append(h('button',{ class:'item', type:'button', onclick:() => { if(lock()) return; ev.refs = (ev.refs||[]).concat([{ m:mapId, n:nid }]); saveSoon(); refDirty(); evnSoon(); render(); draw(b); } },
           h('span',{ class:'t' }, h('b',{ style:'display:block' }, ev.title||'(제목 없음)'), h('small',{ style:'color:var(--sub);font-size:11.5px' }, fmtMD(ev.date)+(ev.grp ? ' · '+ev.grp : ''))))));
       };
       fill();
@@ -6262,8 +6557,7 @@ function openEventEditor(id, o){
     const rep = h('select',{class:'field'}, Object.keys(REPEAT_LABEL).map(k => h('option',{value:k}, REPEAT_LABEL[k]))); rep.value = f.repeat||'none';
     const untilI = h('input',{class:'field',type:'date',value:f.until||''});
     const alarm = h('select',{class:'field'});
-    const memo = h('textarea',{class:'field evmemo',rows:6,placeholder:'내용 (선택)'}); memo.value = f.memo||'';
-    const mmic = micBtn(memo);
+    const cu = evContentUI(f);
     const timeBox = h('div',{class:'frow'}, h('div',{style:'flex:1'}, h('div',{class:'lbl'},'시작 시간'), timeI), h('div',{style:'flex:1'}, h('div',{class:'lbl'},'종료 시간'), etimeI));
     const endBox = h('div',{}, h('div',{class:'lbl'},'종료 날짜 (여러 날 일정일 때만)'), endI);
     const untilBox = h('div',{}, h('div',{class:'lbl'},'반복 종료 날짜 (비우면 계속)'), untilI);
@@ -6287,7 +6581,7 @@ function openEventEditor(id, o){
     EV_COLORS.forEach(c => { const bt = h('button',{ class:'swatch'+(c===color?' on':''), type:'button', style:'background:'+c+';min-height:30px', 'aria-label':c, onclick:() => { color = c; [...sw.children].forEach(x => x.classList.remove('on')); bt.classList.add('on'); } }); sw.append(bt); });
     const gl = grpList(), curG = (ex ? ex.grp : o.grp) || '';
     const grpSel = { value:curG };
-    let refsSt = ex ? (ex.refs||[]).map(x => ({ m:x.m, n:x.n })) : (o.refs||[]).slice();
+    let refsSt = ex ? (ex.refs||[]).map(x => (x.k ? { m:x.m, n:x.n, k:x.k } : { m:x.m, n:x.n })) : (o.refs||[]).slice();
     const refBox = refField(() => refsSt, v => { refsSt = v; }, false);
     const grpNew = h('input',{class:'field hidden',type:'text',placeholder:'새 그룹 이름 (예: A사 반품)',maxlength:40,style:'margin-top:6px'});
     const grpRow = h('div',{class:'gpick'});
@@ -6323,7 +6617,7 @@ function openEventEditor(id, o){
       ev.endTime = (!allDay && etimeI.value && etimeI.value>ev.time) ? etimeI.value : '';
       ev.until = (ev.repeat!=='none' && untilI.value && untilI.value>=ev.date) ? untilI.value : '';
       ev.alarm = alarm.value==='' ? null : Number(alarm.value);
-      ev.memo = memo.value.slice(0,5000); ev.color = color;
+      evApplyContent(ev, cu.get()); ev.color = color;
       if(refsSt.length) ev.refs = refsSt.slice(0,20); else delete ev.refs;
       refDirty();
       { const gn = grpSel.value==='__new' ? grpNew.value.trim().slice(0,40) : grpSel.value;
@@ -6334,6 +6628,7 @@ function openEventEditor(id, o){
       if(gcalPick) ev.gcal = gcalPick();
       data.events[ev.id] = ev; saveSoon();
       if(ev.link) pushEventToMap(ev);
+      evnReconcile(ev.id);
       renderCal();
       return ev;
     }
@@ -6346,7 +6641,7 @@ function openEventEditor(id, o){
       h('div',{class:'lbl'},'알림 (앱이 열려 있을 때만 울려요)'), alarm,
       h('p',{class:'note',style:'margin:2px 2px 8px;font-size:11.5px'},'앱을 닫으면 알림이 울리지 않아요 · 중요한 일정은 구글 캘린더로 올려 두세요'),
       h('div',{class:'evright'},
-        h('div',{class:'lbl',style:'display:flex;align-items:center;justify-content:space-between'}, h('span',{},'내용'), mmic), memo,
+        h('div',{class:'lbl'},'내용'), cu.el,
         h('div',{class:'lbl'},'관련 마인드맵 노드'), refBox,
         h('div',{class:'lbl'},'색상'), sw));
     sync();
@@ -6376,6 +6671,7 @@ function openEventEditor(id, o){
 function deleteEvent(id){
   const ev = data.events[id]; if(!ev) return;
   if(ev.link) unlinkEvent(id);
+  evnDropEvent(id);
   delete data.events[id]; saveSoon(); renderCal();
 }
 
@@ -6444,6 +6740,7 @@ function showEventInMap(ev){
 /* 마인드맵에서 노드 글을 고치면 달력 일정도 따라 바뀐다 */
 function syncEvents(m){
   const evs = data.events; if(!evs) return;
+  evnPullAll(m);
   for(const id in evs){
     const ev = evs[id], L = ev.link;
     if(!L || L.mapId!==m.id) continue;
@@ -8914,7 +9211,7 @@ function showTab(t){
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab===t));
   try{ localStorage.setItem('mm_tab', t); }catch(e){}
   placeCtl();
-  if(t==='map'){ requestAnimationFrame(ensureView); try{ refDirty(); render(); }catch(e){} }   // 일정에서 완료한 내용이 노드에 바로 반영되게
+  if(t==='map'){ requestAnimationFrame(ensureView); try{ refDirty(); evnReconcile(); render(); }catch(e){} }   // 일정에서 완료한 내용이 노드에 바로 반영되게
   if(t==='schedule') renderCal();
   if(t==='today') renderToday();
 }
@@ -8945,7 +9242,7 @@ function schedChip(nid){
   return { t:String(i.count), c:'#ec4899' };
 }
 function mkDone(n){ return !!n && ((n.mk==='check' && n.mv>=1) || (n.mk==='clock' && n.mv>=4)); }
-const nodeDoneVis = n => mkDone(n) || (!!n && schedDone(n.id));
+const nodeDoneVis = n => mkDone(n) || (!!n && schedDone(n.id)) || (!!n && n.evRole==='grp' && (() => { const g = grpList().find(x => x.name===String(n.evId).slice(2)); return !!(g && g.total && g.done===g.total); })());
 function mkDoneColors(n, dark){
   const base = colorInfo(n).base;
   return dark ? { fill:'#173a2b', stroke:'#4ade80', text:'#bbf7d0', base } : { fill:'#d6f2e1', stroke:'#2fa866', text:'#14532d', base };
