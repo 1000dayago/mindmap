@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231012">
+<meta name="app-version" content="202610231023">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -947,7 +947,6 @@ table.sheet th{font-size:var(--thfs,11.5px)}
 .dragtip{position:fixed;z-index:9999;pointer-events:none;background:rgba(12,18,34,.92);color:#fff;font-size:12px;font-weight:700;padding:6px 10px;border-radius:10px;white-space:nowrap}
 .cbar.mv{cursor:grab;touch-action:none}
 
-
 /* ===== 일정 완료 체크 ===== */
 .evck{width:26px;height:26px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--text) 50%,transparent);background:var(--panel-solid,#fff);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;padding:0}
 .evck:hover{border-color:#10b981}
@@ -1087,6 +1086,12 @@ button.gchip{cursor:pointer}
 .pickbar small{color:var(--sub);font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .pickbar .sp{flex:1}
 .pickbar .gx{padding:5px 12px;border-radius:999px;background:#1f2937;color:#fff;font-size:12px;font-weight:800;white-space:nowrap}
+.dnrow{display:flex;align-items:center;gap:8px;margin:8px 0 2px;flex-wrap:wrap}
+.dnrow small{color:var(--sub);font-size:12px}
+.dnrow .field{width:auto;flex:none}
+.dnbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line,#ccc);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;color:inherit}
+.dnbtn.on{background:#22a06b;border-color:#22a06b;color:#fff}
+.dnck{display:inline-flex;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;align-items:center;justify-content:center}
 
 .evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
 @media(min-width:821px){
@@ -2916,7 +2921,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231012';
+const APP_VER = '202610231023';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5091,12 +5096,30 @@ const GTPL_BASE = [
 function tplLoad(){ const a = lsGet('mm_grp_tpl2', null); return Array.isArray(a) ? a : JSON.parse(JSON.stringify(GTPL_BASE)); }
 const tplSave = a => lsSet('mm_grp_tpl2', a);
 function gtplSaveFrom(g){
-  const base = g.evs[0].date, steps = g.evs.map(e => [e.title, dayDiff(base, e.date)]);
-  const a = tplLoad().filter(t => t.name!==g.name); a.push({ name:g.name, steps }); tplSave(a); toast('템플릿으로 저장했어요');
+  const evs = g.evs.slice().sort((a, b) => a.date.localeCompare(b.date)), base = evs[0].date;
+  const steps = evs.map(e => {
+    const x = {};
+    if(e.memo) x.m = e.memo;
+    if(!e.allDay){ x.t = e.time||''; if(e.endTime) x.et = e.endTime; }
+    if(e.endDate && e.endDate>e.date) x.d = dayDiff(e.date, e.endDate);
+    if(e.alarm!=null) x.a = e.alarm;
+    if(e.refs && e.refs.length) x.r = e.refs.map(r => ({ m:r.m, n:r.n }));
+    return [e.title, dayDiff(base, e.date), x];
+  });
+  const t = { name:g.name, steps }, gr = grpRefsGet(g.name); if(gr.length) t.refs = gr.map(r => ({ m:r.m, n:r.n }));
+  const a = tplLoad().filter(t0 => t0.name!==g.name); a.push(t); tplSave(a);
+  const nm = steps.filter(s => s[2].m).length, nr = steps.filter(s => s[2].r).length + (t.refs ? 1 : 0);
+  toast('템플릿으로 저장했어요'+(nm||nr ? ' (메모 '+nm+' · 노드 연결 '+nr+' 포함)' : ''));
 }
 function gtplApply(t, gname, start){
   const nm = (gname||t.name).trim().slice(0,40) || t.name, col = grpEnsure(nm);
-  mutate(() => { t.steps.forEach(s => { const id = uid(); data.events[id] = normEvent({ id, title:s[0], date:addDays(start, s[1]), endDate:'', allDay:true, time:'', endTime:'', repeat:'none', until:'', alarm:null, memo:'', color:EV_COLORS[0], link:null, created:Date.now(), grp:nm, gcol:col }); }); });
+  mutate(() => { t.steps.forEach(s => {
+    const x = s[2]||{}, id = uid(), d0 = addDays(start, s[1]);
+    const ev = { id, title:s[0], date:d0, endDate:(x.d>0 ? addDays(d0, x.d) : ''), allDay:!x.t, time:x.t||'', endTime:x.et||'', repeat:'none', until:'', alarm:(x.a==null ? null : x.a), memo:x.m||'', color:EV_COLORS[0], link:null, created:Date.now(), grp:nm, gcol:col };
+    if(x.r && x.r.length) ev.refs = x.r.map(r => ({ m:r.m, n:r.n }));
+    data.events[id] = normEvent(ev);
+  }); });
+  if(t.refs && t.refs.length && !grpRefsGet(nm).length) grpRefsSet(nm, t.refs.map(r => ({ m:r.m, n:r.n })));
   saveSoon(); refreshEvViews(); return nm;
 }
 function openTplApply(name){
@@ -5117,7 +5140,7 @@ function openTplList(){
     const tpls = tplLoad();
     b.append(h('p',{ class:'note' }, '단계가 정해진 일의 틀이에요. 눌러서 수정하고, 그룹을 만들 때 지정하면 단계마다 일정이 만들어져요.'));
     b.append(h('div',{ class:'list' }, tpls.map((t, i) => h('button',{ class:'item', type:'button', onclick:() => { closeSheet(true); setTimeout(() => openTplEdit(i), 60); } },
-      h('span',{ class:'t' }, h('b',{ style:'display:block' }, t.name), h('small',{ style:'color:var(--sub);font-size:11.5px' }, t.steps.map(s => s[0]+(s[1] ? ' +'+s[1]+'일' : '')).join(' → ')))))));
+      h('span',{ class:'t' }, h('b',{ style:'display:block' }, t.name), h('small',{ style:'color:var(--sub);font-size:11.5px' }, t.steps.map(s => s[0]+(s[1] ? ' +'+s[1]+'일' : '')+((s[2]&&s[2].m) ? ' 📝' : '')+((s[2]&&s[2].r) ? ' 🔗' : '')).join(' → ')+(t.refs ? ' · 그룹 노드 연결 포함' : '')))))));
     b.append(h('div',{ class:'row', style:'margin-top:10px' }, h('button',{ class:'btn primary', type:'button', style:'width:100%', onclick:() => { closeSheet(true); setTimeout(() => openTplEdit(-1), 60); } }, '+ 새 템플릿')));
   });
 }
@@ -5127,16 +5150,18 @@ function openTplEdit(i){
     const nm = h('input',{ class:'field', type:'text', maxlength:40, placeholder:'템플릿 이름', value:t.name });
     const box = h('div',{ class:'tsteps' });
     const rows = [];
-    const addRow = (title, off) => {
+    const addRow = (title, off, x0) => {
+      const xo = Object.assign({}, x0||{});
+      const mi = h('input',{ class:'field', type:'text', maxlength:300, placeholder:'메모 (선택)', value:xo.m||'', style:'flex:1 1 100%;min-width:0;font-size:12.5px;margin-top:4px' });
       const ti = h('input',{ class:'field', type:'text', maxlength:60, placeholder:'단계 이름', value:title||'', style:'flex:1;min-width:0' });
       const of = h('input',{ class:'field', type:'number', min:0, max:365, step:1, value:off||0, style:'width:64px;flex:none;text-align:center' });
-      const row = h('div',{ class:'trow' }, h('span',{ class:'tn' }), ti, h('span',{ class:'tp' }, '+'), of, h('span',{ class:'tp' }, '일'),
-        h('button',{ class:'mini', type:'button', 'aria-label':'단계 삭제', title:'단계 삭제', html:ic('trash',16), onclick:() => { const k = rows.indexOf(row); if(rows.length<=1){ toast('단계는 하나 이상 필요해요'); return; } rows.splice(k, 1); row.remove(); num(); } }));
-      row._v = () => [ti.value.trim().slice(0,60), Math.max(0, Math.min(365, parseInt(of.value, 10)||0))];
+      const row = h('div',{ class:'trow', style:'flex-wrap:wrap' }, h('span',{ class:'tn' }), ti, h('span',{ class:'tp' }, '+'), of, h('span',{ class:'tp' }, '일'),
+        h('button',{ class:'mini', type:'button', 'aria-label':'단계 삭제', title:'단계 삭제', html:ic('trash',16), onclick:() => { const k = rows.indexOf(row); if(rows.length<=1){ toast('단계는 하나 이상 필요해요'); return; } rows.splice(k, 1); row.remove(); num(); } }), mi);
+      row._v = () => { const x = Object.assign({}, xo); if(mi.value.trim()) x.m = mi.value.trim().slice(0,300); else delete x.m; return [ti.value.trim().slice(0,60), Math.max(0, Math.min(365, parseInt(of.value, 10)||0)), x]; };
       rows.push(row); box.append(row); num();
     };
     const num = () => rows.forEach((r, k) => { r.firstChild.textContent = k+1; });
-    t.steps.forEach(s => addRow(s[0], s[1]));
+    t.steps.forEach(s => addRow(s[0], s[1], s[2]));
     b.append(h('div',{ class:'lbl' }, '템플릿 이름'), nm, h('div',{ class:'lbl' }, '단계 (시작일 기준 +며칠 뒤)'), box,
       h('button',{ class:'btn', type:'button', style:'width:100%;margin-top:6px', onclick:() => addRow('', (rows.length ? rows[rows.length-1]._v()[1] : 0)+1) }, '+ 단계 추가'),
       h('div',{ class:'row end', style:'margin-top:12px;gap:6px' },
@@ -5144,7 +5169,7 @@ function openTplEdit(i){
         h('button',{ class:'btn primary', type:'button', onclick:() => {
           const name = nm.value.trim().slice(0,40); if(!name){ toast('템플릿 이름을 입력해 주세요'); return; }
           const steps = rows.map(r => r._v()).filter(s => s[0]); if(!steps.length){ toast('단계 이름을 입력해 주세요'); return; }
-          const nt = { name, steps }; if(i>=0) all[i] = nt; else all.push(nt); tplSave(all); closeSheet(true); setTimeout(openTplList, 60);
+          const nt = { name, steps }; if(t.refs) nt.refs = t.refs; if(i>=0) all[i] = nt; else all.push(nt); tplSave(all); closeSheet(true); setTimeout(openTplList, 60);
         } }, '저장')));
   });
 }
@@ -5551,7 +5576,7 @@ function evRow0(ev, ds, o){
   const dn = doneOf(ev, ds), dm = dn ? dn.split('-') : null;
   const ck = h('button',{ class:'evck'+(dn?' on':''), type:'button', title:dn ? '완료 취소' : '완료 체크', 'aria-label':dn ? '완료 취소' : '완료 체크', html:dn ? ic('check',13) : '',
     onclick:e => { e.stopPropagation(); setEvDone(ev, ds, !dn); refreshEvViews(); } });
-  return h('div',{ class:'evrow'+(dn?' done':''), role:'button', tabindex:'0', style:'--c:'+evColor(ev), onclick:(o.dbl===false) ? () => openEventEditor(ev.id,{ ds }) : openEvOnDbl(ev, ds), title:(o.dbl===false) ? null : '두 번 누르면 수정', onkeydown:e => { if(e.key==='Enter' && e.target===e.currentTarget) openEventEditor(ev.id,{ ds }); } },
+  return h('div',{ class:'evrow'+(dn?' done':''), role:'button', tabindex:'0', style:'--c:'+evColor(ev), onclick:(o.dbl===false || dn) ? () => openEventEditor(ev.id,{ ds }) : openEvOnDbl(ev, ds), title:(o.dbl===false || dn) ? (dn ? '눌러서 완료 일정 수정' : null) : '두 번 누르면 수정', onkeydown:e => { if(e.key==='Enter' && e.target===e.currentTarget) openEventEditor(ev.id,{ ds }); } },
     ck,
     h('span',{class:'tm'}, o.showDate ? fmtMD(ds)+(ev.allDay?'':' '+ev.time) : timeLabel(ev)),
     h('span',{class:'tt'}, h('b',{}, ev.title||'(제목 없음)'), dn ? h('small',{class:'dnl'}, '✓ 완료 '+(+dm[1])+'/'+(+dm[2])) : null, (o.memo && ev.memo) ? h('small',{}, ev.memo.split('\n')[0]) : null),
@@ -5995,7 +6020,7 @@ function openEventEditor(id, o){
   o = o||{};
   const ex = id ? data.events[id] : null;
   const f = ex ? Object.assign({}, ex) : { title:o.title||'', date:o.ds||cal.sel||todayStr(), endDate:'', allDay:false, time:'09:00', endTime:'10:00', repeat:'none', until:'', alarm:null, memo:'', color:EV_COLORS[0] };
-  openSheet(ex ? '일정 수정' : '새 일정', b => {
+  openSheet(ex ? (doneOf(ex, o.ds||ex.date) ? '완료 일정 수정' : '일정 수정') : '새 일정', b => {
     let allDay = !!f.allDay, color = f.color;
     const title = h('input',{class:'field',type:'text',placeholder:'제목'}); title.value = f.title;
     const tmic = micBtn(title);
@@ -6044,6 +6069,15 @@ function openEventEditor(id, o){
       grpRow.append(chip('+ 새 그룹', '__new', '', ' add'));
     };
     gdraw();
+    const doneUI = { val: ex ? doneOf(ex, o.ds||ex.date) : '' };
+    const dnRow = ex ? h('div',{ class:'dnrow' }) : null;
+    const dndraw = () => {
+      if(!dnRow) return; dnRow.innerHTML = '';
+      const on = !!doneUI.val;
+      dnRow.append(h('button',{ type:'button', class:'dnbtn'+(on ? ' on' : ''), onclick:() => { doneUI.val = on ? '' : todayStr(); dndraw(); } }, h('span',{ class:'dnck', html:on ? ic('check',13) : '' }), on ? '완료됨' : '완료로 표시'));
+      if(on){ const di = h('input',{ class:'field', type:'date', value:doneUI.val, onchange:() => { doneUI.val = di.value || todayStr(); } }); dnRow.append(h('small',{}, '완료한 날'), di); }
+    };
+    dndraw();
     let gcalPick = null;
     function save(){
       const t = title.value.trim();
@@ -6064,6 +6098,8 @@ function openEventEditor(id, o){
       { const gn = grpSel.value==='__new' ? grpNew.value.trim().slice(0,40) : grpSel.value;
         if(gn){ ev.grp = gn; ev.gcol = grpEnsure(gn); } else { delete ev.grp; delete ev.gcol; } }
       if(ev.dn && ev.repeat==='none'){ const v = Object.values(ev.dn)[0]; if(v) ev.dn = { [ev.date]: v }; else delete ev.dn; }
+      if(ex){ const k = isRep(ev) ? (o.ds||ev.date) : ev.date;
+        if(doneUI.val){ ev.dn = ev.dn||{}; ev.dn[k] = doneUI.val; } else if(ev.dn){ delete ev.dn[k]; if(!Object.keys(ev.dn).length) delete ev.dn; } }
       if(gcalPick) ev.gcal = gcalPick();
       data.events[ev.id] = ev; saveSoon();
       if(ev.link) pushEventToMap(ev);
@@ -6072,6 +6108,7 @@ function openEventEditor(id, o){
     }
     title.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); if(save()){ closeSheet(true); checkAlarms(); } } });
     b.append(h('div',{style:'display:flex;gap:8px;align-items:center'}, h('div',{style:'flex:1'}, title), tmic),
+      dnRow,
       h('div',{class:'lbl'},'그룹 (선택 사항)'), grpRow, grpNew,
       h('div',{class:'lbl'},'날짜'), dateI, endBox, allRow, timeBox,
       h('div',{class:'lbl'},'반복'), rep, untilBox,
@@ -8977,11 +9014,11 @@ requestAnimationFrame(ensureView);
 prodInit();
 renderCal();
 setTimeout(checkAlarms, 800);
+setTimeout(backupReminder, 2800);
 setTimeout(purgeDoneEvents, 1500);
 verInit();
 dndInit();
 exitInit();
-setTimeout(backupReminder, 2800);
 setTimeout(autoBackup, 3000);
 refreshSyncUI();
 if(syncOn() && syncCfg.auto) setTimeout(() => syncNow({ silent:true }), 1600);
