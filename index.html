@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610232033">
+<meta name="app-version" content="202610232036">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3123,7 +3123,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610232033';
+const APP_VER = '202610232036';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6416,17 +6416,26 @@ function startMove(e, ev, ctx, ds0){
     const d = dayDiff(grab, ds);
     ev.date = addDays(orig.date, d); ev.endDate = orig.endDate ? addDays(orig.endDate, d) : '';
   };
-  const cleanup = () => { clearTimeout(timer); document.removeEventListener('pointermove', onMove, true); document.removeEventListener('pointerup', onUp, true); document.removeEventListener('pointercancel', onCancel, true); };
+  const cleanup = () => { clearTimeout(timer); document.removeEventListener('touchmove', tmv, true); document.removeEventListener('contextmenu', ctxm, true); document.removeEventListener('pointermove', onMove, true); document.removeEventListener('pointerup', onUp, true); document.removeEventListener('pointercancel', onCancel, true); };
+  let lx = x0, ly = y0;
+  const tmv = t => { if(active) t.preventDefault(); }, ctxm = t => { if(touch) t.preventDefault(); };
   const begin = () => {
     if(S().lock){ lockedMsg(); cleanup(); return; }
     active = true; tip = h('div',{ class:'dragtip' }); shield = h('div',{ class:'dragshield', style:'cursor:grabbing' }); document.body.append(shield, tip);
     try{ shield.setPointerCapture(pid); }catch(_){}
-    try{ if(navigator.vibrate) navigator.vibrate(12); }catch(_){}
+    try{ if(navigator.vibrate) navigator.vibrate(18); }catch(_){}
+    if(touch){ tip.style.left = Math.min(window.innerWidth-150, lx+14)+'px'; tip.style.top = Math.max(6, ly-44)+'px'; tip.textContent = label(); }
   };
+  if(touch){   // 손가락은 막대를 오래 눌러야 이동 시작 (그 전에 움직이면 화면 스크롤)
+    document.addEventListener('touchmove', tmv, { passive:false, capture:true }); document.addEventListener('contextmenu', ctxm, true);
+    timer = setTimeout(begin, 380);
+  }
   function onMove(m){
     if(m.pointerId!==pid) return;
+    lx = m.clientX; ly = m.clientY;
     if(!active){
-      if(Math.hypot(m.clientX-x0, m.clientY-y0) > (touch ? 8 : 5)) begin();
+      if(touch){ if(Math.hypot(m.clientX-x0, m.clientY-y0) > 10){ done = true; cleanup(); } return; }
+      if(Math.hypot(m.clientX-x0, m.clientY-y0) > 5) begin();
       if(!active) return;
     }
     m.preventDefault();
@@ -6542,7 +6551,7 @@ function barEl(b, ds0, pos, ctx){
     if(!b.l) kids.unshift(rzHandle('s', ev, ctx, ds0));
     if(!b.r) kids.push(rzHandle('e', ev, ctx, ds0));
   }
-  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+(pickCls(ev.id, gray, ev.grp))+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 가운데를 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
+  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+(pickCls(ev.id, gray, ev.grp))+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 오래 누른 뒤 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
     style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+((ev.grp && !gray) ? gv(evColor(ev)) : '')+pos, onclick:(gray || isRep(ev)) ? openEvOnDbl(ev, ds0) : barClick(ev.id, () => openEventEditor(ev.id,{ ds:ds0 }), () => pickToggle(ev.id)), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
   if(ctx && !gray && !isRep(ev)) props.onpointerdown = e => startMove(e, ev, ctx, ds0);
   return h('div', props, kids);
