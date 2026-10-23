@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231023">
+<meta name="app-version" content="202610231036">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -201,7 +201,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 #sheetBackdrop{position:absolute;inset:0;background:rgba(10,15,30,.45);backdrop-filter:blur(2px)}
 #sheet{position:relative;width:min(460px,94vw);height:var(--sheet-height, auto);max-height:var(--sheet-max-height,84vh);max-height:var(--sheet-max-height,84dvh);overflow:hidden;display:flex;flex-direction:column;background:var(--panel-solid);border-radius:28px;box-shadow:var(--shadow),0 0 60px rgba(59,91,255,.08);padding:8px 18px 20px;border:1px solid var(--line)} #sheetTitle{flex:none} #sheetBody{min-height:0;overflow:auto;overscroll-behavior:contain;flex:1;display:flex;flex-direction:column} .sheet-grip{width:100%;height:24px;min-height:24px;border-radius:12px;background:transparent;margin:2px auto 6px;touch-action:none;cursor:ns-resize;flex:none;display:flex;align-items:center;justify-content:center;position:relative;z-index:8}
 .sheet-grip::before{content:'';display:block;width:36px;height:4px;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:.45} .sheet-zoom-hint{font-size:11px;color:var(--sub);margin:0 0 5px}
-#sheet h3{margin:12px 0 12px;font-size:18px;font-weight:800;letter-spacing:-.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+#sheetX{position:absolute;top:9px;right:11px;z-index:30;width:34px;height:34px;border-radius:50%;border:0;background:color-mix(in srgb,var(--text) 9%,transparent);color:var(--text);font-size:15px;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#sheetX:hover{background:color-mix(in srgb,var(--text) 16%,transparent)}
+#sheet h3{padding-right:42px;margin:12px 0 12px;font-size:18px;font-weight:800;letter-spacing:-.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .note{margin:0 0 10px;color:var(--sub);font-size:13px;line-height:1.5}
 .list{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
 .item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:16px;text-align:left;width:100%;min-height:54px;transition:background .14s,transform .12s;border:1px solid transparent}
@@ -1092,6 +1094,9 @@ button.gchip{cursor:pointer}
 .dnbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line,#ccc);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;color:inherit}
 .dnbtn.on{background:#22a06b;border-color:#22a06b;color:#fff}
 .dnck{display:inline-flex;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;align-items:center;justify-content:center}
+.gmv{display:inline-flex;flex-direction:column;gap:0;flex:none;margin-left:2px}
+.gmv .mini{width:26px;height:20px;font-size:10px;line-height:1;padding:0;opacity:.75}
+.gmv .mini:disabled{opacity:.2}
 
 .evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
 @media(min-width:821px){
@@ -1236,7 +1241,7 @@ button.gchip{cursor:pointer}
 
 <div id="sheetWrap" class="hidden">
   <div id="sheetBackdrop"></div>
-  <div id="sheet"><h3 id="sheetTitle"></h3><div id="sheetBody"></div></div>
+  <div id="sheet"><button id="sheetX" type="button" aria-label="닫기" title="닫기">✕</button><h3 id="sheetTitle"></h3><div id="sheetBody"></div></div>
 </div>
 <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
 
@@ -1958,7 +1963,7 @@ if(window.visualViewport){visualViewport.addEventListener('resize',fitSheetToVie
 window.addEventListener('resize',fitSheetToViewport);
 sheetBody.addEventListener('focusin',e=>{setTimeout(()=>{fitSheetToViewport();try{e.target.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});}catch(_){}},250);});
 sheetBody.addEventListener('focusout',()=>setTimeout(fitSheetToViewport,350));
-$('#sheetBackdrop').addEventListener('click', () => closeSheet());
+$('#sheetX').addEventListener('click', () => closeSheet());   // 창 밖을 눌러도 닫히지 않는다 (실수로 입력이 사라지지 않게)
 
 /* 노드 상세 패널: 모바일 키보드가 올라오면 패널을 보이는 영역(visualViewport)에 맞춰 키우고, 입력칸이 가려지지 않게 한다 */
 function fitNpanelToViewport(){
@@ -2921,7 +2926,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231023';
+const APP_VER = '202610231036';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4957,7 +4962,7 @@ function grpList(){
     if(!g.reg && ev.gcol) g.color = ev.gcol; g.evs.push(ev);
   });
   return Object.values(m).map(g => {
-    g.evs.sort((a, b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||'') || a.title.localeCompare(b.title));
+    g.evs.sort((a, b) => a.date.localeCompare(b.date) || (a.ord==null ? 1e15 : a.ord)-(b.ord==null ? 1e15 : b.ord) || (a.time||'').localeCompare(b.time||'') || a.title.localeCompare(b.title));
     const cnt = g.evs.filter(e => !isRep(e));
     g.total = cnt.length; g.done = cnt.filter(e => doneOf(e, e.date)).length;
     g.nf = cnt.length ? cnt[0].date : ''; g.nt = cnt.length ? cnt.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, cnt[0].date) : '';
@@ -5070,11 +5075,22 @@ function openGroupDetail(name){
     b.append(h('div',{ class:'lbl' }, '관련 마인드맵 노드'), refField(() => grpRefsGet(g.name), v => { grpRefsSet(g.name, v); }, true));
     if(g.evs.length){
       b.append(h('div',{ class:'lbl' }, '그룹 일정 (날짜 순)'));
-      const list = h('div',{ class:'agenda' }); g.evs.forEach(ev => list.append(evRow(ev, ev.date, { showDate:true, memo:true, dbl:false }))); b.append(list);
+      const list = h('div',{ class:'agenda' });
+      g.evs.forEach(ev => {
+        const row = evRow(ev, ev.date, { showDate:true, memo:true, dbl:false, back:() => openGroupDetail(name) });
+        const sib = g.evs.filter(x => x.date===ev.date), k = sib.indexOf(ev);
+        if(sib.length>1){   // 같은 날 일정끼리 위아래로 순서 조정
+          const mv = d => e => { e.stopPropagation(); ordAssign(sib); const o = sib[k+d]; const t = ev.ord; ev.ord = o.ord; o.ord = t; saveSoon(); refreshEvViews(); };
+          row.append(h('span',{ class:'gmv' },
+            h('button',{ type:'button', class:'mini', title:'위로', 'aria-label':'위로', disabled:k===0, onclick:mv(-1) }, '▲'),
+            h('button',{ type:'button', class:'mini', title:'아래로', 'aria-label':'아래로', disabled:k===sib.length-1, onclick:mv(1) }, '▼')));
+        }
+        list.append(row);
+      }); b.append(list);
       const others = [], seen = new Set(), n = Math.min(120, dayDiff(g.from, g.to)+1);
       for(let i=0;i<n && others.length<12;i++){ const ds = addDays(g.from, i); eventsOn(ds).forEach(ev => { if(ev.grp!==g.name && !seen.has(ev.id) && others.length<12){ seen.add(ev.id); others.push({ ev, ds }); } }); }
       b.append(h('div',{ class:'lbl' }, '같은 기간의 다른 일정'+(others.length ? ' ('+others.length+(others.length>=12 ? '+' : '')+')' : '')));
-      if(others.length){ const o = h('div',{ class:'agenda' }); others.forEach(x => o.append(evRow(x.ev, x.ds, { showDate:true, dbl:false }))); b.append(o); }
+      if(others.length){ const o = h('div',{ class:'agenda' }); others.forEach(x => o.append(evRow(x.ev, x.ds, { showDate:true, dbl:false, back:() => openGroupDetail(name) }))); b.append(o); }
       else b.append(h('p',{ class:'note', style:'margin:2px 2px 8px' }, '겹치는 다른 일정이 없어요.'));
     }
     let col = g.color; const nm = h('input',{ class:'field', type:'text', value:g.name, maxlength:40 });
@@ -5576,7 +5592,7 @@ function evRow0(ev, ds, o){
   const dn = doneOf(ev, ds), dm = dn ? dn.split('-') : null;
   const ck = h('button',{ class:'evck'+(dn?' on':''), type:'button', title:dn ? '완료 취소' : '완료 체크', 'aria-label':dn ? '완료 취소' : '완료 체크', html:dn ? ic('check',13) : '',
     onclick:e => { e.stopPropagation(); setEvDone(ev, ds, !dn); refreshEvViews(); } });
-  return h('div',{ class:'evrow'+(dn?' done':''), role:'button', tabindex:'0', style:'--c:'+evColor(ev), onclick:(o.dbl===false || dn) ? () => openEventEditor(ev.id,{ ds }) : openEvOnDbl(ev, ds), title:(o.dbl===false || dn) ? (dn ? '눌러서 완료 일정 수정' : null) : '두 번 누르면 수정', onkeydown:e => { if(e.key==='Enter' && e.target===e.currentTarget) openEventEditor(ev.id,{ ds }); } },
+  return h('div',{ class:'evrow'+(dn?' done':''), role:'button', tabindex:'0', style:'--c:'+evColor(ev), onclick:(o.dbl===false || dn) ? () => openEventEditor(ev.id,{ ds, back:o.back }) : openEvOnDbl(ev, ds), title:(o.dbl===false || dn) ? (dn ? '눌러서 완료 일정 수정' : null) : '두 번 누르면 수정', onkeydown:e => { if(e.key==='Enter' && e.target===e.currentTarget) openEventEditor(ev.id,{ ds }); } },
     ck,
     h('span',{class:'tm'}, o.showDate ? fmtMD(ds)+(ev.allDay?'':' '+ev.time) : timeLabel(ev)),
     h('span',{class:'tt'}, h('b',{}, ev.title||'(제목 없음)'), dn ? h('small',{class:'dnl'}, '✓ 완료 '+(+dm[1])+'/'+(+dm[2])) : null, (o.memo && ev.memo) ? h('small',{}, ev.memo.split('\n')[0]) : null),
@@ -6106,7 +6122,7 @@ function openEventEditor(id, o){
       renderCal();
       return ev;
     }
-    title.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); if(save()){ closeSheet(true); checkAlarms(); } } });
+    title.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); if(save()){ closeSheet(true); checkAlarms(); if(o.back) setTimeout(o.back, 60); } } });
     b.append(h('div',{style:'display:flex;gap:8px;align-items:center'}, h('div',{style:'flex:1'}, title), tmic),
       dnRow,
       h('div',{class:'lbl'},'그룹 (선택 사항)'), grpRow, grpNew,
@@ -6136,11 +6152,11 @@ function openEventEditor(id, o){
     b.append(mm);
     { const gb = gcalBox(ex, save); gcalPick = gb._pick; b.append(gb); }
     b.append(h('div',{class:'row end'},
-      ex ? h('button',{class:'btn',style:'margin-right:auto;color:var(--danger)',onclick:() => { if(confirm('“'+short(ex.title)+'” 일정을 삭제할까요?'+(ex.repeat!=='none'?'\n(반복 일정은 전체가 삭제돼요)':'')+(ex.link?'\n마인드맵의 해당 노드도 함께 삭제돼요.':''))){ closeSheet(true); const wasSent = !!syncCfg.sent[ex.id], eid = ex.id; deleteEvent(eid); if(wasSent && syncOn() && confirm('구글 캘린더에도 올려 둔 일정이 있어요. 그것도 지울까요?')){ gs('gdelete', { ids:[eid], calendarId:syncCfg.calId||'' }).then(j => { if(j.ok){ delete syncCfg.sent[eid]; saveSync(); toast('구글 캘린더에서도 지웠어요'); } else toast('구글 삭제 실패: '+j.error); }).catch(e => toast('구글 삭제 실패: '+e.message)); } } }},'삭제') : null,
+      ex ? h('button',{class:'btn',style:'margin-right:auto;color:var(--danger)',onclick:() => { if(confirm('“'+short(ex.title)+'” 일정을 삭제할까요?'+(ex.repeat!=='none'?'\n(반복 일정은 전체가 삭제돼요)':'')+(ex.link?'\n마인드맵의 해당 노드도 함께 삭제돼요.':''))){ closeSheet(true); if(o.back) setTimeout(o.back, 60); const wasSent = !!syncCfg.sent[ex.id], eid = ex.id; deleteEvent(eid); if(wasSent && syncOn() && confirm('구글 캘린더에도 올려 둔 일정이 있어요. 그것도 지울까요?')){ gs('gdelete', { ids:[eid], calendarId:syncCfg.calId||'' }).then(j => { if(j.ok){ delete syncCfg.sent[eid]; saveSync(); toast('구글 캘린더에서도 지웠어요'); } else toast('구글 삭제 실패: '+j.error); }).catch(e => toast('구글 삭제 실패: '+e.message)); } } }},'삭제') : null,
       h('button',{class:'btn',onclick:() => closeSheet()},'취소'),
-      h('button',{class:'btn primary',onclick:() => { if(save()){ closeSheet(true); checkAlarms(); } }},'저장')));
+      h('button',{class:'btn primary',onclick:() => { if(save()){ closeSheet(true); checkAlarms(); if(o.back) setTimeout(o.back, 60); } }},'저장')));
     setTimeout(() => { if(!ex) title.focus(); }, 60);
-  });
+  }, o.back || null);
 }
 function deleteEvent(id){
   const ev = data.events[id]; if(!ev) return;
