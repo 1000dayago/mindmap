@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231345">
+<meta name="app-version" content="202610231349">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1204,6 +1204,9 @@ button.gchip{cursor:pointer}
 .layib small{font-size:10px;font-weight:700;color:var(--sub);line-height:1}
 .layib.on{border-color:var(--accent,#5b6cff);color:var(--accent,#5b6cff);background:color-mix(in srgb,var(--accent,#5b6cff) 12%,transparent)}
 .layib:active{transform:scale(.96)}
+.layrow.lvl{align-items:center;gap:6px}
+.layrow.lvl .lvic{flex:none;width:30px;display:inline-flex;justify-content:center;color:var(--sub)}
+.layib.num{min-width:36px;height:36px;padding:0;font-size:14px;font-weight:800;flex-direction:row}
 </style>
 </head>
 <body>
@@ -2524,6 +2527,8 @@ const LAYI = {
   left:'<rect x="16" y="9" width="6" height="6" rx="1.6"/><path d="M16 12h-3M13 5v14M13 5h-3M13 12h-3M13 19h-3"/><rect x="3" y="3" width="7" height="4" rx="1.2"/><rect x="3" y="10" width="7" height="4" rx="1.2"/><rect x="3" y="17" width="7" height="4" rx="1.2"/>',
   both:'<rect x="9" y="9" width="6" height="6" rx="1.6"/><path d="M9 12H7M15 12h2"/><rect x="2" y="4" width="5" height="3.5" rx="1.1"/><rect x="2" y="16.5" width="5" height="3.5" rx="1.1"/><rect x="17" y="4" width="5" height="3.5" rx="1.1"/><rect x="17" y="16.5" width="5" height="3.5" rx="1.1"/><path d="M7 6h1.5v12H7M17 6h-1.5v12H17"/>',
   down:'<rect x="9" y="2" width="6" height="5" rx="1.6"/><path d="M12 7v3M5 10h14M5 10v3M12 10v3M19 10v3"/><rect x="2" y="14" width="6" height="5" rx="1.2"/><rect x="9" y="14" width="6" height="5" rx="1.2"/><rect x="16" y="14" width="6" height="5" rx="1.2"/>',
+  expA:'<path d="M12 10V3M9 6l3-3 3 3M12 14v7M9 18l3 3 3-3M4 12h16"/>',
+  colA:'<path d="M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3M4 12h16"/>',
   gap_tight:'<rect x="3" y="4" width="18" height="4" rx="1.2"/><rect x="3" y="9.5" width="18" height="4" rx="1.2"/><rect x="3" y="15" width="18" height="4" rx="1.2"/>',
   gap_normal:'<rect x="3" y="3" width="18" height="4" rx="1.2"/><rect x="3" y="10" width="18" height="4" rx="1.2"/><rect x="3" y="17" width="18" height="4" rx="1.2"/>',
   gap_wide:'<rect x="3" y="1.5" width="18" height="3.5" rx="1.2"/><rect x="3" y="10.2" width="18" height="3.5" rx="1.2"/><rect x="3" y="19" width="18" height="3.5" rx="1.2"/>',
@@ -2531,6 +2536,23 @@ const LAYI = {
   sub:'<rect x="3" y="9" width="6" height="6" rx="1.6"/><path d="M9 12h3M12 6v12M12 6h3M12 18h3"/><rect x="15" y="3.5" width="6" height="5" rx="1.2"/><rect x="15" y="15.5" width="6" height="5" rx="1.2"/>'
 };
 function layIcon(k, sz){ return '<svg viewBox="0 0 24 24" width="'+(sz||22)+'" height="'+(sz||22)+'" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+LAYI[k]+'</svg>'; }
+function foldDepths(rootId){   // 선택 범위의 노드를 깊이(범위 루트=0)별로 모은다
+  const nodes = N(), lv = []; let cur_ = [rootId], d = 0, guard = 0;
+  while(cur_.length && guard++<60){ lv[d] = cur_; cur_ = cur_.flatMap(i => nodes[i].children.filter(c => nodes[c])); d++; }
+  return lv;
+}
+// mode: 'allOpen' | 'allClose' | 'open' | 'close' (+ level)
+function foldApply(rootId, mode, level){
+  const lv = foldDepths(rootId);
+  mutate(m => {
+    const set = (ids, v) => ids.forEach(i => { const q = m.nodes[i]; if(q && q.children.length) q.collapsed = v; });
+    if(mode==='allOpen') lv.forEach(a => set(a, false));
+    else if(mode==='allClose') lv.forEach((a, d) => { if(d>0) set(a, true); else set(a, false); });   // 시작 노드는 열어 두고 바로 아래 단계만 보이게
+    else if(mode==='open') lv.slice(0, level).forEach(a => set(a, false));        // level단계까지 모두 보이게
+    else if(mode==='close') (lv[level-1] || []).forEach(i => set([i], true));       // level단계 노드를 접어 그 아래를 숨김
+  });
+  render();
+}
 function applyLayout(id, mode, noUndo){
   const m0 = cur(); if(!m0.nodes[id]) return;
   mutate(m => {
@@ -2916,6 +2938,15 @@ function openLayoutSheet(){
     b.append(h('div',{class:'layrow'},
       ib('tidy', '맵 전체 정리', false, () => { closeSheet(true); mutate(mm => { tidyMap(mm); }); fitAll(); toast('맵 전체를 정리했어요 (접은 것은 접은 채로)'); }, '전체'),
       sel ? ib('sub', '선택한 노드 아래만 정리', false, () => { closeSheet(true); tidyUnder(tid); toast('선택한 노드 아래를 정리했어요'); }, '아래만') : null));
+    b.append(h('div',{class:'lbl'},'펼치기 · 접기 ('+(sel ? '선택한 노드 아래' : '맵 전체')+')'));
+    b.append(h('div',{class:'layrow'},
+      ib('expA', '전체 펼치기', false, () => { foldApply(tid, 'allOpen'); toast('전체 펼쳤어요'); }, '모두 펼침'),
+      ib('colA', '전체 접기', false, () => { foldApply(tid, 'allClose'); toast('전체 접었어요 (바로 아래 단계만 보여요)'); }, '모두 접기')));
+    { const maxD = Math.max(1, foldDepths(tid).length-1), lvRow = (kind, from) => {
+        const row = h('div',{class:'layrow lvl'}, h('span',{class:'lvic', html:layIcon(kind==='open' ? 'expA' : 'colA', 18), title:kind==='open' ? '레벨별 펼치기' : '레벨별 접기'}));
+        for(let k=from;k<=Math.min(maxD, 9);k++) row.append(h('button',{ type:'button', class:'layib num', title:k+'단계'+(kind==='open' ? '까지 펼치기' : '부터 접기'), 'aria-label':k+'단계', onclick:() => { foldApply(tid, kind, k); toast(kind==='open' ? k+'단계까지 펼쳤어요' : k+'단계를 접었어요'); } }, String(k)));
+        return row; };
+      b.append(lvRow('open', 1), lvRow('close', 2)); }
     b.append(h('div',{class:'lbl'},'배치 방식 (눌러서 바로 적용)'));
     b.append(h('div',{class:'layrow'}, LAYOUTS.map(([id,label]) => ib(id, label, tn.layout===id, () => applyLayout(tid,id)))));
     b.append(h('div',{class:'lbl'},'노드 간격'));
@@ -3039,7 +3070,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231345';
+const APP_VER = '202610231349';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
