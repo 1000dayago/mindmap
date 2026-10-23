@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231511">
+<meta name="app-version" content="202610231833">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3081,7 +3081,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231511';
+const APP_VER = '202610231833';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5262,7 +5262,7 @@ function openGroupDetail(name){
     b.append(h('div',{ class:'lbl' }, '그룹 이름 · 색'), nm, h('div',{ style:'height:6px' }), sw,
       h('div',{ class:'row end', style:'margin-top:10px;gap:6px' },
         h('button',{ class:'btn', type:'button', style:'margin-right:auto;color:var(--danger)', onclick:() => askDlg({ title:'그룹을 해제할까요?', sub:'일정은 그대로 남고 그룹 표시만 사라져요.', ok:'해제', danger:true }, () => { grpClear(g.name); closeSheet(true); toast('그룹을 해제했어요'); }) }, '그룹 해제'),
-        g.evs.length ? h('button',{ class:'btn', type:'button', onclick:() => gtplSaveFrom(g) }, '템플릿 저장') : null,
+        g.evs.length ? h('button',{ class:'btn', type:'button', onclick:() => gtplSaveFrom(g) }, '템플릿 만들기') : null,
         h('button',{ class:'btn primary', type:'button', onclick:() => { const old = g.name; const nn = (nm.value.trim().slice(0,40) || old); if(nn!==old && grpList().some(x => x.name===nn)){ toast('같은 이름의 그룹이 이미 있어요'); return; } grpEdit(old, nn, col); name = nn; toast('저장했어요'); } }, '이름 · 색 저장')));
   };
   openSheet('그룹', b => { draw(b); grpRedraw = () => { if(sheetWrap.classList.contains('hidden')){ grpRedraw = null; return; } draw(sheetBody); }; });
@@ -5288,7 +5288,7 @@ function gtplSaveFrom(g){
   const t = { name:g.name, steps }, gr = grpRefsGet(g.name); if(gr.length) t.refs = gr.map(r => ({ m:r.m, n:r.n }));
   const a = tplLoad().filter(t0 => t0.name!==g.name); a.push(t); tplSave(a);
   const nm = steps.filter(s => s[2].m).length, nr = steps.filter(s => s[2].r).length + (t.refs ? 1 : 0);
-  toast('템플릿으로 저장했어요'+(nm||nr ? ' (메모 '+nm+' · 노드 연결 '+nr+' 포함)' : ''));
+  toast('템플릿을 만들었어요'+(nm||nr ? ' (메모 '+nm+' · 노드 연결 '+nr+' 포함)' : ''));
 }
 function gtplApply(t, gname, start){
   const nm = (gname||t.name).trim().slice(0,40) || t.name, col = grpEnsure(nm);
@@ -5314,12 +5314,36 @@ function openTplApply(name){
       } }, '추가')));
   });
 }
+function vDragRows(e, rows, cur, onCommit){   // 세로 목록 끌어서 순서 바꾸기 (rows: 줄 요소들, cur: 잡은 줄의 번호)
+  if(e.button!=null && e.button!==0) return;
+  e.preventDefault(); e.stopPropagation();
+  if(rows.length<2) return;
+  const row = rows[cur], rc = rows.map(r => r.getBoundingClientRect());
+  const gap = Math.max(0, rc[1].top-rc[0].bottom), step = rc[cur].height+gap, y0 = e.clientY;
+  rows.forEach((r, i) => { r.style.transition = i===cur ? 'none' : 'transform .15s'; });
+  row.style.position = 'relative'; row.style.zIndex = '5'; row.style.boxShadow = '0 10px 26px rgba(0,0,0,.22)';
+  const shield = h('div',{ class:'dragshield', style:'cursor:grabbing' }); document.body.append(shield);
+  try{ shield.setPointerCapture(e.pointerId); }catch(_){}
+  let target = cur;
+  shield.addEventListener('pointermove', m => {
+    const dy = m.clientY-y0, center = rc[cur].top+rc[cur].height/2+dy;
+    row.style.transform = 'translateY('+dy+'px)';
+    target = 0; rc.forEach((r, j) => { if(j!==cur && r.top+r.height/2<center) target++; });
+    rows.forEach((r, j) => { if(j===cur) return; r.style.transform = (j>cur && j<=target) ? 'translateY('+(-step)+'px)' : (j<cur && j>=target) ? 'translateY('+step+'px)' : ''; });
+  });
+  const end = commit => { shield.remove(); if(commit && target!==cur) onCommit(cur, target); else rows.forEach(r => { r.style.transform = ''; r.style.transition = ''; r.style.position = ''; r.style.zIndex = ''; r.style.boxShadow = ''; }); };
+  shield.addEventListener('pointerup', () => end(true));
+  shield.addEventListener('pointercancel', () => end(false));
+}
 function openTplList(){
   openSheet('그룹 템플릿', b => {
     const tpls = tplLoad();
     b.append(h('p',{ class:'note' }, '단계가 정해진 일의 틀이에요. 눌러서 수정하고, 그룹을 만들 때 지정하면 단계마다 일정이 만들어져요.'));
-    b.append(h('div',{ class:'list' }, tpls.map((t, i) => h('button',{ class:'item', type:'button', onclick:() => { closeSheet(true); setTimeout(() => openTplEdit(i), 60); } },
-      h('span',{ class:'t' }, h('b',{ style:'display:block' }, t.name), h('small',{ style:'color:var(--sub);font-size:11.5px' }, t.steps.map(s => s[0]+(s[1] ? ' +'+s[1]+'일' : '')+((s[2]&&s[2].m) ? ' 📝' : '')+((s[2]&&s[2].r) ? ' 🔗' : '')).join(' → ')+(t.refs ? ' · 그룹 노드 연결 포함' : '')))))));
+    const trows = [];
+    b.append(h('div',{ class:'list tpllist' }, tpls.map((t, i) => { const rowEl = h('div',{ class:'rrow tplrow' },
+      tpls.length>1 ? h('span',{ class:'ordgrip', title:'끌어서 순서 바꾸기', 'aria-label':'끌어서 순서 바꾸기', html:ic('grip',20), onpointerdown:e => vDragRows(e, trows, i, (from, to) => { const a = tplLoad(), [mv] = a.splice(from, 1); a.splice(to, 0, mv); tplSave(a); toast('템플릿 순서를 바꿨어요'); closeSheet(true); setTimeout(openTplList, 30); }) }) : null,
+      h('button',{ class:'item', type:'button', style:'flex:1;min-width:0', onclick:() => { closeSheet(true); setTimeout(() => openTplEdit(i), 60); } },
+      h('span',{ class:'t' }, h('b',{ style:'display:block' }, t.name), h('small',{ style:'color:var(--sub);font-size:11.5px' }, t.steps.map(s => s[0]+(s[1] ? ' +'+s[1]+'일' : '')+((s[2]&&s[2].m) ? ' 📝' : '')+((s[2]&&s[2].r) ? ' 🔗' : '')).join(' → ')+(t.refs ? ' · 그룹 노드 연결 포함' : ''))))); trows.push(rowEl); return rowEl; })));
     b.append(h('div',{ class:'row', style:'margin-top:10px' }, h('button',{ class:'btn primary', type:'button', style:'width:100%', onclick:() => { closeSheet(true); setTimeout(() => openTplEdit(-1), 60); } }, '+ 새 템플릿')));
   });
 }
@@ -5475,7 +5499,7 @@ function grpDoneNext(g){
 }
 function grpNowCard(g){
   const nx = grpNextEv(g);
-  if(!nx) return h('div',{ class:'gnow' }, h('div',{ class:'lb' }, g.total ? '모든 단계 완료' : '아직 단계가 없어요'), h('small',{}, g.total ? '수고했어요. 템플릿으로 저장해 두면 다음에 그대로 쓸 수 있어요.' : '아래 「+ 단계 추가」에 이름을 쓰고 엔터를 누르세요.'));
+  if(!nx) return h('div',{ class:'gnow' }, h('div',{ class:'lb' }, g.total ? '모든 단계 완료' : '아직 단계가 없어요'), h('small',{}, g.total ? '수고했어요. 템플릿으로 만들어 두면 다음에 그대로 쓸 수 있어요.' : '아래 「+ 단계 추가」에 이름을 쓰고 엔터를 누르세요.'));
   const later = g.evs.filter(e => !isRep(e) && !doneOf(e, e.date) && (e.date>nx.date || e===nx || (e.date===nx.date && g.evs.indexOf(e)>=g.evs.indexOf(nx))));
   return h('div',{ class:'gnow' },
     h('div',{ class:'lb' }, '▶ 지금 할 단계'), h('b',{ class:'gt' }, nx.title||'(제목 없음)'),
@@ -5524,7 +5548,7 @@ function grpBarMenu(name){
       item('하루 미루기 (다음 단계만)', () => grpShift([nx], 1, '“'+nx.title+'”을 하루 미뤘어요'), !nx),
       item('뒤 단계 전부 하루 밀기', () => grpShift(later, 1, '뒤 '+later.length+'개를 하루씩 밀었어요'), !nx),
       item('같은 날 순서 바꾸기 · 단계 추가 (그룹 열기)', () => openGroupDetail(name)),
-      item('템플릿으로 저장', () => gtplSaveFrom(g), !g.evs.length)));
+      item('템플릿 만들기', () => gtplSaveFrom(g), !g.evs.length)));
   });
 }
 function grpTodayNext(body, head){
