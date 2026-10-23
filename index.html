@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231233">
+<meta name="app-version" content="202610231247">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1176,9 +1176,6 @@ button.gchip{cursor:pointer}
   #sheetBody:has(.evright) > .row.end:last-child{grid-column:1 / -1}
   .evright .evmemo{min-height:clamp(240px,40dvh,440px)}
 }
-#toolbar button[data-mk]{touch-action:none;user-select:none}
-#toolbar .mkic{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px}
-.mkghost{position:fixed;z-index:10000;pointer-events:none;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
 </style>
 </head>
 <body>
@@ -1236,9 +1233,6 @@ button.gchip{cursor:pointer}
       <span class="vsep"></span>
       <button data-act="detail" style="--c:#6366f1" title="작업창 — 노드 · 메모 · 체크 · 링크 · 표"><span data-ic="note" data-sz="17"></span><span class="lb">작업창</span></button>
       <button data-act="group" style="--c:#f97316" title="그룹"><span data-ic="group" data-sz="17"></span><span class="lb">그룹</span></button>
-      <button data-mk="check" style="--c:#10b981" title="체크 아이콘 — 노드를 선택하고 누르거나, 노드로 끌어다 놓으세요"><span class="mkic"></span><span class="lb">체크</span></button>
-      <button data-mk="clock" style="--c:#f97316" title="진행률 아이콘(시계) — 노드를 선택하고 누르거나, 노드로 끌어다 놓으세요"><span class="mkic"></span><span class="lb">진행률</span></button>
-      <span class="vsep"></span>
       <button data-act="link" style="--c:#0ea5e9" title="다른 노드와 점선으로 연결"><span data-ic="dots" data-sz="17"></span><span class="lb">연결</span></button>
     </div>
     <div id="quickStyle" class="hidden" aria-label="빠른 노드 서식"></div>
@@ -1694,7 +1688,7 @@ function colorInfo(n){
 }
 const isDark = () => document.documentElement.dataset.theme === 'dark';
 function nodeColors(n, dark){
-  if(mkDone(n)) return mkDoneColors(n, dark);
+  if(nodeDoneVis(n)) return mkDoneColors(n, dark);
   const ci = colorInfo(n);
   if(ci.root){
     const fill = dark ? mix(ci.base, '#ffffff', .14) : ci.base;
@@ -2983,7 +2977,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231233';
+const APP_VER = '202610231247';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3274,7 +3268,7 @@ nbFly.addEventListener('mousedown', e => e.preventDefault());
 
 /* ---------- 하위 메뉴(플라이아웃) ---------- */
 function nbSig(n){
-  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.bold, n.fsz, n.lw, n.ldash, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
+  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.mk, n.mv, n.bold, n.fsz, n.lw, n.ldash, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
 }
 function nbChip(cls, icon, label, act, o){
   o = o || {};
@@ -3333,6 +3327,8 @@ function nbRenderFly(n){
     // 태그
     const tg = h('div',{class:'nbrow'});
     TAGS.forEach(([k,emo,label]) => { const b = nbChip('tag', null, '', 'tag', { html:'<b>'+emo+'</b>', on:n.tag===k, title:label }); b.onclick = act(() => mutate(mm => { mm.nodes[id].tag = (mm.nodes[id].tag===k) ? '' : k; })); tg.append(b); });
+    tg.append(h('span',{class:'ssep'}));
+    ['check','clock'].forEach(k => { const b = nbChip('', null, '', 'mk-'+k, { html:'<svg viewBox="-10 -10 20 20" width="15" height="15">'+mkInner(k, k==='check' ? 0 : 2, '#fff', 7.5)+'</svg>', on:n.mk===k, title:k==='check' ? '체크 아이콘 (붙인 뒤 노드의 아이콘을 누르면 완료)' : '진행률 아이콘 (붙인 뒤 노드의 아이콘을 누를 때마다 1/4씩)' }); b.onclick = act(() => mkApply(id, k)); tg.append(b); });
     { const bDue = nbChip('', 'flag', '', 'due', { dot:!!n.due, title:n.due ? '기한 '+n.due+' (바꾸기)' : '기한 정하기' }); bDue.onclick = act(() => openDueSheet(id)); const bVal = nbChip('', 'sigma', '', 'val', { dot:n.val!=null, title:'값 · 하위 합계' }); bVal.onclick = act(() => openValSheet(id)); tg.append(h('span',{class:'ssep'}), bDue, bVal); }
     nbFly.append(nbSection('태그 · 기한 · 값'), tg);
     // 글자 · 선
@@ -3496,7 +3492,7 @@ function nbTrashUpdate(e){
 function tagSvg(n, dark){
   let s = '';
   if(n.tag && TAGMAP[n.tag]){
-    s += '<g transform="translate('+(-n.w/2+3+(n.mk ? 22 : 0))+','+(-n.h/2+1)+')" style="pointer-events:none"><circle r="9.5" fill="'+(dark?'#201a26':'#fff')+'" stroke="'+(dark?'#ff8a65':'#ef5b36')+'" stroke-width="1.4"/>'+
+    s += '<g transform="translate('+(-n.w/2+3+((n.mk || schedDone(n.id)) ? 22 : 0))+','+(-n.h/2+1)+')" style="pointer-events:none"><circle r="9.5" fill="'+(dark?'#201a26':'#fff')+'" stroke="'+(dark?'#ff8a65':'#ef5b36')+'" stroke-width="1.4"/>'+
          '<text font-size="11" text-anchor="middle" dominant-baseline="central" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">'+TAGMAP[n.tag][1]+'</text></g>';
   }
   if(n.pin){
@@ -4808,7 +4804,7 @@ function chipsSvg(n, dark){
   const tot = n.checks.length;
   if(tot){ const d = n.checks.filter(c => c.d).length; parts.push({ ic:'checks', t:d+'/'+tot, c:d===tot ? '#10b981' : '#6366f1', bt:'checks' }); }
   if(n.urls.length) parts.push({ ic:'link', t:String(n.urls.length), c:'#0ea5e9', bt:'links' });
-  { const rc = refCount(n.id); if(rc) parts.push({ ic:'calendar', t:String(rc), c:'#ec4899', bt:'sched' }); }
+  { const sc = schedChip(n.id); if(sc) parts.push({ ic:'calendar', t:sc.t, c:sc.c, bt:'sched' }); }
   if(n.table) parts.push({ ic:'table', t:n.table.cells.length+'×'+n.table.cells[0].length, c:'#16a34a', bt:'table' });
   { const pr = progNow && progNow[n.id]; if(pr && pr.t) parts.push({ ic:'task', t:pr.d+'/'+pr.t, c:pr.d===pr.t ? '#10b981' : '#f97316', bt:'prog' }); }
   if(n.due){ const di = dueInfo(n); parts.push({ ic:'flag', t:di.label, c:di.color, bt:'due' }); }
@@ -8914,7 +8910,7 @@ function showTab(t){
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab===t));
   try{ localStorage.setItem('mm_tab', t); }catch(e){}
   placeCtl();
-  if(t==='map') requestAnimationFrame(ensureView);
+  if(t==='map'){ requestAnimationFrame(ensureView); try{ refDirty(); render(); }catch(e){} }   // 일정에서 완료한 내용이 노드에 바로 반영되게
   if(t==='schedule') renderCal();
   if(t==='today') renderToday();
 }
@@ -8924,7 +8920,28 @@ function ensureView(){ if(viewReady) return; const r = svg.getBoundingClientRect
 /* ===================== 할 일 · 오늘 · 빠른 입력 (v27) ===================== */
 /* ===================== 노드 완료 아이콘: 체크 · 진행률(시계 1/4~4/4) ===================== */
 // n.mk = 'check' | 'clock', n.mv = 체크 0/1 · 시계 0~4.  완료 = 체크 1 또는 시계 4  → 노드가 초록색으로 바뀐다
+/* 일정(그룹)과 연결된 노드: 연결된 일정이 모두 완료되면 체크한 것처럼 완료 표시 */
+function schedInfo(nid){
+  const s = refIdx()[data.current+'|'+nid]; if(!s || (!s.evs.length && !s.grps.length)) return null;
+  const evs = s.evs.filter(e => !isRep(e)), pend = evs.filter(e => !doneOf(e, e.date)).sort((a, b) => a.date.localeCompare(b.date));
+  let gTot = 0, gDone = 0; s.grps.forEach(nm => { const g = grpList().find(x => x.name===nm); if(g){ gTot += g.total; gDone += g.done; } });
+  const total = evs.length+gTot, done = (evs.length-pend.length)+gDone;
+  const allDone = total>0 && done===total && s.evs.length===evs.length;
+  return { s, pend, total, done, allDone, next:pend[0] || null, count:s.evs.length+s.grps.length };
+}
+function schedDone(nid){ const i = schedInfo(nid); return !!(i && i.allDone); }
+function schedChip(nid){
+  const i = schedInfo(nid); if(!i) return null;
+  if(i.allDone) return { t:'완료 '+i.done+'/'+i.total, c:'#10b981' };
+  if(i.next){
+    const e = i.next, t0 = todayStr(), d = e.date.split('-'), more = i.count-1;
+    const c = e.date<t0 ? '#ef4444' : e.date===t0 ? '#f97316' : '#ec4899';
+    return { t:(+d[1])+'/'+(+d[2])+' '+String(e.title||'').slice(0,6)+(more>0 ? ' +'+more : ''), c };
+  }
+  return { t:String(i.count), c:'#ec4899' };
+}
 function mkDone(n){ return !!n && ((n.mk==='check' && n.mv>=1) || (n.mk==='clock' && n.mv>=4)); }
+const nodeDoneVis = n => mkDone(n) || (!!n && schedDone(n.id));
 function mkDoneColors(n, dark){
   const base = colorInfo(n).base;
   return dark ? { fill:'#173a2b', stroke:'#4ade80', text:'#bbf7d0', base } : { fill:'#d6f2e1', stroke:'#2fa866', text:'#14532d', base };
@@ -8945,7 +8962,10 @@ function mkInner(kind, v, bg, sz){
 }
 function mkLabel(n){ return n.mk==='check' ? (n.mv>=1 ? '체크 완료' : '체크 (누르면 완료)') : (n.mv>=4 ? '진행률 4/4 완료' : '진행률 '+(n.mv||0)+'/4 (누르면 다음)'); }
 function mkSvg(n, dark){
-  if(!n.mk) return '';
+  if(!n.mk){
+    if(!schedDone(n.id)) return '';
+    return `<g transform="translate(${-n.w/2+3},${-n.h/2+1})" style="pointer-events:none"><title>연결된 일정이 모두 완료됐어요</title><circle r="10.5" fill="${dark ? '#201a26' : '#fff'}" stroke="#2fa866" stroke-width="1.4"/><circle r="6.4" fill="#2fa866"/><path d="M-3.2 .2 L-.9 2.6 L3.4 -2.4" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  }
   const bg = dark ? '#201a26' : '#fff', done = mkDone(n);
   return `<g data-badge="${n.id}" data-bt="mk" transform="translate(${-n.w/2+3},${-n.h/2+1})" style="cursor:pointer"><title>${mkLabel(n)}</title>`+
     `<circle r="13" fill="transparent"/><circle r="10.5" fill="${bg}" stroke="${done ? '#2fa866' : (dark ? '#ff8a65' : '#ef5b36')}" stroke-width="1.4"/>`+
@@ -9320,7 +9340,6 @@ prodInit();
 renderCal();
 setTimeout(checkAlarms, 800);
 setTimeout(backupReminder, 2800);
-mkPaletteInit();
 setTimeout(purgeDoneEvents, 1500);
 verInit();
 dndInit();
