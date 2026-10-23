@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231000">
+<meta name="app-version" content="202610231012">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -2916,7 +2916,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231000';
+const APP_VER = '202610231012';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5163,10 +5163,11 @@ function barClick(key, openFn, pickFn){
     else { barClick.k = key; barClick.t = n; clearTimeout(barClick.tm); barClick.tm = setTimeout(pickFn, 280); }   // 더블클릭인지 보고 나서 선택 (선택하면 막대가 움직여서)
   };
 }
-function pickCls(key, gray){
+function pickCls(key, gray, grp){
   const pk = (cal.view==='month' && !gray) ? (cal.pick||[]) : [];
   if(!pk.length) return '';
-  return pk.includes(key) ? ' psel' : ' pdim';
+  if(pk.includes(key)) return ' psel';
+  return (grp && pk.includes('g:'+grp)) ? '' : ' pdim';   // 선택한 그룹의 관련 일정은 흐리지 않는다
 }
 function pickBar(){
   const names = (cal.pick||[]).map(k => k.startsWith('g:') ? k.slice(2) : ((data.events[k]||{}).title||''));
@@ -5770,6 +5771,7 @@ function packBars(items, maxLanes){
 function spanBars(ws, maxLanes, withSingles){
   const we = addDays(ws, 6);
   const gitems = [], colp = new Set(), gopen = gexp();
+  if(cal.view==='month') (cal.pick||[]).forEach(k => { if(k.startsWith('g:')) gopen.add(k.slice(2)); });   // 선택한 그룹은 관련 일정까지 펼쳐서 보여준다
   grpList().forEach(g => {
     if(!g.nf) return; const open = gopen.has(g.name); if(!open) colp.add(g.name);
     if(g.nf>we || g.nt<ws) return;
@@ -5823,7 +5825,7 @@ function doneBars(ws, maxLanes){
 }
 function barEl(b, ds0, pos, ctx){
   if(b.gbar){
-    const g = b.gbar, tog = () => { gexpToggle(g.name); renderCal(); };
+    const g = b.gbar, tog = () => { const k = 'g:'+g.name, pk = cal.pick||[]; if(pk.includes(k)) cal.pick = pk.filter(x => x!==k); if(!b.open || gexp().has(g.name)) gexpToggle(g.name); renderCal(); };
     return h('div',{ class:'cbar gbar'+pickCls('g:'+g.name, false)+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
       title:g.name+(g.total ? ' · '+g.done+'/'+g.total+' 완료 ('+b.pct+'%)' : '')+' · '+fmtMD(g.nf)+(g.nt!==g.nf ? ' ~ '+fmtMD(g.nt) : '')+'\n두 번 누르면 '+(b.open ? '접기' : '펼치기'),
       onclick:barClick('g:'+g.name, tog, () => pickToggle('g:'+g.name)), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
@@ -5836,7 +5838,7 @@ function barEl(b, ds0, pos, ctx){
     if(!b.l) kids.unshift(rzHandle('s', ev, ctx, ds0));
     if(!b.r) kids.push(rzHandle('e', ev, ctx, ds0));
   }
-  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+(pickCls(ev.id, gray))+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 가운데를 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
+  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+(pickCls(ev.id, gray, ev.grp))+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 가운데를 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
     style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+((ev.grp && !gray) ? gv(evColor(ev)) : '')+pos, onclick:(gray || isRep(ev)) ? openEvOnDbl(ev, ds0) : barClick(ev.id, () => openEventEditor(ev.id,{ ds:ds0 }), () => pickToggle(ev.id)), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
   if(ctx && !gray && !isRep(ev)) props.onpointerdown = e => startMove(e, ev, ctx, ds0);
   return h('div', props, kids);
