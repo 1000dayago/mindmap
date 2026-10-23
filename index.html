@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610231103">
+<meta name="app-version" content="202610231217">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1138,6 +1138,14 @@ button.gchip{cursor:pointer}
 .trow .ck{width:22px!important;height:22px!important}
 .gnow .gq .btn{white-space:nowrap;padding:5px 6px!important;min-height:30px!important}
 #sheetBody .btn{white-space:nowrap}
+.picksec{background:color-mix(in srgb,var(--accent,#f2542d) 7%,transparent);border:1.5px solid color-mix(in srgb,var(--accent,#f2542d) 35%,transparent);border-radius:16px;padding:6px 8px 8px;margin:0 0 10px}
+.picksec .evrow{margin-bottom:5px}.picksec .pselrow{outline:2px solid var(--accent,#f2542d);outline-offset:-1px}
+.pickbar small{white-space:normal;line-height:1.35}
+.picksec .ggrp .ghead{display:flex;align-items:center;gap:8px;padding:2px 4px 4px}
+.picksec .ggrp .ghead b{font-size:14px}.picksec .ggrp .ghead small{color:var(--sub);font-size:12px}
+.picksec .ggrp .ghead .sp{flex:1}
+.picksec .ggrp .gab{padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:12px}
+.picksec .gnx{margin:0 6px 6px;font-size:12px;color:var(--sub)}
 
 .evmemo{flex:none;min-height:130px;resize:vertical;line-height:1.5}
 @media(min-width:821px){
@@ -2967,7 +2975,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610231103';
+const APP_VER = '202610231217';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5061,7 +5069,9 @@ function grpArea(){
     h('button',{ type:'button', class:'gab', onclick:() => openTplList() }, '템플릿')));
   if(area) return wrap;
   if(!gs_.length) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
+  const pkIds = pickIds(), pkG = pickGroups();
   gs_.forEach(g => {
+    if(pkG.has(g.name)) return;   // 선택한 그룹은 맨 위 「선택한 일정」으로 옮겨 보여준다
     const closed = fold.has(g.name);
     const box = h('div',{ class:'ggrp'+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:gv(g.color) });
     box.append(h('div',{ class:'ghead' },
@@ -5073,7 +5083,7 @@ function grpArea(){
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
-      g.evs.filter(ev => !dn(ev)).concat(g.evs.filter(dn)).forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
+      g.evs.filter(ev => !pkIds.has(ev.id)).filter(ev => !dn(ev)).concat(g.evs.filter(ev => !pkIds.has(ev.id)).filter(dn)).forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
     }
     wrap.append(box);
   });
@@ -5249,10 +5259,44 @@ function pickCls(key, gray, grp){
   if(pk.includes(key)) return ' psel';
   return (grp && pk.includes('g:'+grp)) ? '' : ' pdim';   // 선택한 그룹의 관련 일정은 흐리지 않는다
 }
+const sdm = d => d ? (+d.slice(5,7))+'/'+(+d.slice(8,10)) : '';
+const pickIds = () => new Set((cal.view==='month' ? (cal.pick||[]) : []).filter(k => !k.startsWith('g:') && data.events[k]));
+const pickGroups = () => { const gl = cal.view==='month' ? (cal.pick||[]).filter(k => k.startsWith('g:')).map(k => k.slice(2)) : []; const ex = new Set(grpList().map(g => g.name)); return new Set(gl.filter(n => ex.has(n))); };
+const pickRange = (a, b) => sdm(a)+((b && b!==a) ? '~'+sdm(b) : '');
 function pickBar(){
-  const names = (cal.pick||[]).map(k => k.startsWith('g:') ? k.slice(2) : ((data.events[k]||{}).title||''));
-  return h('div',{ class:'pickbar' }, h('b',{}, '선택 '+names.length+'/3'), h('small',{}, names.join(' · ')), h('span',{ class:'sp' }),
+  const parts = (cal.pick||[]).map(k => {
+    if(k.startsWith('g:')){ const g = grpList().find(x => x.name===k.slice(2)); return g ? (g.nf ? pickRange(g.nf, g.nt)+' · ' : '')+g.name : ''; }
+    const e = data.events[k]; return e ? pickRange(e.date, e.endDate)+' · '+(e.title||'(제목 없음)') : '';
+  }).filter(Boolean);
+  return h('div',{ class:'pickbar' }, h('b',{}, '선택 '+parts.length+'/3'), h('small',{}, parts.join('  |  ')), h('span',{ class:'sp' }),
     h('button',{ type:'button', class:'gx', onclick:() => { cal.pick = []; renderCal(); } }, '✕ 선택 해제'));
+}
+function pickSection(){
+  if(cal.view!=='month' || !(cal.pick||[]).length) return null;
+  const sec = h('div',{ class:'picksec' }), items = [];
+  (cal.pick||[]).forEach(k => {
+    if(k.startsWith('g:')){
+      const g = grpList().find(x => x.name===k.slice(2)); if(!g) return;
+      const pct = g.total ? Math.round(g.done*100/g.total) : 0, nx = grpNextEv(g);
+      const box = h('div',{ class:'ggrp foc', style:gv(g.color) },
+        h('div',{ class:'ghead' }, h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료 · '+pct+'%' : g.evs.length+'개'), h('span',{ class:'sp' }),
+          h('button',{ type:'button', class:'gab', onclick:() => openGroupDetail(g.name) }, '상세')));
+      if(nx) box.append(h('p',{ class:'gnx' }, '다음: '+(nx.title||'(제목 없음)')+' · '+sdm(nx.date)));
+      if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정이 없어요'));
+      g.evs.forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
+      items.push(box);
+    }else{
+      const ev = data.events[k]; if(!ev) return;
+      const row = evRow(ev, ev.date, { showDate:true, memo:true }); row.classList.add('pselrow');
+      if(ev.endDate && ev.endDate>ev.date) row.querySelector('.tm') && (row.querySelector('.tm').textContent = pickRange(ev.date, ev.endDate)+(ev.allDay ? '' : ' '+ev.time));
+      items.push(row);
+    }
+  });
+  if(!items.length) return null;
+  sec.append(h('div',{ class:'gahead' }, h('b',{}, '선택한 일정'), h('small',{}, String(items.length)+'/3'), h('span',{ class:'sp' }),
+    h('button',{ type:'button', class:'gab', onclick:() => { cal.pick = []; renderCal(); } }, '선택 해제')));
+  items.forEach(x => sec.append(x));
+  return sec;
 }
 
 /* ---- 그룹 진행 흐름: 지금 할 단계 / 밀기 / 같은 날 순서 + 시간 자동 이어붙이기 ---- */
@@ -5769,8 +5813,9 @@ function calAgenda(ds){
     evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:true })));
     return box;
   }
+  { const ps = pickSection(); if(ps) box.append(ps); }
   box.append(grpArea());
-  const solo0 = evs.filter(ev => !ev.grp), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
+  const pks = pickIds(), solo0 = evs.filter(ev => !ev.grp && !pks.has(ev.id)), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
   const ind = h('div',{ class:'indep' });
   if(hasG) ind.append(h('div',{ class:'lbl' }, '단독 일정'));
   if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 단독 일정이 없어요.' : evs.length ? '이 날의 단독 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
