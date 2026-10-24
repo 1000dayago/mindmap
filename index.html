@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610250008">
+<meta name="app-version" content="202610250027">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3161,7 +3161,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610250008';
+const APP_VER = '202610250027';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3764,6 +3764,13 @@ inlBar.addEventListener('click', e => {
   if(k==='child') addChild(id);
   else if(k==='sibling'){ const q = N()[id]; if(q) addChild(q.parent && N()[q.parent] ? q.parent : id); }
 });
+function nbDockSync(){   // 모바일 입력 중: 서식 막대와 하위 메뉴를 입력창 위(오른쪽 마이크 줄 옆)에 항상 붙여 둔다
+  if(!inl || !isMobile() || $('#nodectl').classList.contains('hidden')) return;
+  const t = parseFloat(inlBar.style.top); if(isNaN(t)) return;
+  nbBar.style.left = '6px'; nbBar.style.top = Math.max(4, t)+'px';
+  if(nb.open && !nbFly.classList.contains('hidden')) nbFly.style.top = Math.max(4, t - 6 - (nbFly.offsetHeight || 60))+'px';
+}
+{ const st = document.getElementById('stage'); st.addEventListener('scroll', () => { if(st.scrollTop || st.scrollLeft){ st.scrollTop = 0; st.scrollLeft = 0; } }); }
 function placeInlBar(){
   if(!inl || !inl.ta || !inl.ta.isConnected){ inlBar.classList.add('hidden'); return; }
   inlBar.classList.remove('hidden');
@@ -3771,7 +3778,7 @@ function placeInlBar(){
   const w = inlBar.offsetWidth || 200, hgt = inlBar.offsetHeight || 32;
   const L = ta.offsetLeft + ta.offsetWidth/2 - w/2;
   let T = ta.offsetTop + ta.offsetHeight + 6;
-  if(ta.classList.contains('dock')){ inlBar.style.left = clamp(ta.offsetLeft + ta.offsetWidth - w, 6, Math.max(6, SW-w-6))+'px'; inlBar.style.top = Math.max(4, ta.offsetTop - hgt - 6)+'px'; return; }
+  if(ta.classList.contains('dock')){ inlBar.style.left = clamp(ta.offsetLeft + ta.offsetWidth - w, 6, Math.max(6, SW-w-6))+'px'; inlBar.style.top = Math.max(4, ta.offsetTop - hgt - 6)+'px'; nbDockSync(); return; }
   const vv = window.visualViewport, r = $('#stage').getBoundingClientRect();
   const limit = vv ? Math.min(SH, vv.offsetTop + vv.height - r.top - 8) : SH - 8;
   if(T + hgt > limit) T = ta.offsetTop - hgt - 6;
