@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610242109">
+<meta name="app-version" content="202610250008">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1282,6 +1282,10 @@ button.gchip{cursor:pointer}
 }
 /* 노드 글을 입력하는 동안에는 아래 아이콘 막대와 확대·축소 박스를 숨겨서 입력창과 겹치지 않게 */
 body:has(#inlBar:not(.hidden)) #toolbar.nosel,body:has(#inlBar:not(.hidden)) #toolbar,body:has(#inlBar:not(.hidden)) #zoomctl{display:none !important}
+body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
+@media (max-width:820px){
+  #inlBar button[data-k=child],#inlBar button[data-k=sibling]{display:none !important}   /* 하위·형제 추가는 왼쪽 서식 막대의 ＋ 메뉴로 */
+}
 
 </style>
 </head>
@@ -3157,7 +3161,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610242109';
+const APP_VER = '202610250008';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3396,7 +3400,7 @@ function placeCtl(){
   else lc.classList.add('hidden');
   placeCut(mapOn, sheetOpen);
   const n = sel && N()[sel];
-  const busy = (gest && gest.moved && gest.kind==='node' && gest.drag) || pinch || sheetOpen || mode || inl || S().lock;
+  const busy = (gest && gest.moved && gest.kind==='node' && gest.drag) || pinch || sheetOpen || mode || (inl && !isMobile()) || S().lock;
   if(!n || busy || !nodeVisible(sel) || !mapOn){ el.classList.add('hidden'); if(!n) nbClose(); placeInlBar(); return; }
   el.classList.remove('hidden');
   // 선택 직후 잠깐 클릭 불가 → 손가락 아래 ＋ 가 눌리는 것 방지
@@ -3445,6 +3449,8 @@ nbBar.addEventListener('click', e => {
   nbToggle(b.dataset.nb);
 });
 nbFly.addEventListener('mousedown', e => e.preventDefault());
+nbBar.addEventListener('pointerdown', e => { if(inl) e.preventDefault(); });
+nbFly.addEventListener('pointerdown', e => { if(inl) e.preventDefault(); });
 
 /* ---------- 하위 메뉴(플라이아웃) ---------- */
 function nbSig(n){
@@ -3578,8 +3584,11 @@ function nbPlace(n){
   if(!below && !vert && hasBadge && cy-hh-gap-bh < 4) below = true;   // 위에 자리가 없으면 아래로, 배지 높이만큼 더 띄운다
   const gapB = (below && hasBadge) ? gap + 16 : gap;
   if(below && cy+hh+gapB+bh > SH-4 && cy-hh-gap-bh > 4) below = false;
-  const bl = clamp(cx - bw/2, 6, Math.max(6, SW-bw-6));
-  const bt = below ? cy+hh+gapB : cy-hh-gap-bh;
+  let bl = clamp(cx - bw/2, 6, Math.max(6, SW-bw-6));
+  let bt = below ? cy+hh+gapB : cy-hh-gap-bh;
+  if(inl && mob){   // 글 입력 중(모바일): 서식 막대를 입력창 바로 위 왼쪽에 둔다 (오른쪽은 마이크 · 줄바꿈 · 완료)
+    placeInlBar(); bl = 6; bt = Math.max(4, parseFloat(inlBar.style.top) || 4); below = false;
+  }
   nbBar.style.left = bl+'px'; nbBar.style.top = bt+'px';
   // 하위 메뉴
   if(!nb.open){ nbFly.classList.add('hidden'); nbFly.classList.remove('show'); return; }
