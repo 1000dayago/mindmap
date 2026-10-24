@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610232146">
+<meta name="app-version" content="202610242109">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1280,6 +1280,8 @@ button.gchip{cursor:pointer}
   #toolbar button [data-ic]{width:22px !important;height:22px !important}
   #toolbar button [data-ic] svg{width:19px !important;height:19px !important}
 }
+/* 노드 글을 입력하는 동안에는 아래 아이콘 막대와 확대·축소 박스를 숨겨서 입력창과 겹치지 않게 */
+body:has(#inlBar:not(.hidden)) #toolbar.nosel,body:has(#inlBar:not(.hidden)) #toolbar,body:has(#inlBar:not(.hidden)) #zoomctl{display:none !important}
 
 </style>
 </head>
@@ -3155,7 +3157,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610232146';
+const APP_VER = '202610242109';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
