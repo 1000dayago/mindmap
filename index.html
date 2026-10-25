@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610251001">
+<meta name="app-version" content="202610251009">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3188,7 +3188,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610251001';
+const APP_VER = '202610251009';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3212,7 +3212,7 @@ function verBar(remote, text){
 async function verCheck(manual){
   if(location.protocol==='file:' || /^https?:/.test(location.protocol)){}
   try{
-    if(!manual){ const last = +localStorage.getItem('mm_ver_chk')||0; if(Date.now()-last<3*3600e3) return; }
+    if(!manual){ const last = +localStorage.getItem('mm_ver_chk')||0; if(Date.now()-last<3*60e3) return; }
     const r = await fetch(PAGES_URL+'?c='+Date.now(), { cache:'no-store' });
     if(!r.ok) throw new Error('http '+r.status);
     const text = await r.text(), m = /name="app-version" content="(\d{12})"/.exec(text);
@@ -3337,6 +3337,7 @@ function openMore(){
       menuItem('archive','자동 백업에서 복원', openBackups),
       mmSec('설정 · 연동'),
       menuItem('cloud','동기화 · 구글 연동', openSyncSheet),
+      menuItem('🔄', '최신 버전 확인 · '+verFmt(APP_VER), () => verCheck(true)),
       menuItem('⚙️','설정', openSettings),
       menuItem('❓','사용법', openHelp),
       mmSec('위험'),
