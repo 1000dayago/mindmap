@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610250926">
+<meta name="app-version" content="202610250936">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3165,7 +3165,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610250926';
+const APP_VER = '202610250936';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5188,7 +5188,7 @@ function openImportSheet(under){
           const r = impJsonNode(o);
           if(r){
             const hasKids = r.kids.length > 0;
-            if(dest==='new' && (hasKids || r.text)){ name = r.text; tree.kids = hasKids ? r.kids : []; if(!hasKids && r.text) tree.kids = [r]; }
+            if(dest==='new' && (hasKids || r.text)){ name = r.text; tree.kids = hasKids ? r.kids : []; if(hasKids) tree.rootA = r.a; if(!hasKids && r.text) tree.kids = [r]; }
             else tree.kids = r.text ? [r] : r.kids;
           }
         }
@@ -5228,8 +5228,7 @@ function openImportSheet(under){
           shSel.classList.toggle('hidden', sheets.length<2); if(!center._touched) center.value = f.name.replace(/\.[^.]+$/,''); refresh();
         }else{
           const text = await f.text(); ta.value = text.length>200000 ? '' : text; setText(text, ext);
-          if(src.kind==='json' && (!center._touched)) center.value = f.name.replace(/\.[^.]+$/,'');
-          else if(dest==='new' && !center._touched) center.value = f.name.replace(/\.[^.]+$/,'');
+          if(src.kind!=='json' && dest==='new' && !center._touched) center.value = f.name.replace(/\.[^.]+$/,'');
         }
       }catch(e){ toast('파일을 읽지 못했어요'); }
     });
@@ -5257,7 +5256,9 @@ function openImportSheet(under){
             toast(c+'개 노드를 맵 '+parts.length+'개로 나눠서 가져왔어요');
           }else{
             if(bigNow(c)) impFoldDeep(t, 2);
-            pasteNewMap(t, nm); toast(c+'개 노드로 새 맵을 만들었어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : ''));
+            pasteNewMap(t, nm);
+            if(t.rootA && Object.keys(t.rootA).length){ mutate(m => { const rn = m.nodes[m.rootId]; ['memo','color','shape','bold','tag','due'].forEach(k => { if(t.rootA[k]!=null) rn[k] = t.rootA[k]; }); if(t.rootA.urls) rn.urls = t.rootA.urls; if(t.rootA.checks) rn.checks = t.rootA.checks; }); }
+            toast(c+'개 노드로 새 맵을 만들었어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : ''));
           }
         }},'가져오기')));
     setDest(dest);
