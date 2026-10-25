@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610250936">
+<meta name="app-version" content="202610250952">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3165,7 +3165,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610250936';
+const APP_VER = '202610250952';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4889,13 +4889,13 @@ function addTreeTo(nodes, pid, kids){
     addTreeTo(nodes, c.id, k.kids);
   });
 }
-function pasteNewMap(tree, center){
+function pasteNewMap(tree, center, lmode){
   const m2 = newMap(center || '중심 주제');
   data.maps[m2.id] = m2; data.order.push(m2.id);
   addTreeTo(m2.nodes, m2.rootId, tree.kids);
   refitAll(m2);
   switchMap(m2.id);
-  applyLayout(m2.rootId, 'right', true);
+  applyLayout(m2.rootId, lmode || 'right', true);
 }
 function pasteUnder(tree, pid){
   let firstId = null;
@@ -5134,6 +5134,20 @@ function impSplit(kids, title, LIM){
 }
 // 한 맵으로 넣을 때: 3단계 아래는 접어 둔다
 function impFoldDeep(t, keep){ (function w(x, d){ x.kids.forEach(k => { if(d>=keep && k.kids.length){ (k.a || (k.a = {})).collapsed = true; } w(k, d+1); }); })(t, 1); }
+// 큰 트리: 중심(또는 붙인 노드)에서 먼 가지일수록 바깥쪽으로 조금 더 밀어 줘서, 선들이 한 줄로 겹쳐 거미줄처럼 되는 것을 줄인다
+function impFan(rid, firstKidIds){
+  mutate(m => {
+    const R = m.nodes[rid]; if(!R) return;
+    const ids = firstKidIds || R.children.slice();
+    ids.forEach(id => {
+      const c = m.nodes[id]; if(!c) return;
+      const dy = Math.abs(c.y - R.y), dir = (c.x - R.x) >= 0 ? 1 : -1, sh = Math.min(420, Math.round(dy*0.12)) * dir;
+      if(!sh) return;
+      const mv = [id].concat(desc(id));
+      mv.forEach(k => { m.nodes[k].x += sh; });
+    });
+  });
+}
 const IMP_GUIDE = `마인드맵 가져오기 JSON 형식 (이 형식으로 만들어 주세요)
 {
   "name": "맵 이름",
@@ -5155,7 +5169,7 @@ const IMP_GUIDE = `마인드맵 가져오기 JSON 형식 (이 형식으로 만�
 function openImportSheet(under){
   openSheet('가져오기 · 글 · 엑셀 · JSON', b => {
     b.append(h('p',{class:'note'},'글, 엑셀(.xlsx) · CSV, JSON 파일을 마인드맵으로 가져와요. 파일을 고르거나 아래에 붙여넣으세요.'));
-    let src = { kind:'text', text:'', ext:'txt', sheets:null, si:0, obj:null }, dest = under ? 'under' : 'new', header = false, bigMode = 'split';
+    let src = { kind:'text', text:'', ext:'txt', sheets:null, si:0, obj:null }, target = under ? { m:data.current, n:under } : null, dest = target ? 'under' : 'new', header = false, bigMode = 'split';
     const fi = h('input',{ type:'file', class:'hidden', accept:'.txt,.md,.csv,.tsv,.xlsx,.json,.text,text/plain,application/json' });
     const fname = h('span',{ class:'note', style:'margin-left:8px' }, '');
     const pick = h('button',{ class:'btn', type:'button', onclick:() => fi.click() }, '파일 선택');
@@ -5170,9 +5184,12 @@ function openImportSheet(under){
     function setBig(m){ bigMode = m; bSplit.classList.toggle('on', m==='split'); bOne.classList.toggle('on', m==='one'); refresh(); }
     const seg = h('div',{class:'seg'});
     const bNew = h('button',{ class:dest==='new'?'on':'', type:'button', onclick:() => setDest('new') },'새 맵으로');
-    const bUnder = h('button',{ class:dest==='under'?'on':'', type:'button', disabled:!under, onclick:() => setDest('under') }, under ? '“'+short(N()[under].text)+'” 하위로' : '선택 노드 하위로');
+    const tgtText = () => { const n = target && data.maps[target.m] && data.maps[target.m].nodes[target.n]; return n ? '“'+short(n.text)+'” 하위로' : '노드 골라서 하위로'; };
+    const bUnder = h('button',{ class:dest==='under'?'on':'', type:'button', onclick:() => { const was = dest; setDest('under'); if(!target || was==='under') showPicker(); } }, tgtText());
+    const tgtBox = h('div',{ class:'hidden' });
+    function showPicker(){ tgtBox.innerHTML = ''; tgtBox.classList.remove('hidden'); tgtBox.append(h('div',{class:'lbl'},'붙일 노드를 고르세요'), nodePicker(r => { target = r; bUnder.textContent = tgtText(); tgtBox.classList.add('hidden'); refresh(); })); }
     seg.append(bNew, bUnder);
-    function setDest(d){ dest = d; bNew.classList.toggle('on', d==='new'); bUnder.classList.toggle('on', d==='under'); centerBox.classList.toggle('hidden', d!=='new'); refresh(); }
+    function setDest(d){ dest = d; bNew.classList.toggle('on', d==='new'); bUnder.classList.toggle('on', d==='under'); centerBox.classList.toggle('hidden', d!=='new'); if(d!=='under') tgtBox.classList.add('hidden'); refresh(); }
     const bigNow = c => c>IMP_LIM;
     function detect(text){
       const t = String(text).trim();
@@ -5235,7 +5252,7 @@ function openImportSheet(under){
     const guide = h('details',{ style:'margin-top:10px' }, h('summary',{ style:'cursor:pointer;font-weight:700;font-size:13px' }, '형식 안내 · JSON 예시 (AI에게 줄 설명)'),
       h('pre',{ style:'white-space:pre-wrap;font-size:11.5px;line-height:1.5;background:var(--accent-soft);padding:10px;border-radius:10px;margin:6px 0' }, IMP_GUIDE),
       h('button',{ class:'btn', type:'button', onclick:() => { try{ navigator.clipboard.writeText(IMP_GUIDE).then(() => toast('형식 설명을 복사했어요'), () => showCopyBox(IMP_GUIDE)); }catch(_){ showCopyBox(IMP_GUIDE); } } }, '설명 복사'));
-    b.append(h('div',{ class:'row' }, pick, fname), fi, ta, shSel, info, h('div',{class:'lbl'},'가져올 위치'), seg, centerBox,
+    b.append(h('div',{ class:'row' }, pick, fname), fi, ta, shSel, info, h('div',{class:'lbl'},'가져올 위치'), seg, tgtBox, centerBox,
       bigBox, toggleRow('첫 행은 제목줄이라서 건너뛰기', false, v => { header = v; refresh(); }), guide,
       h('div',{class:'row end'}, h('button',{class:'btn',onclick:() => closeSheet()},'취소'),
         h('button',{class:'btn primary',onclick:() => {
@@ -5246,17 +5263,24 @@ function openImportSheet(under){
           const bg = impBudget(c);
           if(!bg.ok){ toast('폰 저장 공간이 모자라요 · 약 '+bg.most+'개까지 가져올 수 있어요. 안 쓰는 맵을 지우거나 나눠서 가져오세요'); return; }
           const nm = (center.value.trim() || r.name || '가져온 맵');
+          if(dest==='under' && !(target && data.maps[target.m] && data.maps[target.m].nodes[target.n])){ toast('붙일 노드를 먼저 골라 주세요'); showPicker(); return; }
           closeSheet(true);
-          if(dest==='under' && under && N()[under]){
+          if(dest==='under'){
+            const tn = target && data.maps[target.m] && data.maps[target.m].nodes[target.n];
+            if(!tn){ toast('붙일 노드를 먼저 골라 주세요'); return; }
             if(bigNow(c)) impFoldDeep(t, 2);
-            const ov = pasteUnder(t, under); toast(c+'개 노드를 가져왔어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : '')+(ov ? ' · 겹치면 「정렬」을 눌러 정리하세요' : ''));
+            if(target.m!==data.current) switchMap(target.m);
+            const kidsBefore = new Set(N()[target.n].children);
+            const ov = pasteUnder(t, target.n);
+            if(c>=40){ const nk = N()[target.n].children.filter(k => !kidsBefore.has(k)); impFan(target.n, nk); } toast(c+'개 노드를 가져왔어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : '')+(ov ? ' · 겹치면 「정렬」을 눌러 정리하세요' : ''));
           }else if(bigNow(c) && bigMode==='split'){
             const parts = impSplit(t.kids, nm, IMP_LIM);
             parts.forEach(pt => { pasteNewMap({ text:null, kids:pt.kids, urls:[] }, pt.name.slice(0,60)); });
             toast(c+'개 노드를 맵 '+parts.length+'개로 나눠서 가져왔어요');
           }else{
             if(bigNow(c)) impFoldDeep(t, 2);
-            pasteNewMap(t, nm);
+            pasteNewMap(t, nm, c>=40 ? 'both' : 'right');
+            if(c>=40) impFan(cur().rootId);
             if(t.rootA && Object.keys(t.rootA).length){ mutate(m => { const rn = m.nodes[m.rootId]; ['memo','color','shape','bold','tag','due'].forEach(k => { if(t.rootA[k]!=null) rn[k] = t.rootA[k]; }); if(t.rootA.urls) rn.urls = t.rootA.urls; if(t.rootA.checks) rn.checks = t.rootA.checks; }); }
             toast(c+'개 노드로 새 맵을 만들었어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : ''));
           }
