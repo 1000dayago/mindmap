@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610251009">
+<meta name="app-version" content="202610251014">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1897,7 +1897,7 @@ function edgeSvg(p, n, dark, focusSet, opt){
     const L = Math.hypot(dx, dy); sx0 = dx / L; sy0 = dy / L; style = 'd';
     const t1 = edgeReach(p, sx0, sy0), t2 = edgeReach(n, sx0, sy0);
     x1 = p.x + sx0*t1; y1 = p.y + sy0*t1; x2 = n.x - sx0*t2; y2 = n.y - sy0*t2;
-  }else if(ady > adx){
+  }else if(ady > adx && !(es==='elbow' && !isVertical(p) && p.layout!=='down' && adx > 1)){
     const sy = dy>=0 ? 1 : -1; sy0 = sy; style = 'v';
     x1 = p.x; y1 = p.y + sy*p.h/2; x2 = n.x; y2 = n.y - sy*n.h/2;
   }else{
@@ -3188,7 +3188,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610251009';
+const APP_VER = '202610251014';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5296,7 +5296,7 @@ function openImportSheet(under){
             if(target.m!==data.current) switchMap(target.m);
             const kidsBefore = new Set(N()[target.n].children);
             const ov = pasteUnder(t, target.n);
-            if(c>=40){ const nk = N()[target.n].children.filter(k => !kidsBefore.has(k)); impFan(target.n, nk); } toast(c+'개 노드를 가져왔어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : '')+(ov ? ' · 겹치면 「정렬」을 눌러 정리하세요' : ''));
+             toast(c+'개 노드를 가져왔어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : '')+(ov ? ' · 겹치면 「정렬」을 눌러 정리하세요' : ''));
           }else if(bigNow(c) && bigMode==='split'){
             const parts = impSplit(t.kids, nm, IMP_LIM);
             parts.forEach(pt => { pasteNewMap({ text:null, kids:pt.kids, urls:[] }, pt.name.slice(0,60)); });
@@ -5304,7 +5304,7 @@ function openImportSheet(under){
           }else{
             if(bigNow(c)) impFoldDeep(t, 2);
             pasteNewMap(t, nm, c>=40 ? 'both' : 'right');
-            if(c>=40){ impFan(cur().rootId); cur().edgeStyle = 'elbow'; saveSoon(); render(); }
+            if(c>=40){ cur().edgeStyle = 'elbow'; saveSoon(); render(); }
             if(t.rootA && Object.keys(t.rootA).length){ mutate(m => { const rn = m.nodes[m.rootId]; ['memo','color','shape','bold','tag','due'].forEach(k => { if(t.rootA[k]!=null) rn[k] = t.rootA[k]; }); if(t.rootA.urls) rn.urls = t.rootA.urls; if(t.rootA.checks) rn.checks = t.rootA.checks; }); }
             toast(c+'개 노드로 새 맵을 만들었어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : ''));
           }
