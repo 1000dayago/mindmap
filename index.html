@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610251045">
+<meta name="app-version" content="202610251056">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -2523,8 +2523,14 @@ function deleteNode(id, ask){
   sel = (parent && N()[parent]) ? parent : null; render();
   toast('삭제했어요', { label:'되돌리기', fn:() => undo() });
 }
+function keepAnchor(id, fn){   // 정렬로 노드가 움직여도 화면에서는 누른 노드가 제자리에 보이게 보기 위치를 보정
+  const n0 = N()[id], ox = n0 ? n0.x : 0, oy = n0 ? n0.y : 0;
+  fn();
+  const n1 = N()[id];
+  if(n0 && n1 && (n1.x!==ox || n1.y!==oy)){ view = { k:view.k, x:view.x + (ox-n1.x)*view.k, y:view.y + (oy-n1.y)*view.k }; applyView(); }
+}
 function toggleCollapse(id){
-  mutate(m => { const n = m.nodes[id]; if(n.children.length) n.collapsed = !n.collapsed; }, { force:true });
+  keepAnchor(id, () => mutate(m => { const n = m.nodes[id]; if(n.children.length){ n.collapsed = !n.collapsed; if(S().auto) tidyMap(m); } }, { force:true }));
 }
 function changeShape(id, shape, dashed){
   const n = N()[id];
@@ -2657,13 +2663,14 @@ function foldDepths(rootId){   // 선택 범위의 노드를 깊이(범위 루�
 // mode: 'allOpen' | 'allClose' | 'open' | 'close' (+ level)
 function foldApply(rootId, mode, level){
   const lv = foldDepths(rootId);
-  mutate(m => {
+  keepAnchor(rootId, () => mutate(m => {
     const set = (ids, v) => ids.forEach(i => { const q = m.nodes[i]; if(q && q.children.length) q.collapsed = v; });
     if(mode==='allOpen') lv.forEach(a => set(a, false));
     else if(mode==='allClose') lv.forEach((a, d) => { if(d>0) set(a, true); else set(a, false); });   // 시작 노드는 열어 두고 바로 아래 단계만 보이게
     else if(mode==='open') lv.slice(0, level).forEach(a => set(a, false));        // level단계까지 모두 보이게
     else if(mode==='close') (lv[level-1] || []).forEach(i => set([i], true));       // level단계 노드를 접어 그 아래를 숨김
-  });
+    if(S().auto) tidyMap(m);
+  }));
   render();
 }
 function applyLayout(id, mode, noUndo, ovr){
@@ -3042,6 +3049,11 @@ function openColorSheet(id){
     if(n.color) b.append(h('div',{class:'row'}, h('button',{class:'btn',style:'flex:1',onclick:()=>{ closeSheet(true); clearColor(id); }},'부모 색 따르기 (개별 지정 해제)')));
   });
 }
+function autoModeRow(){
+  const seg = h('div',{class:'seg'}), mk = (v, l) => h('button',{ type:'button', class:(!!S().auto===v ? 'on' : ''), onclick:() => { S().auto = v; saveSoon(); [...seg.children].forEach((c,i) => c.classList.toggle('on', (i===0)===v)); toast(v ? '자동 정렬: 노드를 만들거나 접고 펼칠 때 알아서 정돈해요' : '수동 정렬: 직접 놓은 위치를 그대로 둬요'); } }, l);
+  seg.append(mk(true,'자동 정렬'), mk(false,'수동 정렬'));
+  return h('div',{}, seg, h('p',{class:'note',style:'margin:4px 0 6px'},'자동: 노드를 만들거나 지우거나 접고 펼치면 알아서 정돈해요. 수동: 직접 놓은 위치를 그대로 둬요.'));
+}
 function openLayoutSheet(){
   const hasSel = !!(sel && cur().nodes[sel]);
   if(!hasSel) styScope = 'all';
@@ -3053,11 +3065,23 @@ function openLayoutSheet(){
       const tid = styScope==='all' ? m.rootId : sel, tn = m.nodes[tid];
       const ib = (k, title, on, fn, label, dis) => h('button',{ type:'button', class:'layib'+(on ? ' on' : ''), title, 'aria-label':title, disabled:!!dis, onclick:fn, html:layIcon(k)+(label ? '<small>'+label+'</small>' : '') });
       const lbl = (t) => b.append(h('div',{class:'lbl'}, t));
+      const grp = (t, first) => b.append(h('div',{style:'font-size:12px;font-weight:800;color:var(--accent);margin:'+(first?'0':'16px')+' 0 4px;padding-top:'+(first?'0':'10px')+';'+(first?'':'border-top:1px solid var(--line)')}, t));
+      grp('① 정렬 — 자동·수동, 정리, 간격', true);
+      lbl('정렬 방식');
+      b.append(autoModeRow());
       // 1. 정리 (간격·위치만 다시 정돈 · 접고 편 상태와 배치 방식은 그대로)
-      lbl('정리 · 간격과 위치만 다시 정돈');
+      lbl('지금 정리 (간격·위치만 다시 정돈)');
       b.append(h('div',{class:'layrow'},
         ib('tidy', '맵 전체 정리', false, () => { closeSheet(true); mutate(mm => { tidyMap(mm); }); fitAll(); toast('맵 전체를 정리했어요 (접은 것은 접은 채로)'); }, '전체'),
         ib('sub', has ? '선택한 노드 아래 정리' : '노드를 먼저 선택하세요', false, () => { const t = sel; closeSheet(true); tidyUnder(t); toast('선택한 노드 아래를 정리했어요'); }, '하위', !has)));
+      lbl('노드 간격 (맵 전체)');
+      const gr = h('div',{class:'layrow'});
+      [['tight','촘촘'],['normal','보통'],['wide','넓게']].forEach(([v,l]) => {
+        const bt = ib('gap_'+v, l, S().gap===v, () => { S().gap = v; saveSoon(); [...gr.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); toast('간격: '+l+' · 위 「정리」를 누르면 적용돼요'); });
+        gr.append(bt);
+      });
+      b.append(gr);
+      grp('② 범위별 편집 — 배치 · 선 · 접기');
       // 2. 적용 범위 — 아래 배치 · 선 · 접기가 모두 이 범위를 따른다
       lbl('적용 범위');
       const seg = h('div',{class:'seg'});
@@ -3093,16 +3117,7 @@ function openLayoutSheet(){
           for(let k=from;k<=Math.min(maxD, 9);k++) row.append(h('button',{ type:'button', class:'layib num', title:k+'단계'+(kind==='open' ? '까지 펼치기' : '부터 접기'), 'aria-label':k+'단계', onclick:() => { foldApply(tid, kind, k); toast(kind==='open' ? k+'단계까지 펼쳤어요' : k+'단계를 접었어요'); } }, String(k)));
           return row; };
         b.append(lvRow('open', 1), lvRow('close', 2)); }
-      // 6. 간격 · 옵션
-      lbl('노드 간격 (맵 전체)');
-      const gr = h('div',{class:'layrow'});
-      [['tight','촘촘'],['normal','보통'],['wide','넓게']].forEach(([v,l]) => {
-        const bt = ib('gap_'+v, l, S().gap===v, () => { S().gap = v; saveSoon(); [...gr.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); toast('간격: '+l+' · 위 「정리」를 누르면 적용돼요'); });
-        gr.append(bt);
-      });
-      b.append(gr);
-      lbl('옵션');
-      b.append(toggleRow('새 노드를 만들면 자동 정렬', S().auto, v => { S().auto = v; saveSoon(); }));
+      grp('③ 끌어서 놓기 · 이동');
       dropModeRows(b);
       b.append(toggleRow('격자 맞춤 (드래그 시 20px, 자유 배치일 때)', S().snap, v => { S().snap = v; saveSoon(); }));
       b.append(toggleRow('단독 이동 (하위 노드는 두고 이 노드만)', singleMove, v => { singleMove = v; }));
@@ -3217,7 +3232,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610251045';
+const APP_VER = '202610251056';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3304,7 +3319,7 @@ function openSettings(){
       h('option',{value:'auto'},'시스템 설정 따라가기'), h('option',{value:'light'},'라이트'), h('option',{value:'dark'},'다크'));
     sel_.value = S().theme; b.append(sel_);
     b.append(h('div',{style:'height:8px'}));
-    b.append(toggleRow('새 노드를 만들면 자동 정렬 (드래그하면 그 위치로 이동)', S().auto, v => { S().auto = v; saveSoon(); }));
+    b.append(h('div',{class:'lbl'},'정렬 방식'), autoModeRow());
     b.append(toggleRow('S펜 구분 (손가락은 화면 이동만, S펜은 노드 이동)', S().pen, v => { S().pen = v; saveSoon(); }));
     b.append(toggleRow('YES/NO 연결선 색 구분 (초록/빨강)', S().yesNoColor, v => { S().yesNoColor = v; saveSoon(); render(); }));
     b.append(toggleRow('연결선에 방향 표시 (부모 ● → 자식 ▸)', S().edgeMarks !== false, v => { S().edgeMarks = v; saveSoon(); render(); }));
