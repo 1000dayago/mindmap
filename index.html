@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610251024">
+<meta name="app-version" content="202610251045">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -2637,6 +2637,8 @@ const LAYI = {
   down:'<rect x="9" y="2" width="6" height="5" rx="1.6"/><path d="M12 7v3M5 10h14M5 10v3M12 10v3M19 10v3"/><rect x="2" y="14" width="6" height="5" rx="1.2"/><rect x="9" y="14" width="6" height="5" rx="1.2"/><rect x="16" y="14" width="6" height="5" rx="1.2"/>',
   expA:'<path d="M12 10V3M9 6l3-3 3 3M12 14v7M9 18l3 3 3-3M4 12h16"/>',
   colA:'<path d="M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3M4 12h16"/>',
+  expA:'<path d="M12 10V3M9 6l3-3 3 3M12 14v7M9 18l3 3 3-3M4 12h16"/>',
+  colA:'<path d="M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3M4 12h16"/>',
   edge_curve:'<rect x="2" y="3" width="5" height="4" rx="1.2"/><rect x="17" y="17" width="5" height="4" rx="1.2"/><path d="M7 5c6 0 4 14 10 14"/>',
   edge_elbow:'<rect x="2" y="3" width="5" height="4" rx="1.2"/><rect x="17" y="17" width="5" height="4" rx="1.2"/><path d="M7 5h5.5q1.5 0 1.5 1.5v10q0 1.5 1.5 1.5H17"/>',
   edge_line:'<rect x="2" y="3" width="5" height="4" rx="1.2"/><rect x="17" y="17" width="5" height="4" rx="1.2"/><path d="M7.5 6.5L16.5 17.5"/>',
@@ -2664,13 +2666,13 @@ function foldApply(rootId, mode, level){
   });
   render();
 }
-function applyLayout(id, mode, noUndo){
+function applyLayout(id, mode, noUndo, ovr){
   const m0 = cur(); if(!m0.nodes[id]) return;
   mutate(m => {
     const n = m.nodes[id], gp = GAPS[S().gap];
     const ctx = { main:gp.main, cross:gp.cross };
     const ds = desc(id);
-    if(S().overrideBranches) ds.forEach(c => { m.nodes[c].layout = null; });
+    if(ovr===undefined ? S().overrideBranches : ovr) ds.forEach(c => { m.nodes[c].layout = null; });
     n.layout = mode;
     const old = {}; [id, ...ds].forEach(i => { old[i] = { x:m.nodes[i].x, y:m.nodes[i].y }; });
     const L = layoutLocal(n, mode, ctx);
@@ -3041,45 +3043,72 @@ function openColorSheet(id){
   });
 }
 function openLayoutSheet(){
-  const m = cur(), tid = sel || m.rootId, tn = m.nodes[tid];
+  const hasSel = !!(sel && cur().nodes[sel]);
+  if(!hasSel) styScope = 'all';
   openSheet('정렬', b => {
-    b.append(h('p',{class:'note'}, sel ? '선택한 “'+short(tn.text)+'”와 하위 노드 기준이에요 (선택 노드는 제자리). 아이콘을 길게 누르면 이름이 보여요.' : '선택된 노드가 없어서 맵 전체 기준이에요. 아이콘을 길게 누르면 이름이 보여요.'));
-    const ib = (k, title, on, fn, label) => h('button',{ type:'button', class:'layib'+(on ? ' on' : ''), title, 'aria-label':title, onclick:fn, html:layIcon(k)+(label ? '<small>'+label+'</small>' : '') });
-    b.append(h('div',{class:'lbl'},'정리 (지금 접고 편 상태 · 배치 방식 그대로 간격·위치만)'));
-    b.append(h('div',{class:'layrow'},
-      ib('tidy', '맵 전체 정리', false, () => { closeSheet(true); mutate(mm => { tidyMap(mm); }); fitAll(); toast('맵 전체를 정리했어요 (접은 것은 접은 채로)'); }, '전체'),
-      sel ? ib('sub', '선택한 노드 아래만 정리', false, () => { closeSheet(true); tidyUnder(tid); toast('선택한 노드 아래를 정리했어요'); }, '아래만') : null));
-    b.append(h('div',{class:'lbl'},'펼치기 · 접기 ('+(sel ? '선택한 노드 아래' : '맵 전체')+')'));
-    b.append(h('div',{class:'layrow'},
-      ib('expA', '전체 펼치기', false, () => { foldApply(tid, 'allOpen'); toast('전체 펼쳤어요'); }, '모두 펼침'),
-      ib('colA', '전체 접기', false, () => { foldApply(tid, 'allClose'); toast('전체 접었어요 (바로 아래 단계만 보여요)'); }, '모두 접기')));
-    { const maxD = Math.max(1, foldDepths(tid).length-1), lvRow = (kind, from) => {
-        const row = h('div',{class:'layrow lvl'}, h('span',{class:'lvic', html:layIcon(kind==='open' ? 'expA' : 'colA', 18), title:kind==='open' ? '레벨별 펼치기' : '레벨별 접기'}));
-        for(let k=from;k<=Math.min(maxD, 9);k++) row.append(h('button',{ type:'button', class:'layib num', title:k+'단계'+(kind==='open' ? '까지 펼치기' : '부터 접기'), 'aria-label':k+'단계', onclick:() => { foldApply(tid, kind, k); toast(kind==='open' ? k+'단계까지 펼쳤어요' : k+'단계를 접었어요'); } }, String(k)));
-        return row; };
-      b.append(lvRow('open', 1), lvRow('close', 2)); }
-    b.append(h('div',{class:'lbl'},'배치 방식 (눌러서 바로 적용)'));
-    b.append(h('div',{class:'layrow'}, LAYOUTS.map(([id,label]) => ib(id, label, tn.layout===id, () => applyLayout(tid,id)))));
-    b.append(h('div',{class:'lbl'},'노드 간격'));
-    const gr = h('div',{class:'layrow'});
-    [['tight','촘촘'],['normal','보통'],['wide','넓게']].forEach(([v,l]) => {
-      const bt = ib('gap_'+v, l, S().gap===v, () => { S().gap = v; saveSoon(); [...gr.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); toast('간격: '+l+' · 위 「정리」를 누르면 적용돼요'); });
-      gr.append(bt);
-    });
-    b.append(gr);
-    b.append(h('div',{class:'lbl'},'선 모양 (이 맵)'));
-    const er = h('div',{class:'layrow'});
-    [['curve','곡선'],['elbow','직각'],['line','직선']].forEach(([v,l]) => {
-      const bt = ib('edge_'+v, l, ((cur().edgeStyle)||'curve')===v, () => { cur().edgeStyle = v; Object.values(cur().nodes).forEach(q => { q.es = ''; }); saveSoon(); render(); [...er.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); }, l);
-      er.append(bt);
-    });
-    b.append(er);
-    b.append(toggleRow('하위 가지의 개별 레이아웃도 덮어쓰기', S().overrideBranches, v => { S().overrideBranches = v; saveSoon(); }));
-    b.append(toggleRow('새 노드를 만들면 자동 정렬', S().auto, v => { S().auto = v; saveSoon(); }));
-    dropModeRows(b);
-    b.append(toggleRow('격자 맞춤 (드래그 시 20px, 자유 배치일 때)', S().snap, v => { S().snap = v; saveSoon(); }));
-    b.append(toggleRow('단독 이동 (하위 노드는 두고 이 노드만)', singleMove, v => { singleMove = v; }));
-    b.append(h('p',{class:'note'},'자유 배치는 노드를 드래그하면 돼요. 부모를 끌면 하위 노드가 함께 움직이고, Shift+드래그로 단독 이동할 수 있어요.'));
+    const build = () => {
+      b.innerHTML = '';
+      const m = cur(), has = !!(sel && m.nodes[sel]);
+      if(!has) styScope = 'all';
+      const tid = styScope==='all' ? m.rootId : sel, tn = m.nodes[tid];
+      const ib = (k, title, on, fn, label, dis) => h('button',{ type:'button', class:'layib'+(on ? ' on' : ''), title, 'aria-label':title, disabled:!!dis, onclick:fn, html:layIcon(k)+(label ? '<small>'+label+'</small>' : '') });
+      const lbl = (t) => b.append(h('div',{class:'lbl'}, t));
+      // 1. 정리 (간격·위치만 다시 정돈 · 접고 편 상태와 배치 방식은 그대로)
+      lbl('정리 · 간격과 위치만 다시 정돈');
+      b.append(h('div',{class:'layrow'},
+        ib('tidy', '맵 전체 정리', false, () => { closeSheet(true); mutate(mm => { tidyMap(mm); }); fitAll(); toast('맵 전체를 정리했어요 (접은 것은 접은 채로)'); }, '전체'),
+        ib('sub', has ? '선택한 노드 아래 정리' : '노드를 먼저 선택하세요', false, () => { const t = sel; closeSheet(true); tidyUnder(t); toast('선택한 노드 아래를 정리했어요'); }, '하위', !has)));
+      // 2. 적용 범위 — 아래 배치 · 선 · 접기가 모두 이 범위를 따른다
+      lbl('적용 범위');
+      const seg = h('div',{class:'seg'});
+      [['self','노드'],['all','전체'],['tree','하위']].forEach(([v,l]) => {
+        const bt = h('button',{ type:'button', class:(styScope===v ? 'on' : ''), disabled:(v!=='all' && !has), onclick:() => { styScope = v; build(); } }, l);
+        seg.append(bt);
+      });
+      b.append(seg);
+      b.append(h('p',{class:'note',style:'margin:4px 0 6px'}, styScope==='all' ? '맵 전체에 적용해요.' : (styScope==='tree' ? '“'+short(tn.text)+'”와 그 아래 모든 노드에 적용해요.' : '“'+short(tn.text)+'” 하나에만 적용해요 (바로 아래 가지의 배치).') + (has ? '' : ' · 노드를 선택하면 노드 · 하위도 쓸 수 있어요.')));
+      // 3. 배치 방식
+      lbl('배치 방식');
+      b.append(h('div',{class:'layrow'}, LAYOUTS.map(([id,label]) => ib(id, label, tn.layout===id, () => { applyLayout(tid, id, false, styScope!=='self'); toast('“'+label+'”로 배치했어요'); build(); }, label.replace(' 트리','')))));
+      // 4. 선 모양
+      lbl('선 모양');
+      const es = h('div',{class:'layrow'});
+      const curEs = styScope==='all' ? ((m.edgeStyle)||'curve') : (tn.es||'');
+      if(styScope!=='all') es.append(ib('edge_curve', '맵 전체 설정을 따라요', curEs==='', () => { mutate(mm => { [tid].concat(styScope==='tree' ? desc(tid) : []).forEach(i => { mm.nodes[i].es = ''; }); }); build(); }, '기본'));
+      [['curve','곡선'],['elbow','직각'],['line','직선']].forEach(([v,l]) => {
+        es.append(ib('edge_'+v, l, curEs===v, () => {
+          if(styScope==='all'){ cur().edgeStyle = v; Object.values(cur().nodes).forEach(q => { q.es = ''; }); saveSoon(); render(); }
+          else mutate(mm => { [tid].concat(styScope==='tree' ? desc(tid) : []).forEach(i => { mm.nodes[i].es = v; }); });
+          build();
+        }, l));
+      });
+      b.append(es);
+      // 5. 펼치기 · 접기
+      lbl('펼치기 · 접기');
+      b.append(h('div',{class:'layrow'},
+        ib('expA', '전체 펼치기', false, () => { foldApply(tid, 'allOpen'); toast('펼쳤어요'); }, '모두 펼침'),
+        ib('colA', '전체 접기', false, () => { foldApply(tid, 'allClose'); toast('접었어요 (바로 아래 단계만 보여요)'); }, '모두 접기')));
+      { const maxD = Math.max(1, foldDepths(tid).length-1), lvRow = (kind, from) => {
+          const row = h('div',{class:'layrow lvl'}, h('span',{class:'lvic', html:layIcon(kind==='open' ? 'expA' : 'colA', 18), title:kind==='open' ? '레벨별 펼치기' : '레벨별 접기'}));
+          for(let k=from;k<=Math.min(maxD, 9);k++) row.append(h('button',{ type:'button', class:'layib num', title:k+'단계'+(kind==='open' ? '까지 펼치기' : '부터 접기'), 'aria-label':k+'단계', onclick:() => { foldApply(tid, kind, k); toast(kind==='open' ? k+'단계까지 펼쳤어요' : k+'단계를 접었어요'); } }, String(k)));
+          return row; };
+        b.append(lvRow('open', 1), lvRow('close', 2)); }
+      // 6. 간격 · 옵션
+      lbl('노드 간격 (맵 전체)');
+      const gr = h('div',{class:'layrow'});
+      [['tight','촘촘'],['normal','보통'],['wide','넓게']].forEach(([v,l]) => {
+        const bt = ib('gap_'+v, l, S().gap===v, () => { S().gap = v; saveSoon(); [...gr.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); toast('간격: '+l+' · 위 「정리」를 누르면 적용돼요'); });
+        gr.append(bt);
+      });
+      b.append(gr);
+      lbl('옵션');
+      b.append(toggleRow('새 노드를 만들면 자동 정렬', S().auto, v => { S().auto = v; saveSoon(); }));
+      dropModeRows(b);
+      b.append(toggleRow('격자 맞춤 (드래그 시 20px, 자유 배치일 때)', S().snap, v => { S().snap = v; saveSoon(); }));
+      b.append(toggleRow('단독 이동 (하위 노드는 두고 이 노드만)', singleMove, v => { singleMove = v; }));
+      b.append(h('p',{class:'note'},'자유 배치는 노드를 드래그하면 돼요. 부모를 끌면 하위 노드가 함께 움직이고, Shift+드래그로 단독 이동할 수 있어요.'));
+    };
+    build();
   });
 }
 function openViewSheet(){
@@ -3188,7 +3217,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610251024';
+const APP_VER = '202610251045';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3448,6 +3477,7 @@ function placeCtl(){
 }
 /* ===================== v26: 노드 막대 (＋ − 눈 모양 색상 ⋯) · 연속 입력 · 복사/잘라내기/붙여넣기 ===================== */
 const TAGMAP = {}; TAGS.forEach(t => { TAGMAP[t[0]] = t; });
+let styScope = 'self';   // 노드 스타일 적용 범위: self 이 노드만 · tree 하위 포함 · all 맵 전체
 let nb = { open:null, forId:null, sig:'' };   // open: 'add' | 'del' | 'shape' | 'color' | 'more'
 let cutPending = null;                        // { mapId, id } 잘라내기(이동 대기) 표시
 let cutSetNow = null, nbTrashHot = false;
@@ -3489,7 +3519,7 @@ nbFly.addEventListener('pointerdown', e => { if(inl) e.preventDefault(); });
 
 /* ---------- 하위 메뉴(플라이아웃) ---------- */
 function nbSig(n){
-  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.mk, n.mv, n.bold, n.fsz, n.lw, n.ldash, n.es, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
+  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.mk, n.mv, n.bold, n.fsz, n.lw, n.ldash, n.es, styScope, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
 }
 function nbChip(cls, icon, label, act, o){
   o = o || {};
@@ -3524,32 +3554,46 @@ function nbRenderFly(n){
     bs[1].onclick = act(() => removeLastChild(id));
     bs[2].onclick = act(() => deleteNode(id));
   }else if(nb.open==='shape'){
+    // 적용 범위: 이 노드만 / 하위 포함 / 전체
+    const scopeIds = () => styScope==='all' ? Object.keys(cur().nodes) : styScope==='tree' ? [id].concat(desc(id)) : [id];
+    const sg = h('div',{class:'nbrow sscope'});
+    [['self','노드'],['all','전체'],['tree','하위']].forEach(([v,l]) => {
+      const b = h('button',{ type:'button', class:'nbf wide'+(styScope===v?' on':''), title:l }, l);
+      b.onclick = (e) => { e.stopPropagation(); if(performance.now() < ctlGuardUntil) return; styScope = v; nbRenderFly(N()[id]); };
+      sg.append(b);
+    });
+    nbFly.append(nbSection('적용 범위'), sg);
+    const apply = (fn, skipRoot) => act(() => { const ids = scopeIds(); mutate(mm => { ids.forEach(i => { const q = mm.nodes[i]; if(q && !(skipRoot && i===mm.rootId)) fn(q); }); }); nb.sig = ''; if(ids.length>1) toast(ids.length+'개 노드에 적용했어요'); nbRenderFly(N()[id]); }, true);
     const g = h('div',{class:'nbgrid c4'});
     SHAPES.forEach(([sid,label]) => {
       const b = h('button',{ type:'button', class:'nbf sq'+(n.shape===sid?' on':''), title:label, 'aria-label':label });
       b.innerHTML = '<svg width="30" height="20" viewBox="-30 -18 60 36" aria-hidden="true">'+shapeSvg(sid, 46, 26, 'none', 'currentColor', 3.2, false)+'</svg>';
-      b.onclick = act(() => changeShape(id, sid));
+      b.onclick = styScope==='self' ? act(() => changeShape(id, sid)) : apply(q => { q.shape = sid; });
       g.append(b);
     });
     nbFly.append(nbSection('모양'), g);
-    const set = (fn) => act(() => { mutate(mm => fn(mm.nodes[id])); nb.sig = ''; }, true);
     const tx = h('div',{class:'nbrow'});
-    const bB = nbChip('', null, '', 'bold', { html:'<b class="tb">B</b>', on:n.bold, title:'굵게' }); bB.onclick = set(q => { q.bold = !q.bold; });
-    const bS = nbChip('', null, '', 'fs-', { html:'<b class="tb sm">A</b>', on:n.fsz==='s', title:'글자 작게' }); bS.onclick = set(q => { q.fsz = q.fsz==='l' ? '' : 's'; });
-    const bL = nbChip('', null, '', 'fs+', { html:'<b class="tb lg">A</b>', on:n.fsz==='l', title:'글자 크게' }); bL.onclick = set(q => { q.fsz = q.fsz==='s' ? '' : 'l'; });
-    const l1 = nbChip('', 'lineThin', '', 'lw-', { on:n.lw==='thin', off:isRoot, title:'연결선 얇게' }); l1.onclick = set(q => { q.lw = q.lw==='thin' ? '' : 'thin'; });
-    const l2 = nbChip('', 'lineThick', '', 'lw+', { on:n.lw==='thick', off:isRoot, title:'연결선 굵게' }); l2.onclick = set(q => { q.lw = q.lw==='thick' ? '' : 'thick'; });
-    const l3 = nbChip('', 'dash', '', 'ld', { on:n.ldash, off:isRoot, title:'연결선 점선' }); l3.onclick = set(q => { q.ldash = !q.ldash; });
+    const nBold = !n.bold, nS = n.fsz==='s' ? '' : 's', nL = n.fsz==='l' ? '' : 'l', nT = n.lw==='thin' ? '' : 'thin', nK = n.lw==='thick' ? '' : 'thick', nD = !n.ldash;
+    const bB = nbChip('', null, '', 'bold', { html:'<b class="tb">B</b>', on:n.bold, title:'굵게' }); bB.onclick = apply(q => { q.bold = nBold; });
+    const bS = nbChip('', null, '', 'fs-', { html:'<b class="tb sm">A</b>', on:n.fsz==='s', title:'글자 작게' }); bS.onclick = apply(q => { q.fsz = nS; });
+    const bL = nbChip('', null, '', 'fs+', { html:'<b class="tb lg">A</b>', on:n.fsz==='l', title:'글자 크게' }); bL.onclick = apply(q => { q.fsz = nL; });
+    const l1 = nbChip('', 'lineThin', '', 'lw-', { on:n.lw==='thin', off:isRoot && styScope==='self', title:'연결선 얇게' }); l1.onclick = apply(q => { q.lw = nT; }, true);
+    const l2 = nbChip('', 'lineThick', '', 'lw+', { on:n.lw==='thick', off:isRoot && styScope==='self', title:'연결선 굵게' }); l2.onclick = apply(q => { q.lw = nK; }, true);
+    const l3 = nbChip('', 'dash', '', 'ld', { on:n.ldash, off:isRoot && styScope==='self', title:'연결선 점선' }); l3.onclick = apply(q => { q.ldash = nD; }, true);
     tx.append(bB, bS, bL, h('span',{class:'ssep'}), l1, l2, l3);
     nbFly.append(nbSection('글자 · 선'), tx);
-    const er = h('div',{class:'nbrow'}), mapEs = (cur().edgeStyle)||'curve';
-    const setEs = (v) => act(() => { const tree = !!quickTreeScope; mutate(mm => { mm.nodes[id].es = v; if(tree) desc(id).forEach(d => { mm.nodes[d].es = v; }); }); nb.sig = ''; }, true);
-    const e0 = nbChip('', null, '', 'es0', { html:'<b class="tb sm">기본</b>', on:!n.es, off:isRoot, title:'맵 전체 설정을 따라요 (⋯ → 정렬 → 선 모양)' }); e0.onclick = setEs('');
+    const er = h('div',{class:'nbrow'});
+    const e0 = nbChip('', null, '', 'es0', { html:'<b class="tb sm">기본</b>', on:!n.es, off:isRoot && styScope==='self', title:'맵 전체 설정을 따라요 (⋯ → 정렬 → 선 모양)' }); e0.onclick = apply(q => { q.es = ''; }, true);
     er.append(e0);
-    [['curve','곡선'],['elbow','직각'],['line','직선']].forEach(([v,l]) => { const b = nbChip('', null, '', 'es-'+v, { html:layIcon('edge_'+v, 18), on:(n.es||'')===v, off:isRoot, title:'이 노드로 오는 선: '+l }); b.onclick = setEs(v); er.append(b); });
-    const etree = h('label',{class:'nbtree'}, h('input',{ type:'checkbox', checked:!!quickTreeScope, onchange:e => { quickTreeScope = e.target.checked; nb.sig = ''; } }), h('span',{},'하위 포함'));
-    er.append(etree);
-    nbFly.append(nbSection('이 노드로 오는 선 모양'), er);
+    [['curve','곡선'],['elbow','직각'],['line','직선']].forEach(([v,l]) => { const b = nbChip('', null, '', 'es-'+v, { html:layIcon('edge_'+v, 18), on:(n.es||'')===v, off:isRoot && styScope==='self', title:'노드로 오는 선: '+l }); b.onclick = apply(q => { q.es = v; }, true); er.append(b); });
+    nbFly.append(nbSection('선 모양'), er);
+    const lr = h('div',{class:'nbrow'});
+    LAYOUTS.forEach(([lid, lab]) => {
+      const b = nbChip('', null, '', 'lay-'+lid, { html:layIcon(lid, 18), on:n.layout===lid, title:'배치: '+lab });
+      b.onclick = act(() => { const tid = styScope==='all' ? m.rootId : id; applyLayout(tid, lid, false, styScope!=='self'); nb.sig = ''; if(styScope!=='self') toast(styScope==='all' ? '맵 전체를 “'+lab+'”로 배치했어요' : '하위까지 “'+lab+'”로 배치했어요'); const q = N()[id]; if(q) nbRenderFly(q); }, true);
+      lr.append(b);
+    });
+    nbFly.append(nbSection('배치 방식 (아래 가지)'), lr);
   }else if(nb.open==='color'){
     const g = h('div',{class:'nbgrid c6'});
     PALETTE.forEach(c => {
