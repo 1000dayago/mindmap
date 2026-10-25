@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610251014">
+<meta name="app-version" content="202610251024">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1596,7 +1596,7 @@ function normalizeMap(raw, keepId){
       color:/^#[0-9a-f]{6}$/i.test(r.color||'')?r.color:null, colorOnly:!!r.colorOnly, dashed:!!r.dashed, collapsed:!!r.collapsed,
       layout:LAYOUT_IDS.includes(r.layout)?r.layout:null, label:String(r.label||''), kind:(r.kind==='yes'||r.kind==='no')?r.kind:'',
       memo:String(r.memo||'').slice(0,20000), memoH:cleanMemoH(r.memoH, String(r.memo||'').slice(0,20000)), hideDone:!!r.hideDone,
-      tag:TAG_IDS.includes(r.tag)?r.tag:'', mk:(r.mk==='check'||r.mk==='clock')?r.mk:'', mv:Math.max(0, Math.min(4, parseInt(r.mv,10)||0)), bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox, val:(typeof r.val==='number' && isFinite(r.val)) ? r.val : null, unit:String(r.unit||'').slice(0,8), agg:['sum','avg','max','min','cnt'].includes(r.agg)?r.agg:'',
+      tag:TAG_IDS.includes(r.tag)?r.tag:'', mk:(r.mk==='check'||r.mk==='clock')?r.mk:'', mv:Math.max(0, Math.min(4, parseInt(r.mv,10)||0)), bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, es:['curve','elbow','line'].includes(r.es)?r.es:'', pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox, val:(typeof r.val==='number' && isFinite(r.val)) ? r.val : null, unit:String(r.unit||'').slice(0,8), agg:['sum','avg','max','min','cnt'].includes(r.agg)?r.agg:'',
       checks:(Array.isArray(r.checks)?r.checks:[]).slice(0,500).map(c => ({ id:String((c&&c.id)||uid()), t:String((c&&c.t)||'').slice(0,500), d:!!(c&&c.d) })),
       urls:(Array.isArray(r.urls)?r.urls:[]).slice(0,100).map(u => ({ id:String((u&&u.id)||uid()), name:String((u&&u.name)||'').slice(0,100), url:cleanUrl(u&&u.url), path:String((u&&u.path)||'').slice(0,500), k:String((u&&u.k)||'').slice(0,12) })).filter(u => u.url || u.path),
       evId:String(r.evId||''), evRole:['root','title','date','body','evn','grp'].includes(r.evRole)?r.evRole:'', esig:String(r.esig||'').slice(0,12),
@@ -1886,8 +1886,8 @@ function edgeSvg(p, n, dark, focusSet, opt){
   const col = isYN ? (n.kind==='yes' ? YES_C : NO_C) : cc.base;
   const dx = n.x-p.x, dy = n.y-p.y, adx = Math.abs(dx), ady = Math.abs(dy);
   let x1,y1,x2,y2, sx0 = 0, sy0 = 0, style = 'h';     // sx0,sy0 = 부모에서 자식 쪽으로 나가는 방향
-  const es = (cur() && cur().edgeStyle) || 'curve';   // 선 모양: curve 곡선 · elbow 직각 · line 직선
-  let diag = es==='line' ? (adx > 1 || ady > 1) : (es==='elbow' ? false : (adx > 1 && ady > 1 && ady/adx > .6 && ady/adx < 1.67));   // 대각선(약 31°~59°)
+  const es = n.es || (cur() && cur().edgeStyle) || 'curve';   // 선 모양: curve 곡선 · elbow 직각 · line 직선
+  let diag = es==='line' ? (adx > 1 || ady > 1) : (es==='elbow' ? false : (adx > 1 && ady > 1 && ady/adx > .6 && ady/adx < 1.67 && (isVertical(p) || p.layout==='down')));   // 대각선(약 31°~59°)
   if(diag && es!=='line'){   // 직선이 다른 노드를 지나가면 대각선을 쓰지 않고 옆으로 돌아가는 곡선으로 바꾼다
     const L0 = Math.hypot(dx, dy), ux = dx/L0, uy = dy/L0, a1 = edgeReach(p, ux, uy), a2 = edgeReach(n, ux, uy);
     if(edgeBlocked(p, n, p.x+ux*a1, p.y+uy*a1, n.x-ux*a2, n.y-uy*a2)) diag = false;
@@ -1897,7 +1897,7 @@ function edgeSvg(p, n, dark, focusSet, opt){
     const L = Math.hypot(dx, dy); sx0 = dx / L; sy0 = dy / L; style = 'd';
     const t1 = edgeReach(p, sx0, sy0), t2 = edgeReach(n, sx0, sy0);
     x1 = p.x + sx0*t1; y1 = p.y + sy0*t1; x2 = n.x - sx0*t2; y2 = n.y - sy0*t2;
-  }else if(ady > adx && !(es==='elbow' && !isVertical(p) && p.layout!=='down' && adx > 1)){
+  }else if(ady > adx && !(es!=='line' && !isVertical(p) && p.layout!=='down' && adx > 1)){
     const sy = dy>=0 ? 1 : -1; sy0 = sy; style = 'v';
     x1 = p.x; y1 = p.y + sy*p.h/2; x2 = n.x; y2 = n.y - sy*n.h/2;
   }else{
@@ -3070,7 +3070,7 @@ function openLayoutSheet(){
     b.append(h('div',{class:'lbl'},'선 모양 (이 맵)'));
     const er = h('div',{class:'layrow'});
     [['curve','곡선'],['elbow','직각'],['line','직선']].forEach(([v,l]) => {
-      const bt = ib('edge_'+v, l, ((cur().edgeStyle)||'curve')===v, () => { cur().edgeStyle = v; saveSoon(); render(); [...er.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); }, l);
+      const bt = ib('edge_'+v, l, ((cur().edgeStyle)||'curve')===v, () => { cur().edgeStyle = v; Object.values(cur().nodes).forEach(q => { q.es = ''; }); saveSoon(); render(); [...er.children].forEach(c => c.classList.remove('on')); bt.classList.add('on'); }, l);
       er.append(bt);
     });
     b.append(er);
@@ -3188,7 +3188,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610251014';
+const APP_VER = '202610251024';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3489,7 +3489,7 @@ nbFly.addEventListener('pointerdown', e => { if(inl) e.preventDefault(); });
 
 /* ---------- 하위 메뉴(플라이아웃) ---------- */
 function nbSig(n){
-  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.mk, n.mv, n.bold, n.fsz, n.lw, n.ldash, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
+  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.mk, n.mv, n.bold, n.fsz, n.lw, n.ldash, n.es, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
 }
 function nbChip(cls, icon, label, act, o){
   o = o || {};
@@ -3542,6 +3542,14 @@ function nbRenderFly(n){
     const l3 = nbChip('', 'dash', '', 'ld', { on:n.ldash, off:isRoot, title:'연결선 점선' }); l3.onclick = set(q => { q.ldash = !q.ldash; });
     tx.append(bB, bS, bL, h('span',{class:'ssep'}), l1, l2, l3);
     nbFly.append(nbSection('글자 · 선'), tx);
+    const er = h('div',{class:'nbrow'}), mapEs = (cur().edgeStyle)||'curve';
+    const setEs = (v) => act(() => { const tree = !!quickTreeScope; mutate(mm => { mm.nodes[id].es = v; if(tree) desc(id).forEach(d => { mm.nodes[d].es = v; }); }); nb.sig = ''; }, true);
+    const e0 = nbChip('', null, '', 'es0', { html:'<b class="tb sm">기본</b>', on:!n.es, off:isRoot, title:'맵 전체 설정을 따라요 (⋯ → 정렬 → 선 모양)' }); e0.onclick = setEs('');
+    er.append(e0);
+    [['curve','곡선'],['elbow','직각'],['line','직선']].forEach(([v,l]) => { const b = nbChip('', null, '', 'es-'+v, { html:layIcon('edge_'+v, 18), on:(n.es||'')===v, off:isRoot, title:'이 노드로 오는 선: '+l }); b.onclick = setEs(v); er.append(b); });
+    const etree = h('label',{class:'nbtree'}, h('input',{ type:'checkbox', checked:!!quickTreeScope, onchange:e => { quickTreeScope = e.target.checked; nb.sig = ''; } }), h('span',{},'하위 포함'));
+    er.append(etree);
+    nbFly.append(nbSection('이 노드로 오는 선 모양'), er);
   }else if(nb.open==='color'){
     const g = h('div',{class:'nbgrid c6'});
     PALETTE.forEach(c => {
