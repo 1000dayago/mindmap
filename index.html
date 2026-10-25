@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610251056">
+<meta name="app-version" content="202610260055">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1290,6 +1290,11 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
 #nodectl .nbbar .nb-val.has::after{content:'';position:absolute;right:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
 .mmenu .mmsec{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.02em;padding:10px 6px 2px;margin-top:2px;border-top:1px solid var(--line)}
 .mmenu .mmsec:first-child{border-top:0;margin-top:0;padding-top:2px}
+#msBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 62px);z-index:40;display:flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;border-radius:999px;background:var(--bg,#fff);border:1.5px solid #3b82f6;box-shadow:0 4px 14px rgba(0,0,0,.16);font-size:12px;font-weight:800;color:#2563eb}
+#msBar.hidden{display:none}
+#msBar button{border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;background:color-mix(in srgb,#3b82f6 14%,transparent);color:#2563eb;cursor:pointer}
+#msBar button.msx{background:color-mix(in srgb,#ef4444 14%,transparent);color:#dc2626}
+#msBar button:disabled{opacity:.4}
 
 </style>
 </head>
@@ -1828,6 +1833,7 @@ function nodeColors(n, dark){
 /* ===================== 렌더링 ===================== */
 const svg = $('#svg'), world = $('#world');
 let view = { x:0, y:0, k:1 };
+let msel = new Set(), multiMode = false;
 let sel = null, focusId = null, viewStack = [], singleMove = false, viewReady = false, dropId = null;
 
 function shapeSvg(shape, w, hgt, fill, stroke, sw, dash){
@@ -1946,6 +1952,7 @@ function nodeSvg(n, dark, focusSet, opt){
   let s = `<g data-nid="${n.id}" transform="translate(${n.x},${n.y})" opacity="${dim?0.18:(cutSetNow && cutSetNow.has(n.id) ? 0.38 : (n.tag==='done' ? 0.62 : 1))}" style="cursor:pointer">`;
   if(!opt.exporting && dropId===n.id) s += shapeSvg(n.shape, n.w+18, n.h+18, 'rgba(34,197,94,.14)', '#22c55e', 3, true);
   if(selected) s += `<g opacity=".3">${shapeSvg(n.shape, n.w+12, n.h+12, 'none', acc, 6, false)}</g>`;
+  if(!opt.exporting && msel.has(n.id)) s += `<g opacity=".55">${shapeSvg(n.shape, n.w+12, n.h+12, 'rgba(59,130,246,.14)', '#3b82f6', 3.2, false)}</g>`;
   if(!opt.exporting && mode){
     if(mode.type==='group' && mode.set.has(n.id)) s += `<g opacity=".55">${shapeSvg(n.shape, n.w+14, n.h+14, 'rgba(34,197,94,.15)', '#22c55e', 4, false)}</g>`;
     if(mode.type==='link' && mode.from===n.id) s += `<g opacity=".6">${shapeSvg(n.shape, n.w+14, n.h+14, 'rgba(139,92,246,.15)', '#8b5cf6', 4, true)}</g>`;
@@ -1994,6 +2001,7 @@ function buildWorld(opt){
 let rafPending = false;
 function render(){
   const m = cur(); if(!m) return;
+  try{ msUI(); }catch(_){}
   if(sel) selLink = null;
   if(selLink && !m.links[selLink]) selLink = null;
   world.innerHTML = buildWorld({});
@@ -2301,7 +2309,43 @@ function askText(o){
 
 /* ===================== 노드 작업 ===================== */
 function haptic(ms=12){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(_){} }
+function msIds(){ const m = cur(); return m ? [...msel].filter(i => m.nodes[i]) : []; }
+function msClear(){ msel.clear(); multiMode = false; if(styScope==='multi') styScope = 'self'; }
+function msToggle(id){
+  const m = cur(); if(!m || !m.nodes[id]) return;
+  if(!msel.size && sel && sel!==id && m.nodes[sel]) msel.add(sel);
+  if(msel.has(id)) msel.delete(id); else msel.add(id);
+  sel = msel.has(id) ? id : ([...msel].pop() || null);
+  if(msel.size>1) styScope = 'multi'; else if(styScope==='multi') styScope = 'self';
+  haptic(); render(); nb.sig = '';
+}
+function msUI(){
+  let el = $('#msBar');
+  const ids = msIds(), on = ids.length>0 || multiMode;
+  if(!on){ if(el) el.classList.add('hidden'); return; }
+  if(!el){
+    el = h('div',{ id:'msBar' }, h('span',{class:'mst'}), h('button',{ type:'button', class:'msx', title:'선택한 노드 모두 삭제' }, '삭제'), h('button',{ type:'button', class:'msc', title:'선택 해제' }, '해제'));
+    el.querySelector('.msc').onclick = () => { msClear(); nb.sig = ''; render(); };
+    el.querySelector('.msx').onclick = () => deleteMany();
+    document.body.append(el);
+  }
+  el.classList.remove('hidden');
+  el.querySelector('.mst').textContent = ids.length ? ids.length+'개 선택' : '다중 선택 · 노드를 탭하세요';
+  el.querySelector('.msx').disabled = ids.length<1;
+}
+function deleteMany(){
+  const m = cur(), set = new Set(msIds().filter(i => i!==m.rootId));
+  if(!set.size){ toast('삭제할 노드가 없어요'); return; }
+  if(lockedMsg()) return;
+  const top = [...set].filter(i => { let p = m.nodes[i].parent; while(p){ if(set.has(p)) return false; p = m.nodes[p] && m.nodes[p].parent; } return true; });
+  if(!confirm(set.size+'개 노드를 삭제할까요? (하위 노드도 함께 지워져요)')) return;
+  top.forEach(i => { try{ trashSubtree(i); }catch(_){} });
+  mutate(mm => { top.forEach(i => { const q = mm.nodes[i]; if(!q) return; const p = mm.nodes[q.parent]; if(p) p.children = p.children.filter(c => c!==i); [i, ...desc(i)].forEach(d => { delete mm.nodes[d]; }); }); if(S().auto) tidyMap(mm); });
+  msClear(); sel = null; nb.sig = ''; render();
+  toast(top.length+'개를 삭제했어요', { label:'되돌리기', fn:() => undo() });
+}
 function select(id){
+  msClear();
   try{ if(id) noteRecent(data.current, id); }catch(e){}
   flushSheet(); if(id!==cutId) cutId = null;
   sel = id; selLink = null; haptic(); render();
@@ -2884,6 +2928,7 @@ function endPointer(e, cancelled){
   else if(g.kind==='link'){ sel = null; selLink = g.id; render(); }
   else if(g.kind==='group'){ const gg = cur().groups[g.id]; if(gg){ if(gg.collapsed) toggleGroupCollapse(g.id); else openGroupSheet(g.id); } }
   else if(g.kind==='lh'){ /* 가운데 점만 탭: 변화 없음 */ }
+  else if(g.kind==='node' && (e.ctrlKey || e.metaKey || e.shiftKey || multiMode)){ ctlGuardUntil = performance.now() + 300; msToggle(g.id); }
   else if(g.kind==='node'){
     const now = performance.now();
     // 한 번 = 선택, 두 번(600ms 이내) = 기존 노드 편집
@@ -2897,7 +2942,8 @@ function endPointer(e, cancelled){
       ctlGuardUntil = now + 500;
       select(g.id);
     }
-  }else{ if(sel || selLink){ sel = null; selLink = null; render(); } }
+  }else if(multiMode){ /* 다중 선택 중에는 빈 곳을 눌러도 선택을 풀지 않는다 */ }
+  else{ if(msel.size){ msClear(); nb.sig = ''; } if(sel || selLink){ sel = null; selLink = null; render(); } else if(!msel.size) render(); }
 }
 svg.addEventListener('pointerup', e => endPointer(e,false));
 svg.addEventListener('pointercancel', e => endPointer(e,true));
@@ -3232,7 +3278,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610251056';
+const APP_VER = '202610260055';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3500,7 +3546,7 @@ const nbBar = $('#nbBar'), nbFly = $('#nbFly'), nbPlus = $('#nbPlus');
 const nbSvgIc = (name, sz, sw) => '<svg class="svgi" viewBox="0 0 24 24" width="'+sz+'" height="'+sz+'" fill="none" stroke="currentColor" stroke-width="'+(sw||2.2)+'" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[name]||'')+'</svg>';
 
 /* ---------- 막대 ---------- */
-const NB_BTNS = [['add','추가 (상위 · 하위 · 형제)'],['del','제거 (상위 · 하위 · 노드)'],['fold','하위 접기/펼치기'],['shape','노드 스타일 (모양 · 글자 · 선)'],['color','색상'],['val','값 · 하위 합계'],['more','더보기 (태그 · 복사 · 정렬 …)']];
+const NB_BTNS = [['add','추가 (상위 · 하위 · 형제)'],['del','제거 (상위 · 하위 · 노드)'],['fold','하위 접기/펼치기'],['shape','노드 스타일 (모양 · 글자 · 선)'],['color','색상'],['multi','다중 선택 (탭해서 여러 개 고르기)'],['val','값 · 하위 합계'],['more','더보기 (태그 · 복사 · 정렬 …)']];
 NB_BTNS.forEach(([k,t]) => nbBar.append(h('button',{ type:'button', class:'nbb nb-'+k, 'data-nb':k, title:t, 'aria-label':t })));
 function nbUpdate(n){
   const rid = cur().rootId, has = n.children.length>0;
@@ -3511,6 +3557,7 @@ function nbUpdate(n){
   const dark = isDark(), cc = nodeColors(n, dark);
   set('shape', '<svg width="17" height="14" viewBox="0 0 20 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1.5" width="18" height="13" rx="4"/><path d="M5.5 11.5 8.6 4.5l3.1 7M6.7 9.2h3.8M14 6.5v5"/></svg>').classList.toggle('on', nb.open==='shape');
   set('color', '<i class="dot" style="background:'+cc.base+'"></i>').classList.toggle('on', nb.open==='color');
+  { const mb = set('multi', '<svg width="15" height="14" viewBox="0 0 20 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="1.5" y="1.5" width="11" height="9" rx="2.5"/><rect x="7.5" y="7" width="11" height="9" rx="2.5" fill="var(--bg,#fff)"/></svg>'); mb.classList.toggle('on', multiMode || msel.size>1); }
   { const sb = set('val', nbSvgIc('sigma',13,2.2)); sb.classList.toggle('has', n.val!=null); }
   set('more', nbSvgIc('more',12,2)).classList.toggle('on', nb.open==='more');
 }
@@ -3524,8 +3571,17 @@ nbBar.addEventListener('mousedown', e => e.preventDefault());
 nbBar.addEventListener('click', e => {
   const b = e.target.closest('button[data-nb]'); if(!b || b.disabled || !sel) return;
   if(performance.now() < ctlGuardUntil){ e.preventDefault(); e.stopPropagation(); return; }
-  if(b.dataset.nb==='fold'){ toggleCollapse(sel); return; }
-  if(b.dataset.nb==='val'){ if(nb.open){ nbClose(); } openValSheet(sel); return; }
+  if(b.dataset.nb==='multi'){
+    if(multiMode || msel.size){ msClear(); }
+    else{ multiMode = true; if(sel) msel.add(sel); toast('다중 선택: 노드를 탭하면 더해지고 빠져요'); }
+    nbClose(); nb.sig = ''; render(); return;
+  }
+  if(b.dataset.nb==='fold'){
+    const ids = msIds();
+    if(ids.length>1){ const to = !cur().nodes[sel].collapsed; mutate(mm => { ids.forEach(i => { const q = mm.nodes[i]; if(q && q.children.length) q.collapsed = to; }); if(S().auto) tidyMap(mm); }, { force:true }); return; }
+    toggleCollapse(sel); return;
+  }
+  if(b.dataset.nb==='val'){ if(msIds().length>1){ toast('합계(Σ)는 노드 하나씩 설정해요'); return; } if(nb.open){ nbClose(); } openValSheet(sel); return; }
   nbToggle(b.dataset.nb);
 });
 nbFly.addEventListener('mousedown', e => e.preventDefault());
@@ -3534,7 +3590,7 @@ nbFly.addEventListener('pointerdown', e => { if(inl) e.preventDefault(); });
 
 /* ---------- 하위 메뉴(플라이아웃) ---------- */
 function nbSig(n){
-  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.mk, n.mv, n.bold, n.fsz, n.lw, n.ldash, n.es, styScope, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
+  return [nb.open, n.id, n.shape, n.color, n.colorOnly, n.tag, n.mk, n.mv, n.bold, n.fsz, n.lw, n.ldash, n.es, styScope, msel.size, n.pin, n.due, n.val, n.unit, n.agg, n.children.length, n.parent, (n.memo||'').trim()?1:0, n.checks.length, n.urls.length, n.table?1:0, n.evId, nodeClip?(nodeClip.cut?2:1):0, quickTreeScope?1:0].join('|');
 }
 function nbChip(cls, icon, label, act, o){
   o = o || {};
@@ -3549,7 +3605,9 @@ function nbRenderFly(n){
   nbFly.innerHTML = ''; nbFly.dataset.k = nb.open;
   const row = (...els) => h('div',{class:'nbrow'}, ...els.filter(Boolean));
   const act = (fn, keep) => (e) => { e.stopPropagation(); if(performance.now() < ctlGuardUntil) return; fn(); if(!keep){ nbClose(); placeCtl(); } };
-  if(nb.open==='add'){
+  if(styScope==='multi' && msIds().length<2) styScope = 'self';
+  if((nb.open==='add' || nb.open==='del') && msIds().length>1 && nb.open==='add'){ nbFly.append(h('div',{class:'nbs'}, h('em',{}, '여러 개를 고른 상태에서는 노드를 추가할 수 없어요'))); }
+  else if(nb.open==='add'){
     nbFly.append(row(
       nbChip('plus','up','상위','pPlus',{ off:isRoot, title:'상위 노드 추가 (이 노드 위에 끼워 넣기)' }),
       nbChip('plus','child','하위','cPlus',{ title:'하위 노드 추가 (Tab)' }),
@@ -3561,18 +3619,18 @@ function nbRenderFly(n){
   }else if(nb.open==='del'){
     const noP = isRoot || !par || !par.parent;
     nbFly.append(row(
-      nbChip('minus','up','상위','pMinus',{ off:noP, title:'상위 노드 삭제 (하위가 한 단계 올라와요)' }),
-      nbChip('minus','child','하위','cMinus',{ off:!n.children.length, title:'마지막 하위 노드 삭제' }),
+      nbChip('minus','up','상위','pMinus',{ off:noP || msIds().length>1, title:'상위 노드 삭제 (하위가 한 단계 올라와요)' }),
+      nbChip('minus','child','하위','cMinus',{ off:!n.children.length || msIds().length>1, title:'마지막 하위 노드 삭제' }),
       nbChip('minus red','trash','노드','x',{ off:isRoot, title:'이 노드 삭제 (하위 포함)' })));
     const bs = nbFly.querySelectorAll('.nbf');
     bs[0].onclick = act(() => removeParent(id));
     bs[1].onclick = act(() => removeLastChild(id));
-    bs[2].onclick = act(() => deleteNode(id));
+    bs[2].onclick = act(() => { if(msIds().length>1) deleteMany(); else deleteNode(id); });
   }else if(nb.open==='shape'){
     // 적용 범위: 이 노드만 / 하위 포함 / 전체
-    const scopeIds = () => styScope==='all' ? Object.keys(cur().nodes) : styScope==='tree' ? [id].concat(desc(id)) : [id];
+    const scopeIds = () => styScope==='multi' ? msIds() : styScope==='all' ? Object.keys(cur().nodes) : styScope==='tree' ? [id].concat(desc(id)) : [id];
     const sg = h('div',{class:'nbrow sscope'});
-    [['self','노드'],['all','전체'],['tree','하위']].forEach(([v,l]) => {
+    [['self','노드'],['all','전체'],['tree','하위']].concat(msIds().length>1 ? [['multi','선택 '+msIds().length]] : []).forEach(([v,l]) => {
       const b = h('button',{ type:'button', class:'nbf wide'+(styScope===v?' on':''), title:l }, l);
       b.onclick = (e) => { e.stopPropagation(); if(performance.now() < ctlGuardUntil) return; styScope = v; nbRenderFly(N()[id]); };
       sg.append(b);
@@ -3605,7 +3663,7 @@ function nbRenderFly(n){
     const lr = h('div',{class:'nbrow'});
     LAYOUTS.forEach(([lid, lab]) => {
       const b = nbChip('', null, '', 'lay-'+lid, { html:layIcon(lid, 18), on:n.layout===lid, title:'배치: '+lab });
-      b.onclick = act(() => { const tid = styScope==='all' ? m.rootId : id; applyLayout(tid, lid, false, styScope!=='self'); nb.sig = ''; if(styScope!=='self') toast(styScope==='all' ? '맵 전체를 “'+lab+'”로 배치했어요' : '하위까지 “'+lab+'”로 배치했어요'); const q = N()[id]; if(q) nbRenderFly(q); }, true);
+      b.onclick = act(() => { if(styScope==='multi'){ msIds().forEach((i, k) => applyLayout(i, lid, k>0, false)); nb.sig = ''; toast(msIds().length+'개 노드의 아래 가지를 “'+lab+'”로 배치했어요'); const q0 = N()[id]; if(q0) nbRenderFly(q0); return; } const tid = styScope==='all' ? m.rootId : id; applyLayout(tid, lid, false, styScope!=='self'); nb.sig = ''; if(styScope!=='self') toast(styScope==='all' ? '맵 전체를 “'+lab+'”로 배치했어요' : '하위까지 “'+lab+'”로 배치했어요'); const q = N()[id]; if(q) nbRenderFly(q); }, true);
       lr.append(b);
     });
     nbFly.append(nbSection('배치 방식 (아래 가지)'), lr);
@@ -3613,13 +3671,19 @@ function nbRenderFly(n){
     const g = h('div',{class:'nbgrid c6'});
     PALETTE.forEach(c => {
       const b = h('button',{ type:'button', class:'nbc'+(n.color===c?' on':''), style:'background:'+c, title:c, 'aria-label':'색상 '+c });
-      b.onclick = act(() => setColor(id, c, quickTreeScope ? 'tree' : 'self'));
+      b.onclick = act(() => { const ids = msIds(); if(ids.length>1){ mutate(mm => { ids.forEach(i => { const q = mm.nodes[i]; q.color = c; q.colorOnly = !quickTreeScope; if(quickTreeScope) desc(i).forEach(d => { mm.nodes[d].color = null; mm.nodes[d].colorOnly = false; }); }); }); } else setColor(id, c, quickTreeScope ? 'tree' : 'self'); });
       g.append(b);
     });
     const auto = h('button',{ type:'button', class:'nbf wide'+(!n.color?' on':''), title:'자동 색상' }, '자동');
-    auto.onclick = act(() => clearColor(id));
+    auto.onclick = act(() => { const ids = msIds(); if(ids.length>1) mutate(mm => { ids.forEach(i => { mm.nodes[i].color = null; mm.nodes[i].colorOnly = false; }); }); else clearColor(id); });
     const tree = h('label',{class:'nbtree'}, h('input',{ type:'checkbox', checked:!!quickTreeScope, onchange:e => { quickTreeScope = e.target.checked; nb.sig = ''; } }), h('span',{},'하위 포함'));
     nbFly.append(g, row(auto, tree));
+  }else if(nb.open==='more' && msIds().length>1){
+    const ids = msIds(), tg = h('div',{class:'nbrow'});
+    TAGS.forEach(([k,emo,label]) => { const b = nbChip('tag', null, '', 'tag', { html:'<b>'+emo+'</b>', on:n.tag===k, title:label }); b.onclick = act(() => { const to = n.tag===k ? '' : k; mutate(mm => { ids.forEach(i => { mm.nodes[i].tag = to; }); }); }); tg.append(b); });
+    tg.append(h('span',{class:'ssep'}));
+    ['check','clock'].forEach(k => { const b = nbChip('', null, '', 'mk-'+k, { html:'<svg viewBox="-10 -10 20 20" width="15" height="15">'+mkInner(k, k==='check' ? 0 : 2, '#fff', 7.5)+'</svg>', on:n.mk===k, title:k==='check' ? '체크 아이콘' : '진행률 아이콘' }); b.onclick = act(() => { const off = n.mk===k; mutate(mm => { ids.forEach(i => { const q = mm.nodes[i]; q.mk = off ? '' : k; q.mv = 0; }); }); }); tg.append(b); });
+    nbFly.append(nbSection(ids.length+'개 선택 · 태그 · 아이콘'), tg, h('div',{class:'nbs'}, h('em',{}, '글 · 메모 · 복사 등은 노드 하나씩 해요')));
   }else if(nb.open==='more'){
     const set = (fn) => act(() => { mutate(mm => fn(mm.nodes[id])); nb.sig = ''; }, true);
     // 태그
