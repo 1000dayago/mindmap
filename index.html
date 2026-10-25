@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610250032">
+<meta name="app-version" content="202610250926">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1288,6 +1288,8 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
 }
 #nodectl .nbbar .nb-val{position:relative}
 #nodectl .nbbar .nb-val.has::after{content:'';position:absolute;right:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.mmenu .mmsec{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:.02em;padding:10px 6px 2px;margin-top:2px;border-top:1px solid var(--line)}
+.mmenu .mmsec:first-child{border-top:0;margin-top:0;padding-top:2px}
 
 </style>
 </head>
@@ -3163,7 +3165,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610250032';
+const APP_VER = '202610250926';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3293,23 +3295,28 @@ function openHelp(){
     b.append(h('table',{class:'help'}, rows.map(r => h('tr',null,h('td',null,r[0]),h('td',null,r[1])))));
   });
 }
+function mmSec(t){ return h('div',{ class:'mmsec' }, t); }
 function openMore(){
   openSheet('메뉴', b => {
     b.append(h('div',{class:'list mmenu'},
+      mmSec('맵'),
       menuItem('📁','맵 목록 / 새 맵', openMapList),
       menuItem('✏️','맵 이름 변경', () => renameMap(data.current)),
-      menuItem('💾','현재 맵 JSON 저장', exportCurrent),
-      menuItem('📦','전체 맵 백업 (JSON)', exportAll),
-      menuItem('📂','JSON 불러오기', () => $('#fileIn').click()),
-      menuItem('clip','엑셀에서 붙여넣기', () => openPasteSheet(sel && N()[sel] ? sel : null)),
-      menuItem('copy','엑셀로 복사 (선택 노드 하위 / 맵 전체)', () => copyTSV(sel && N()[sel] ? sel : cur().rootId)),
-      menuItem('🖼️','PNG 이미지로 저장', exportPNG),
       menuItem('zoom','검색 (노드 · 메모 · 일정)', openSearch),
       menuItem('trash','휴지통 (30일 보관)', openTrash),
+      mmSec('저장 · 내보내기'),
+      menuItem('💾','현재 맵 저장 (JSON)', exportCurrent),
+      menuItem('📦','전체 맵 백업 (JSON)', exportAll),
+      menuItem('🖼️','PNG 이미지로 저장', exportPNG),
+      menuItem('copy','엑셀로 복사 (선택 노드 하위 / 맵 전체)', () => copyTSV(sel && N()[sel] ? sel : cur().rootId)),
+      mmSec('불러오기'),
+      menuItem('📂','불러오기 (글 · 엑셀 · CSV · JSON)', () => openImportSheet(sel && N()[sel] ? sel : null)),
       menuItem('archive','자동 백업에서 복원', openBackups),
+      mmSec('설정 · 연동'),
       menuItem('cloud','동기화 · 구글 연동', openSyncSheet),
       menuItem('⚙️','설정', openSettings),
       menuItem('❓','사용법', openHelp),
+      mmSec('위험'),
       menuItem('🗑️','이 맵 삭제', () => deleteMap(data.current), { danger:true })
     ));
   });
@@ -4877,7 +4884,7 @@ function countTree(t){ let c = 0; (function w(x){ x.kids.forEach(k => { c++; w(k
 function depthTree(t){ let d = 0; (function w(x,l){ x.kids.forEach(k => { d = Math.max(d,l+1); w(k,l+1); }); })(t,0); return d; }
 function addTreeTo(nodes, pid, kids){
   kids.forEach(k => {
-    const c = mkNode({ parent:pid, text:k.text, urls:k.urls.map(u => ({ id:uid(), name:'', url:u })) });
+    const c = mkNode(Object.assign({ parent:pid, text:k.text }, k.a || {}, { urls:k.urls.map(u => ({ id:uid(), name:'', url:u })).concat((k.a && k.a.urls) || []) }));
     nodes[c.id] = c; nodes[pid].children.push(c.id);
     addTreeTo(nodes, c.id, k.kids);
   });
@@ -4920,6 +4927,343 @@ function pasteUnder(tree, pid){
   }
   return overlap;
 }
+/* ===================== 가져오기 (글 · 엑셀 · CSV · JSON → 마인드맵) ===================== */
+const IMP_AL = {};
+[['memo','메모','note','notes','설명','내용','비고'],['color','색','색상','color','colour'],['shape','모양','shape'],
+ ['link','링크','주소','url','urls','link','links'],['check','체크','체크리스트','할일','todo','checks','checklist'],
+ ['val','값','value','val','금액','수량'],['unit','단위','unit'],['due','기한','마감','마감일','due','deadline'],
+ ['bold','굵게','bold'],['tag','태그','tag'],['fold','접기','collapsed','fold']].forEach(r => r.slice(1).forEach(a => { IMP_AL[a.toLowerCase()] = r[0]; }));
+const IMP_COL = { '빨강':'#ef4444','빨간색':'#ef4444','red':'#ef4444','주황':'#f97316','주황색':'#f97316','orange':'#f97316','노랑':'#f5a524','노란색':'#f5a524','yellow':'#f5a524',
+  '초록':'#10b981','초록색':'#10b981','green':'#10b981','청록':'#14b8a6','teal':'#14b8a6','파랑':'#3b82f6','파란색':'#3b82f6','blue':'#3b82f6',
+  '보라':'#8b5cf6','보라색':'#8b5cf6','purple':'#8b5cf6','분홍':'#ec4899','핑크':'#ec4899','pink':'#ec4899','갈색':'#a0522d','brown':'#a0522d',
+  '회색':'#8a94a6','gray':'#8a94a6','grey':'#8a94a6','검정':'#2b2130','검은색':'#2b2130','black':'#2b2130','코랄':'#ff7a59','살구':'#ff7a59' };
+function impColor(v){
+  let s = String(v==null ? '' : v).trim().toLowerCase(); if(!s) return null;
+  if(IMP_COL[s]) return IMP_COL[s];
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/.exec(s); if(!m) return null;
+  let x = m[1]; if(x.length===3) x = x.split('').map(c => c+c).join('');
+  return '#'+x;
+}
+function impDate(v){
+  if(typeof v==='number' && v>20000 && v<80000){ const d = new Date(Date.UTC(1899,11,30)+Math.round(v)*864e5); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); }
+  const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(String(v==null ? '' : v)); if(!m) return '';
+  return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+}
+const impBool = v => v===true || /^(1|y|yes|true|o|ㅇ|예|네|v|✓|✔|x)$/i.test(String(v==null ? '' : v).trim());
+function impItems(v, urls){
+  if(Array.isArray(v)) return v;
+  const s = String(v==null ? '' : v).trim(); if(!s) return [];
+  return (urls ? s.split(/[\s;]+/) : s.split(/\r?\n|;|\|/)).map(x => x.trim()).filter(Boolean);
+}
+const IMP_TAG = { '중요':'star','급함':'fire','진행중':'doing','진행':'doing','완료':'done','확인':'ask','확인필요':'ask','아이디어':'idea','⭐':'star','🔥':'fire','⏳':'doing','✅':'done','❓':'ask','💡':'idea' };
+const IMP_SHP = { '둥근':'rounded','사각':'rect','네모':'rect','타원':'ellipse','원':'ellipse','다이아몬드':'diamond','판단':'diamond','육각':'hexagon','평행사변형':'parallelogram','입출력':'parallelogram','원통':'cylinder','데이터':'cylinder','말풍선':'bubble' };
+function impSet(a, key, v){
+  if(v==null || v==='') return;
+  if(key==='memo'){ const s = String(v).replace(/\\n/g,'\n').trim(); if(s) a.memo = s.slice(0,20000); }
+  else if(key==='color'){ const c = impColor(v); if(c) a.color = c; }
+  else if(key==='shape'){ const s = String(v).trim().toLowerCase().replace(/\s*(사각형|모양)$/,''); const id = SHAPE_IDS.includes(s) ? s : (IMP_SHP[s] || IMP_SHP[Object.keys(IMP_SHP).find(k => s.startsWith(k))||'']); if(id) a.shape = id; }
+  else if(key==='link'){
+    const out = a.urls || [];
+    impItems(v, true).forEach(it => {
+      const o = (it && typeof it==='object') ? it : { url:it }, url = cleanUrl(o.url || o.href || '');
+      if(url) out.push({ id:uid(), name:String(o.name||o.title||'').slice(0,100), url, path:'', k:'' });
+    });
+    if(out.length) a.urls = out.slice(0,100);
+  }
+  else if(key==='check'){
+    const out = a.checks || [];
+    impItems(v, false).forEach(it => {
+      let t = '', d = false;
+      if(it && typeof it==='object'){ t = String(it.t || it.text || it.title || ''); d = !!(it.d || it.done); }
+      else{ t = String(it); const m = /^\s*(\[[xXvV✓✔]\]|\([xXvV✓✔]\)|[✓✔☑])\s*/.exec(t); if(m){ d = true; t = t.slice(m[0].length); } else t = t.replace(/^\s*(\[\s\]|\(\s\)|☐)\s*/, ''); }
+      t = t.trim(); if(t) out.push({ id:uid(), t:t.slice(0,500), d });
+    });
+    if(out.length) a.checks = out.slice(0,500);
+  }
+  else if(key==='val'){
+    if(typeof v==='number'){ if(isFinite(v)) a.val = v; return; }
+    const m = /^\s*(-?[\d,]*\.?\d+)\s*(.*)$/.exec(String(v)); if(!m) return;
+    const n = parseFloat(m[1].replace(/,/g,'')); if(isFinite(n)){ a.val = n; if(m[2] && !a.unit) a.unit = m[2].trim().slice(0,8); }
+  }
+  else if(key==='unit'){ a.unit = String(v).trim().slice(0,8); }
+  else if(key==='due'){ const d = impDate(v); if(d) a.due = d; }
+  else if(key==='bold'){ if(impBool(v)) a.bold = true; }
+  else if(key==='tag'){ const s = String(v).trim().toLowerCase().replace(/\s+/g,''); const id = TAG_IDS.includes(s) ? s : IMP_TAG[s]; if(id) a.tag = id; }
+  else if(key==='fold'){ if(impBool(v)) a.collapsed = true; }
+}
+// 표(행 · 열) → 트리. 첫 줄에 메모 · 색 · 링크 … 같은 제목이 있으면 그 열은 노드의 속성으로 읽는다.
+function impRows(rows, skipHeader){
+  const attrCols = {}; let lvEnd = Infinity, hdr = false;
+  (rows[0] || []).forEach((c, i) => { const k = IMP_AL[String(c==null ? '' : c).trim().toLowerCase()]; if(k){ attrCols[i] = k; if(i<lvEnd) lvEnd = i; } });
+  if(Object.keys(attrCols).length){ hdr = true; rows = rows.slice(1); } else if(skipHeader) rows = rows.slice(1);
+  const root = { text:null, kids:[], urls:[] }, path = [];
+  for(const row of rows){
+    let last = null;
+    for(let c=0; c<Math.min(row.length, lvEnd); c++){
+      const t = String(row[c]==null ? '' : row[c]).trim(); if(!t) continue;
+      let par = root; for(let j=c-1;j>=0;j--){ if(path[j]){ par = path[j]; break; } }
+      if(isUrlCell(t)){
+        const cu = cleanUrl(t);
+        if(last){ if(cu) last.urls.push(cu); continue; }
+        const nd = { text:hostOf(t), kids:[], urls:cu?[cu]:[] };
+        par.kids.push(nd); path[c] = nd; path.length = c+1; last = nd; continue;
+      }
+      const nd = { text:t, kids:[], urls:[] };
+      par.kids.push(nd); path[c] = nd; path.length = c+1; last = nd;
+    }
+    if(last && hdr){ const a = last.a || (last.a = {}); for(const col in attrCols) impSet(a, attrCols[col], row[col]); }
+  }
+  return { tree:root, attrs:[...new Set(Object.values(attrCols))] };
+}
+function impCSV(text){
+  text = String(text).replace(/\r\n?/g,'\n');
+  const first = text.split('\n')[0] || '', sep = (first.split(';').length > first.split(',').length) ? ';' : ',';
+  const rows = []; let row = [], cell = '', q = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){ cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if(ch==='"' && cell===''){ q = true; }
+    else if(ch===sep){ row.push(cell); cell = ''; }
+    else if(ch==='\n'){ row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if(cell!=='' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+// 글(txt · md · 붙여넣기) → 행. 마크다운 제목(#), 1.2.3 번호, 들여쓰기 · - 목록, 탭(엑셀)을 단계로 읽는다.
+function impTextRows(text, ext){
+  text = String(text).replace(/^﻿/,'');
+  if(ext==='csv') return impCSV(text);
+  if(/\t/.test(text)) return parseTSV(text);
+  const L = text.replace(/\r/g,'').split('\n');
+  if(L.some(l => /^\s{0,3}#{1,6}\s+\S/.test(l))){
+    let hd = -1; const out = [];
+    L.forEach(l => {
+      if(!l.trim()) return;
+      const m = /^\s{0,3}(#{1,6})\s+(.*)$/.exec(l);
+      if(m){ hd = m[1].length-1; out.push('\t'.repeat(hd)+m[2].trim()); return; }
+      const mm = /^(\s*)(?:[-*+•·]|\d+[.)])?\s*(.*)$/.exec(l), ind = Math.floor(mm[1].replace(/\t/g,'  ').length/2);
+      out.push('\t'.repeat(hd+1+ind)+mm[2].trim());
+    });
+    return parseTSV(out.join('\n'));
+  }
+  if(L.some(l => /^\s*\d+(\.\d+)+[.)]?\s+\S/.test(l))){
+    let last = 0; const out = [];
+    L.forEach(l => {
+      if(!l.trim()) return;
+      const m = /^\s*(\d+(?:\.\d+)*)[.)]?\s+(.*)$/.exec(l);
+      if(m){ last = m[1].split('.').length-1; out.push('\t'.repeat(last)+m[2].trim()); }
+      else out.push('\t'.repeat(last+1)+l.trim().replace(/^[-*•·]\s+/,''));
+    });
+    return parseTSV(out.join('\n'));
+  }
+  return parseTSV(outlineToTabs(text));
+}
+// JSON(간단한 트리) → 트리. { text, children:[…], memo, color, shape, links, checks, val, unit, due, tag, bold, fold }
+function impJsonNode(o){
+  if(typeof o==='string' || typeof o==='number') return { text:String(o).trim(), kids:[], urls:[] };
+  if(!o || typeof o!=='object') return null;
+  const text = String(o.text!=null ? o.text : (o.title!=null ? o.title : (o.name!=null ? o.name : (o.label!=null ? o.label : '')))).trim();
+  const kidsRaw = o.children || o.kids || o.items || o.nodes || [], a = {}, nd = { text, kids:[], urls:[], a };
+  Object.keys(o).forEach(k => { const key = IMP_AL[String(k).toLowerCase()]; if(key) impSet(a, key, o[k]); });
+  (Array.isArray(kidsRaw) ? kidsRaw : []).forEach(c => { const x = impJsonNode(c); if(x && x.text) nd.kids.push(x); });
+  return nd;
+}
+// 엑셀 .xlsx 읽기 (압축 풀기: 브라우저 DecompressionStream)
+async function impXlsx(buf){
+  const u8 = new Uint8Array(buf), dv = new DataView(buf), dec = new TextDecoder();
+  let e = u8.length-22; while(e>=0 && dv.getUint32(e,true)!==0x06054b50) e--;
+  if(e<0) throw new Error('zip');
+  const cnt = dv.getUint16(e+10,true); let p = dv.getUint32(e+16,true); const ent = {};
+  for(let i=0;i<cnt;i++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const nl = dv.getUint16(p+28,true), xl = dv.getUint16(p+30,true), cl = dv.getUint16(p+32,true);
+    ent[dec.decode(u8.subarray(p+46,p+46+nl))] = { m:dv.getUint16(p+10,true), cs:dv.getUint32(p+20,true), lh:dv.getUint32(p+42,true) };
+    p += 46+nl+xl+cl;
+  }
+  const rd = async name => {
+    const f = ent[name]; if(!f) return null;
+    const nl = dv.getUint16(f.lh+26,true), xl = dv.getUint16(f.lh+28,true), s = f.lh+30+nl+xl, data = u8.subarray(s, s+f.cs);
+    if(f.m===0) return dec.decode(data);
+    const ab = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+    return dec.decode(ab);
+  };
+  const xml = s => new DOMParser().parseFromString(s, 'application/xml');
+  const shared = [], ss = await rd('xl/sharedStrings.xml');
+  if(ss) xml(ss).querySelectorAll('si').forEach(si => { shared.push([...si.querySelectorAll('t')].map(t => t.textContent).join('')); });
+  const wb = xml(await rd('xl/workbook.xml')), rels = xml((await rd('xl/_rels/workbook.xml.rels')) || '<r/>'), relMap = {};
+  rels.querySelectorAll('Relationship').forEach(r => { relMap[r.getAttribute('Id')] = r.getAttribute('Target'); });
+  const sheets = [];
+  for(const sh of [...wb.querySelectorAll('sheet')]){
+    let tg = relMap[sh.getAttribute('r:id')] || relMap[sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id')] || '';
+    tg = tg.replace(/^\/?(xl\/)?/,''); const sx = await rd('xl/'+tg); if(!sx) continue;
+    const rows = [];
+    xml(sx).querySelectorAll('sheetData > row').forEach(r => {
+      const ri = (parseInt(r.getAttribute('r'),10) || rows.length+1) - 1; if(ri>5000) return;
+      const row = [];
+      r.querySelectorAll('c').forEach(c => {
+        const ref = (c.getAttribute('r')||'').replace(/\d+/g,''); let ci = 0; for(const ch of ref) ci = ci*26 + (ch.charCodeAt(0)-64); ci--;
+        if(ci<0 || ci>60) return;
+        const t = c.getAttribute('t'), v = c.querySelector('v'); let val = '';
+        if(t==='s') val = shared[parseInt(v && v.textContent,10)] || '';
+        else if(t==='inlineStr') val = [...c.querySelectorAll('t')].map(x => x.textContent).join('');
+        else if(v){ val = v.textContent; if(t!=='str' && t!=='b' && t!=='e' && val!=='' && !isNaN(+val)) val = +val; }
+        row[ci] = val;
+      });
+      for(let i=0;i<row.length;i++) if(row[i]==null) row[i] = '';
+      while(rows.length<ri) rows.push([]);
+      rows[ri] = row;
+    });
+    sheets.push({ name:sh.getAttribute('name') || ('시트'+(sheets.length+1)), rows });
+  }
+  return sheets;
+}
+const IMP_LIM = 3000;
+function impUsed(){ let u = 0; try{ for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); u += k.length + (localStorage.getItem(k)||'').length; } }catch(_){} return u; }
+function impBudget(c){ const used = impUsed(), est = c*520, cap = 4100000; return { ok:used+est<cap, used, est, cap, most:Math.max(0, Math.floor((cap-used)/520)) }; }
+// 큰 트리를 맵 여러 개로 나눈다: 1단계 가지 단위로 묶고, 한 가지가 너무 크면 그 안에서 다시 나눈다
+function impSplit(kids, title, LIM){
+  const out = []; let cur = [], cs = 0;
+  const flush = () => { if(cur.length){ out.push(cur.length===1 ? { name:title+' · '+cur[0].text, kids:cur[0].kids, root:cur[0] } : { name:title, kids:cur, many:true }); cur = []; cs = 0; } };
+  kids.forEach(k => {
+    const sz = 1+countTree(k);
+    if(sz>LIM){ flush(); impSplit(k.kids, title+' · '+k.text, LIM).forEach(x => out.push(x)); }
+    else{ if(cs+sz>LIM) flush(); cur.push(k); cs += sz; }
+  });
+  flush(); return out;
+}
+// 한 맵으로 넣을 때: 3단계 아래는 접어 둔다
+function impFoldDeep(t, keep){ (function w(x, d){ x.kids.forEach(k => { if(d>=keep && k.kids.length){ (k.a || (k.a = {})).collapsed = true; } w(k, d+1); }); })(t, 1); }
+const IMP_GUIDE = `마인드맵 가져오기 JSON 형식 (이 형식으로 만들어 주세요)
+{
+  "name": "맵 이름",
+  "children": [
+    { "text": "노드 글",
+      "memo": "메모 내용 (줄바꿈은 \\n)",
+      "color": "#3b82f6 또는 파랑",
+      "shape": "rounded | rect | ellipse | diamond | hexagon | parallelogram | cylinder | bubble",
+      "links": ["https://…", {"name":"이름","url":"https://…"}],
+      "checks": ["할 일", "[x] 끝낸 일"],
+      "val": 15000, "unit": "원",
+      "due": "2026-10-31",
+      "tag": "star | fire | doing | done | ask | idea",
+      "bold": true, "fold": false,
+      "children": [ … 같은 모양으로 계속 … ] }
+  ]
+}
+※ text 외의 항목은 모두 선택입니다. 엑셀·CSV는 왼쪽 열부터 단계(1단계, 2단계 …)로 쓰고, 오른쪽에 제목줄(메모·색·모양·링크·체크·값·단위·기한·태그·굵게·접기)이 있는 열을 두면 속성으로 읽습니다.`;
+function openImportSheet(under){
+  openSheet('가져오기 · 글 · 엑셀 · JSON', b => {
+    b.append(h('p',{class:'note'},'글, 엑셀(.xlsx) · CSV, JSON 파일을 마인드맵으로 가져와요. 파일을 고르거나 아래에 붙여넣으세요.'));
+    let src = { kind:'text', text:'', ext:'txt', sheets:null, si:0, obj:null }, dest = under ? 'under' : 'new', header = false, bigMode = 'split';
+    const fi = h('input',{ type:'file', class:'hidden', accept:'.txt,.md,.csv,.tsv,.xlsx,.json,.text,text/plain,application/json' });
+    const fname = h('span',{ class:'note', style:'margin-left:8px' }, '');
+    const pick = h('button',{ class:'btn', type:'button', onclick:() => fi.click() }, '파일 선택');
+    const ta = h('textarea',{ class:'field', rows:6, placeholder:'여기에 글 · 엑셀 셀 · JSON을 붙여넣기', style:'margin-top:8px;white-space:pre;overflow-x:auto' });
+    const shSel = h('select',{ class:'field hidden', style:'margin-top:6px' });
+    const info = h('p',{class:'note',style:'margin:8px 0 0;font-weight:700'},'');
+    const center = h('input',{ class:'field', type:'text', value:'가져온 맵', placeholder:'새 맵 이름' });
+    const centerBox = h('div',{}, h('div',{class:'lbl'},'새 맵 이름'), center);
+    const bigSeg = h('div',{class:'seg'}), bSplit = h('button',{ class:'on', type:'button', onclick:() => setBig('split') }, '맵 여러 개로 나누기'), bOne = h('button',{ type:'button', onclick:() => setBig('one') }, '한 맵에 접어서');
+    bigSeg.append(bSplit, bOne);
+    const bigBox = h('div',{ class:'hidden' }, h('div',{class:'lbl'},'노드가 많아요 (3000개 초과)'), bigSeg);
+    function setBig(m){ bigMode = m; bSplit.classList.toggle('on', m==='split'); bOne.classList.toggle('on', m==='one'); refresh(); }
+    const seg = h('div',{class:'seg'});
+    const bNew = h('button',{ class:dest==='new'?'on':'', type:'button', onclick:() => setDest('new') },'새 맵으로');
+    const bUnder = h('button',{ class:dest==='under'?'on':'', type:'button', disabled:!under, onclick:() => setDest('under') }, under ? '“'+short(N()[under].text)+'” 하위로' : '선택 노드 하위로');
+    seg.append(bNew, bUnder);
+    function setDest(d){ dest = d; bNew.classList.toggle('on', d==='new'); bUnder.classList.toggle('on', d==='under'); centerBox.classList.toggle('hidden', d!=='new'); refresh(); }
+    const bigNow = c => c>IMP_LIM;
+    function detect(text){
+      const t = String(text).trim();
+      if(/^[\[{]/.test(t)){ try{ const o = JSON.parse(t); return { kind:(o && (Array.isArray(o.maps) || (o.nodes && o.rootId))) ? 'backup' : 'json', obj:o }; }catch(_){} }
+      return { kind:'text', obj:null };
+    }
+    function build(){
+      if(src.kind==='backup') return { backup:true };
+      if(src.kind==='json'){
+        const o = src.obj; let tree = { text:null, kids:[], urls:[] }, name = '';
+        if(Array.isArray(o)) o.forEach(x => { const n = impJsonNode(x); if(n && n.text) tree.kids.push(n); });
+        else if(o && typeof o==='object'){
+          const r = impJsonNode(o);
+          if(r){
+            const hasKids = r.kids.length > 0;
+            if(dest==='new' && (hasKids || r.text)){ name = r.text; tree.kids = hasKids ? r.kids : []; if(!hasKids && r.text) tree.kids = [r]; }
+            else tree.kids = r.text ? [r] : r.kids;
+          }
+        }
+        return { tree, name, attrs:[] };
+      }
+      const rows = src.kind==='xlsx' ? ((src.sheets[src.si]||{}).rows || []) : impTextRows(src.text, src.ext);
+      const r = impRows(rows, header); return { tree:r.tree, name:'', attrs:r.attrs };
+    }
+    const ATTR_KO = { memo:'메모', color:'색', shape:'모양', link:'링크', check:'체크', val:'값', unit:'단위', due:'기한', bold:'굵게', tag:'태그', fold:'접기' };
+    function refresh(){
+      if(!src.text && !src.sheets){ info.textContent = ''; return; }
+      if(src.kind==='backup'){ info.textContent = '이 앱의 백업 파일이에요 · 맵과 일정을 그대로 불러와요'; return; }
+      let r; try{ r = build(); }catch(e){ info.textContent = '읽지 못했어요'; return; }
+      const c = countTree(r.tree);
+      let attrN = 0; (function w(x){ x.kids.forEach(k => { if(k.a && Object.keys(k.a).length) attrN++; w(k); }); })(r.tree);
+      const bg = impBudget(c), big = bigNow(c);
+      bigBox.classList.toggle('hidden', !(big && dest==='new'));
+      let extra = ''; if(big) extra = dest==='new' ? (bigMode==='split' ? ' · '+impSplit(r.tree.kids, 'x', IMP_LIM).length+'개 맵으로 나눠요' : ' · 3단계 아래는 접어서 가져와요') : ' · 3단계 아래는 접어서 가져와요';
+      info.textContent = c ? ('노드 '+c+'개 · 단계 '+depthTree(r.tree)+'단계'+(attrN ? ' · 속성 있는 노드 '+attrN+'개' : '')+(r.attrs && r.attrs.length ? ' (열: '+r.attrs.map(k => ATTR_KO[k]).join('·')+')' : '')+extra+(bg.ok ? '' : ' · 저장 공간이 모자라요 (약 '+bg.most+'개까지)')) : '노드를 찾지 못했어요';
+      if(src.kind==='json' && r.name && dest==='new' && !center._touched) center.value = r.name;
+    }
+    center.addEventListener('input', () => { center._touched = true; });
+    function setText(text, ext){
+      const d = detect(text); src = Object.assign(src, { kind:d.kind, obj:d.obj, text, ext:ext||'txt', sheets:null }); shSel.classList.add('hidden'); refresh();
+    }
+    ta.addEventListener('input', () => { fname.textContent = ''; setText(ta.value, 'txt'); });
+    shSel.addEventListener('change', () => { src.si = +shSel.value; refresh(); });
+    fi.addEventListener('change', async () => {
+      const f = fi.files[0]; fi.value = ''; if(!f) return;
+      const ext = (f.name.split('.').pop() || '').toLowerCase(); fname.textContent = f.name;
+      try{
+        if(ext==='xlsx'){
+          const sheets = await impXlsx(await f.arrayBuffer());
+          if(!sheets.length){ toast('엑셀에서 시트를 찾지 못했어요'); return; }
+          src = { kind:'xlsx', text:'', ext, sheets, si:0, obj:null }; ta.value = '';
+          shSel.innerHTML = ''; sheets.forEach((s, i) => shSel.append(h('option',{ value:i }, s.name+' ('+s.rows.length+'행)')));
+          shSel.classList.toggle('hidden', sheets.length<2); if(!center._touched) center.value = f.name.replace(/\.[^.]+$/,''); refresh();
+        }else{
+          const text = await f.text(); ta.value = text.length>200000 ? '' : text; setText(text, ext);
+          if(src.kind==='json' && (!center._touched)) center.value = f.name.replace(/\.[^.]+$/,'');
+          else if(dest==='new' && !center._touched) center.value = f.name.replace(/\.[^.]+$/,'');
+        }
+      }catch(e){ toast('파일을 읽지 못했어요'); }
+    });
+    const guide = h('details',{ style:'margin-top:10px' }, h('summary',{ style:'cursor:pointer;font-weight:700;font-size:13px' }, '형식 안내 · JSON 예시 (AI에게 줄 설명)'),
+      h('pre',{ style:'white-space:pre-wrap;font-size:11.5px;line-height:1.5;background:var(--accent-soft);padding:10px;border-radius:10px;margin:6px 0' }, IMP_GUIDE),
+      h('button',{ class:'btn', type:'button', onclick:() => { try{ navigator.clipboard.writeText(IMP_GUIDE).then(() => toast('형식 설명을 복사했어요'), () => showCopyBox(IMP_GUIDE)); }catch(_){ showCopyBox(IMP_GUIDE); } } }, '설명 복사'));
+    b.append(h('div',{ class:'row' }, pick, fname), fi, ta, shSel, info, h('div',{class:'lbl'},'가져올 위치'), seg, centerBox,
+      bigBox, toggleRow('첫 행은 제목줄이라서 건너뛰기', false, v => { header = v; refresh(); }), guide,
+      h('div',{class:'row end'}, h('button',{class:'btn',onclick:() => closeSheet()},'취소'),
+        h('button',{class:'btn primary',onclick:() => {
+          if(!src.text && !src.sheets){ toast('파일을 고르거나 내용을 붙여넣으세요'); return; }
+          if(src.kind==='backup'){ closeSheet(true); importFile(new Blob([src.text], { type:'application/json' })); return; }
+          const r = build(), t = r.tree, c = countTree(t);
+          if(!c){ toast('노드를 찾지 못했어요'); return; }
+          const bg = impBudget(c);
+          if(!bg.ok){ toast('폰 저장 공간이 모자라요 · 약 '+bg.most+'개까지 가져올 수 있어요. 안 쓰는 맵을 지우거나 나눠서 가져오세요'); return; }
+          const nm = (center.value.trim() || r.name || '가져온 맵');
+          closeSheet(true);
+          if(dest==='under' && under && N()[under]){
+            if(bigNow(c)) impFoldDeep(t, 2);
+            const ov = pasteUnder(t, under); toast(c+'개 노드를 가져왔어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : '')+(ov ? ' · 겹치면 「정렬」을 눌러 정리하세요' : ''));
+          }else if(bigNow(c) && bigMode==='split'){
+            const parts = impSplit(t.kids, nm, IMP_LIM);
+            parts.forEach(pt => { pasteNewMap({ text:null, kids:pt.kids, urls:[] }, pt.name.slice(0,60)); });
+            toast(c+'개 노드를 맵 '+parts.length+'개로 나눠서 가져왔어요');
+          }else{
+            if(bigNow(c)) impFoldDeep(t, 2);
+            pasteNewMap(t, nm); toast(c+'개 노드로 새 맵을 만들었어요'+(bigNow(c) ? ' · 3단계 아래는 접혀 있어요' : ''));
+          }
+        }},'가져오기')));
+    setDest(dest);
+  });
+}
+
 function openPasteSheet(under){
   openSheet('목차 · 엑셀에서 붙여넣기', b => {
     b.append(h('p',{class:'note'},'엑셀에서 셀을 복사(Ctrl+C)해서 아래에 붙여넣으세요. 열이 오른쪽으로 갈수록 하위 가지가 돼요. 들여쓰기(띄어쓰기)나 - 로 시작하는 목록도 단계로 읽어요. 빈 칸은 위 행과 같은 가지로 이어지고, http로 시작하는 칸은 링크가 돼요.'));
