@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610260921">
+<meta name="app-version" content="202610260940">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1304,6 +1304,7 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
   #calTop .chipbtn{padding:6px 10px}
   #calTop .ibtn{width:34px;height:34px}
 }
+#tdGear,#calGear{background:var(--grad);color:#fff;box-shadow:var(--grad-glow);border:none}
 
 </style>
 </head>
@@ -1323,6 +1324,7 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
       <button class="ibtn" id="tdAddEv" data-q="ev" title="일정 빠른 입력" aria-label="일정 빠른 입력"></button>
       <button class="ibtn" id="tdAddMap" data-q="map" title="노드 빠른 입력" aria-label="노드 빠른 입력"></button>
       <button class="ibtn" id="tdAddBoth" data-q="both" title="일정 + 노드 동시 저장" aria-label="일정과 노드 동시 저장"></button>
+      <button class="ibtn" id="tdGear" data-ic="more" data-sz="20" title="전체 설정" aria-label="전체 설정"></button>
     </header>
     <div id="tdBody"></div>
   </main>
@@ -1336,6 +1338,7 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
       <span class="sp"></span>
       <button class="ibtn" id="calSearchBtn" data-ic="zoom" data-sz="20" title="일정 검색"></button>
       <button class="ibtn" id="calCloud" data-ic="cloud" data-sz="20" title="동기화 · 구글 연동"></button>
+      <button class="ibtn" id="calGear" data-ic="more" data-sz="20" title="일정 옵션" aria-label="일정 옵션"></button>
     </header>
     <div id="calSeg" class="seg"><button data-v="year">년</button><button data-v="month">월</button><button data-v="week">주</button><button data-v="day">일</button><button data-v="done">완료</button></div>
     <div id="calSearchBar" class="hidden"><input id="calQ" class="field" type="search" placeholder="일정 검색 (제목 · 내용)"></div>
@@ -3287,7 +3290,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610260921';
+const APP_VER = '202610260940';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3368,12 +3371,7 @@ function exitInit(){
 }
 
 function openSettings(){
-  openSheet('설정', b => {
-    b.append(h('div',{class:'lbl'},'화면 모드'));
-    const sel_ = h('select',{class:'field',onchange:e=>{ S().theme = e.target.value; saveSoon(); applyTheme(); render(); }},
-      h('option',{value:'auto'},'시스템 설정 따라가기'), h('option',{value:'light'},'라이트'), h('option',{value:'dark'},'다크'));
-    sel_.value = S().theme; b.append(sel_);
-    b.append(h('div',{style:'height:8px'}));
+  openSheet('맵 설정', b => {
     b.append(h('div',{class:'lbl'},'정렬 방식'), autoModeRow());
     b.append(toggleRow('S펜 구분 (손가락은 화면 이동만, S펜은 노드 이동)', S().pen, v => { S().pen = v; saveSoon(); }));
     b.append(toggleRow('YES/NO 연결선 색 구분 (초록/빨강)', S().yesNoColor, v => { S().yesNoColor = v; saveSoon(); render(); }));
@@ -3382,10 +3380,36 @@ function openSettings(){
     b.append(toggleRow('격자 맞춤 (드래그 시 20px, 자유 배치일 때)', S().snap, v => { S().snap = v; saveSoon(); }));
     b.append(toggleRow('하위 보기 시 나머지 노드 흐리게', S().dim, v => { S().dim = v; saveSoon(); render(); }));
     b.append(toggleRow('빠른 서식 막대 (모양·색상을 상단에서 바로 변경)', quickBarOn(), v => { S().quickbar = v; saveSoon(); render(); requestAnimationFrame(ensureView); }));
+  });
+}
+function openGlobalSettings(){
+  openSheet('설정 · 전체', b => {
+    b.append(h('div',{class:'lbl'},'화면 모드'));
+    const sel_ = h('select',{class:'field',onchange:e=>{ S().theme = e.target.value; saveSoon(); applyTheme(); render(); }},
+      h('option',{value:'auto'},'시스템 설정 따라가기'), h('option',{value:'light'},'라이트'), h('option',{value:'dark'},'다크'));
+    sel_.value = S().theme; b.append(sel_);
+    b.append(h('div',{style:'height:8px'}));
     b.append(toggleRow('편집 잠금 (실수로 고치지 않게 · 위쪽 자물쇠로도 전환)', !!S().lock, v => { S().lock = v; saveSoon(); updateLockUI(); render(); }));
-    b.append(h('p',{class:'note',style:'margin:10px 2px 0;line-height:1.5'},'알림은 앱(브라우저)이 열려 있을 때만 울려요. 앱을 닫아도 꼭 받아야 하는 일정은 동기화 · 구글 연동에서 구글 캘린더로 올려 주세요.'));
-    b.append(h('div',{style:'height:6px'}), h('button',{class:'item',onclick:() => { closeSheet(true); openSyncSheet(); }}, h('span',{class:'ico',style:'--c:#10b981',html:ic('cloud',20)}), h('span',{class:'t'},'동기화 · 구글 연동')));
-    b.append(h('div',{class:'vernote'}, h('span',{}, '버전 '+verFmt(APP_VER)), h('span',{class:'sp'}), h('button',{class:'chipbtn',type:'button',onclick:() => verCheck(true)}, '업데이트 확인')));
+    b.append(h('div',{class:'list mmenu'},
+      mmSec('동기화 · 백업'),
+      menuItem('cloud','동기화 · 구글 연동', openSyncSheet),
+      menuItem('archive','자동 백업에서 복원', openBackups),
+      mmSec('앱'),
+      menuItem('🔄', '최신 버전 확인 · '+verFmt(APP_VER), () => verCheck(true)),
+      menuItem('❓','사용법', openHelp)));
+  });
+}
+function openCalOptions(){
+  openSheet('일정 옵션', b => {
+    b.append(h('div',{class:'list mmenu'},
+      mmSec('구글 캘린더'),
+      menuItem('calendar','구글 캘린더에서 가져오기', openCalImport),
+      menuItem('cloud','구글 캘린더로 올리기', openCalUpload),
+      mmSec('내보내기'),
+      menuItem('dl','일정 엑셀로 내보내기', openExport),
+      mmSec('연결'),
+      menuItem('cloud','동기화 · 구글 연동', openSyncSheet)));
+    b.append(h('p',{class:'note',style:'margin:10px 2px 0;line-height:1.5'},'알림은 앱(브라우저)이 열려 있을 때만 울려요. 앱을 닫아도 꼭 받으려면 구글 캘린더로 올려 두세요.'));
   });
 }
 function openHelp(){
@@ -3433,12 +3457,8 @@ function openMore(){
       menuItem('copy','엑셀로 복사 (선택 노드 하위 / 맵 전체)', () => copyTSV(sel && N()[sel] ? sel : cur().rootId)),
       mmSec('불러오기'),
       menuItem('📂','불러오기 (글 · 엑셀 · CSV · JSON)', () => openImportSheet(sel && N()[sel] ? sel : null)),
-      menuItem('archive','자동 백업에서 복원', openBackups),
-      mmSec('설정 · 연동'),
-      menuItem('cloud','동기화 · 구글 연동', openSyncSheet),
-      menuItem('🔄', '최신 버전 확인 · '+verFmt(APP_VER), () => verCheck(true)),
-      menuItem('⚙️','설정', openSettings),
-      menuItem('❓','사용법', openHelp),
+      mmSec('설정'),
+      menuItem('⚙️','맵 설정', openSettings),
       mmSec('위험'),
       menuItem('🗑️','이 맵 삭제', () => deleteMap(data.current), { danger:true })
     ));
@@ -7276,6 +7296,8 @@ function calMove(dir){
 }
 $('#calPrev').addEventListener('click', () => calMove(-1));
 $('#calNext').addEventListener('click', () => calMove(1));
+$('#tdGear').addEventListener('click', openGlobalSettings);
+$('#calGear').addEventListener('click', openCalOptions);
 $('#calToday').addEventListener('click', () => { cal.date = todayStr(); cal.sel = cal.date; cal.search = false; renderCal(); });
 $('#calSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if(!b) return; cal.view = b.dataset.v; try{ localStorage.setItem('mm_calview', cal.view); }catch(_){} renderCal(); });
 $('#calSearchBtn').addEventListener('click', () => { cal.search = !cal.search; if(cal.search) setTimeout(() => $('#calQ').focus(), 30); renderCal(); });
