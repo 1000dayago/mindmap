@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610260940">
+<meta name="app-version" content="202610260957">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1305,6 +1305,9 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
   #calTop .ibtn{width:34px;height:34px}
 }
 #tdGear,#calGear{background:var(--grad);color:#fff;box-shadow:var(--grad-glow);border:none}
+/* 주황 ⋯ 옵션 버튼: 작게 */
+#topbar #moreMenu,#tdTop #tdGear,#calTop #calGear,#moreMenu,#tdGear,#calGear{width:30px !important;height:30px !important;min-width:30px !important;min-height:30px !important;padding:0 !important;border-radius:50%;margin-left:4px;box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 35%,transparent)}
+#moreMenu svg,#tdGear svg,#calGear svg{width:15px;height:15px}
 
 </style>
 </head>
@@ -3290,7 +3293,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610260940';
+const APP_VER = '202610260957';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
