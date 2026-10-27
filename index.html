@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610271829">
+<meta name="app-version" content="202610271844">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3293,7 +3293,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610271829';
+const APP_VER = '202610271844';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5887,8 +5887,6 @@ function openGroupDetail(name){
     b.append(h('div',{ class:'gprog', style:gv(g.color) },
       h('div',{ class:'gbar' }, h('i',{ style:'width:'+pct+'%' })),
       h('small',{}, (g.total ? g.done+'/'+g.total+' 완료' : '일정 '+g.evs.length+'개')+(g.from ? ' · '+fmtMD(g.from)+(g.to!==g.from ? ' ~ '+fmtMD(g.to) : '') : ''))));
-    b.append(grpNowCard(g));
-    if(g.from) b.append(h('div',{ class:'row', style:'gap:6px;margin:8px 0' }, h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => { cal.grp = g.name; cal.date = g.from; cal.sel = g.from; closeSheet(true); renderCal(); } }, '달력에서 보기')));
     if(g.evs.length){
       b.append(h('div',{ class:'lbl' }, '그룹 일정 (날짜 순)'));
       const list = h('div',{ class:'agenda' }), rowsBy = {};
@@ -5900,26 +5898,37 @@ function openGroupDetail(name){
         list.append(row);
       }); b.append(list);
     }
-    if(!g.evs.length) b.append(h('p',{ class:'note', style:'margin:10px 2px' }, '아직 일정이 없어요. 아래 「그룹내 일정 추가」나 「템플릿」으로 넣어 보세요.'));
+    if(!g.evs.length) b.append(h('p',{ class:'note', style:'margin:10px 2px' }, '아직 일정이 없어요. 아래 「그룹내 일정 추가」나 「템플릿으로 단계 추가」로 넣어 보세요.'));
+    // 일정 조정 (다음에 할 단계부터 미루기)
+    { const nx = grpNextEv(g);
+      if(nx){
+        const later = g.evs.filter(e => !isRep(e) && !doneOf(e, e.date) && (e.date>nx.date || e===nx || (e.date===nx.date && g.evs.indexOf(e)>=g.evs.indexOf(nx))));
+        b.append(h('div',{ class:'lbl' }, '일정 조정 · 다음 단계 “'+short(nx.title||'(제목 없음)')+'”부터'));
+        b.append(h('div',{ class:'row', style:'gap:6px;margin:4px 0 6px' },
+          h('button',{ type:'button', class:'btn', style:'flex:1', onclick:() => grpShift([nx], 1, '“'+nx.title+'”을 하루 미뤘어요') }, '하루 미루기'),
+          h('button',{ type:'button', class:'btn', style:'flex:1', onclick:() => grpShift(later, 1, '이 단계부터 뒤 '+later.length+'개를 하루씩 밀었어요') }, '뒤로 전부 밀기')));
+      } }
+    // 추가
     b.append(h('div',{ class:'lbl' }, '그룹내 일정 추가'));
-    b.append(h('div',{ class:'row', style:'gap:6px;margin:4px 0 6px' }, h('button',{ class:'btn primary', type:'button', style:'flex:1', onclick:() => { closeSheet(true); openEventEditor(null,{ grp:g.name, ds:(g.to && g.to>=todayStr()) ? (todayStr()>g.from ? todayStr() : g.from) : (g.to||todayStr()) }); } }, '+ 그룹내 일정 추가 (자세히)')));
+    b.append(h('div',{ class:'row', style:'gap:6px;margin:4px 0 6px' },
+      h('button',{ class:'btn primary', type:'button', style:'flex:1', onclick:() => { closeSheet(true); openEventEditor(null,{ grp:g.name, ds:(g.to && g.to>=todayStr()) ? (todayStr()>g.from ? todayStr() : g.from) : (g.to||todayStr()) }); } }, '+ 그룹내 일정 추가'),
+      h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => { closeSheet(true); setTimeout(() => openTplApply(g.name), 60); } }, '템플릿으로 단계 추가')));
     b.append(grpStepAdd(g));
+    // 이름 · 색 (바꾸면 바로 저장)
     let col = g.color; const nm = h('input',{ class:'field', type:'text', value:g.name, maxlength:40 });
+    const apply = () => { const old = name, nn = (nm.value.trim().slice(0,40) || old); if(nn!==old && grpList().some(x => x.name===nn)){ toast('같은 이름의 그룹이 이미 있어요'); nm.value = old; return; } if(nn===old && col===g.color) return; grpEdit(old, nn, col); name = nn; toast('저장했어요'); };
+    nm.addEventListener('change', apply);
+    nm.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); nm.blur(); } });
     const sw = h('div',{ class:'grid sw', style:'grid-template-columns:repeat(8,1fr)' });
-    EV_COLORS.forEach(c => { const bt = h('button',{ class:'swatch'+(c===col ? ' on' : ''), type:'button', style:'background:'+c+';min-height:30px', 'aria-label':c, onclick:() => { col = c; [...sw.children].forEach(x => x.classList.remove('on')); bt.classList.add('on'); } }); sw.append(bt); });
-    b.append(h('div',{ class:'lbl' }, '그룹 이름 · 색'), nm, h('div',{ style:'height:6px' }), sw,
-      h('div',{ class:'row end', style:'margin-top:10px;gap:6px' },
-        h('button',{ class:'btn primary', type:'button', onclick:() => { const old = g.name; const nn = (nm.value.trim().slice(0,40) || old); if(nn!==old && grpList().some(x => x.name===nn)){ toast('같은 이름의 그룹이 이미 있어요'); return; } grpEdit(old, nn, col); name = nn; toast('저장했어요'); } }, '이름 · 색 저장')));
+    EV_COLORS.forEach(c => { const bt = h('button',{ class:'swatch'+(c===col ? ' on' : ''), type:'button', style:'background:'+c+';min-height:30px', 'aria-label':c, onclick:() => { col = c; [...sw.children].forEach(x => x.classList.remove('on')); bt.classList.add('on'); apply(); } }); sw.append(bt); });
+    b.append(h('div',{ class:'lbl' }, '그룹 이름 · 색 (바꾸면 바로 저장돼요)'), nm, h('div',{ style:'height:6px' }), sw);
+    // 더보기: 저장 · 연결
     const dt = h('details',{ class:'gdet', style:'margin-top:14px;border-top:1px solid var(--line);padding-top:8px' });
     if(grpTplOpen) dt.open = true;
     dt.addEventListener('toggle', () => { grpTplOpen = dt.open; });
-    dt.append(h('summary',{ style:'font-weight:800;font-size:13px;color:var(--sub);cursor:pointer;padding:6px 2px' }, '템플릿 · 연결'));
-    dt.append(h('div',{ class:'lbl' }, '템플릿'));
-    dt.append(h('div',{ class:'row', style:'gap:6px;margin:4px 0;flex-wrap:wrap' },
-      h('button',{ class:'btn', type:'button', style:'flex:1;min-width:140px', onclick:() => { closeSheet(true); setTimeout(() => openTplApply(g.name), 60); } }, '템플릿 단계 추가'),
-      g.evs.length ? h('button',{ class:'btn', type:'button', style:'flex:1;min-width:140px', onclick:() => gtplSaveFrom(g) }, '이 그룹으로 템플릿 만들기') : null,
-      h('button',{ class:'btn', type:'button', style:'flex:1;min-width:140px', onclick:() => { closeSheet(true); setTimeout(openTplList, 60); } }, '템플릿 관리')));
-    dt.append(h('p',{ class:'note', style:'margin:6px 2px' }, '템플릿 단계 추가: 정해 둔 단계를 일정으로 한 번에 넣어요. 이 그룹으로 템플릿 만들기: 지금 일정을 틀로 저장해 다음에 다시 써요.'));
+    dt.append(h('summary',{ style:'font-weight:800;font-size:13px;color:var(--sub);cursor:pointer;padding:6px 2px' }, '더보기 · 템플릿 저장 · 노드 연결'));
+    if(g.evs.length) dt.append(h('div',{ class:'row', style:'margin:6px 0' }, h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => gtplSaveFrom(g) }, '이 그룹을 템플릿으로 저장')),
+      h('p',{ class:'note', style:'margin:2px 2px 6px' }, '지금 일정을 틀로 저장해 두면 다음에 「템플릿으로 단계 추가」로 그대로 쓸 수 있어요. 템플릿 관리는 일정 목록 위 「템플릿」 버튼에서 해요.'));
     dt.append(h('div',{ class:'lbl' }, '관련 마인드맵 노드'), refField(() => grpRefsGet(g.name), v => { grpRefsSet(g.name, v); }, true));
     b.append(dt);
     b.append(h('div',{ class:'row', style:'margin-top:16px' }, h('button',{ class:'btn', type:'button', style:'color:var(--danger)', onclick:() => askDlg({ title:'그룹을 해제할까요?', sub:'일정은 그대로 남고 그룹 표시만 사라져요.', ok:'해제', danger:true }, () => { grpClear(g.name); closeSheet(true); toast('그룹을 해제했어요'); }) }, '그룹 해제')));
