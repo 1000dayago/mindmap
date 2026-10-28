@@ -1,0 +1,71 @@
+name: APK 만들기
+
+# GitHub 저장소 > Actions > "APK 만들기" > Run workflow 를 누르면
+# 저장소의 index.html 로 APK 를 만들어 Releases 에 올려요.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: 앱 프로젝트 만들기
+        run: |
+          mkdir app && cd app
+          npm init -y >/dev/null
+          npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/filesystem@6 @capacitor/share@6
+          mkdir www
+          cp ../index.html www/index.html
+          for f in manifest.json sw.js icon-192.png icon-512.png; do [ -f ../$f ] && cp ../$f www/$f || true; done
+          echo '{ "appId":"com.mindmap.app", "appName":"마인드맵", "webDir":"www" }' > capacitor.config.json
+          npx cap add android
+          npx cap sync android
+
+      - name: 버전 번호 · 아이콘 적용
+        run: |
+          cd app/android
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" app/build.gradle
+          if [ -f ../../icon-512.png ]; then
+            RES=app/src/main/res
+            rm -rf $RES/mipmap-anydpi-v26
+            for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+              n=${d%%:*}; s=${d##*:}
+              for f in ic_launcher ic_launcher_round; do
+                convert ../../icon-512.png -resize ${s}x${s} $RES/mipmap-$n/$f.png
+              done
+            done
+          fi
+
+      - name: 서명 키 넣기 (매번 같은 키 → 덮어서 업데이트 가능)
+        run: |
+          mkdir -p ~/.android
+          echo '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' | base64 -d > ~/.android/debug.keystore
+
+      - name: APK 빌드
+        run: |
+          cd app/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../../mindmap.apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: 마인드맵 APK ${{ github.run_number }}
+          body: "이 파일(mindmap.apk)을 받아 설치하세요. 기존 앱 위에 덮어서 설치하면 데이터는 유지돼요."
+          files: mindmap.apk
+          make_latest: true
