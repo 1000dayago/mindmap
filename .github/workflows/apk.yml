@@ -35,20 +35,28 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: 버전 번호 · 아이콘 적용
+      - name: 버전 번호 적용
         run: |
           cd app/android
           sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" app/build.gradle
-          if [ -f ../../icon-512.png ]; then
-            RES=app/src/main/res
-            rm -rf $RES/mipmap-anydpi-v26
-            for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-              n=${d%%:*}; s=${d##*:}
-              for f in ic_launcher ic_launcher_round; do
-                convert ../../icon-512.png -resize ${s}x${s} $RES/mipmap-$n/$f.png
-              done
+          grep -n "versionCode\|versionName" app/build.gradle
+
+      - name: 아이콘 적용 (실패해도 계속)
+        continue-on-error: true
+        run: |
+          [ -f icon-512.png ] || { echo "icon-512.png 없음 - 기본 아이콘 사용"; exit 0; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          IM=$(command -v magick || command -v convert)
+          echo "ImageMagick: $IM"
+          RES=app/android/app/src/main/res
+          rm -rf $RES/mipmap-anydpi-v26
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            n=${d%%:*}; s=${d##*:}
+            for f in ic_launcher ic_launcher_round; do
+              $IM icon-512.png -resize ${s}x${s} $RES/mipmap-$n/$f.png
             done
-          fi
+          done
 
       - name: 서명 키 넣기 (매번 같은 키 → 덮어서 업데이트 가능)
         run: |
