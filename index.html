@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610281759">
+<meta name="app-version" content="202610282125">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1745,6 +1745,21 @@ try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persis
   }catch(e){} }, 1500);
   setTimeout(safeMirror, 3000);   // 이미 있는 데이터도 사본을 한 번 만들어 둔다
 })();
+(function apkBridge(){
+  const C = window.Capacitor; if(!(C && C.isNativePlatform && C.isNativePlatform())) return;
+  const orig = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function(){
+    const a = this, P = C.Plugins || {};
+    if(a.download && /^blob:/.test(a.href) && P.Filesystem && P.Share){
+      fetch(a.href).then(r => r.blob()).then(b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(b); }))
+        .then(b64 => P.Filesystem.writeFile({ path:a.download, data:b64, directory:'CACHE' }))
+        .then(r => P.Share.share({ title:a.download, url:r.uri, dialogTitle:'파일 저장 · 공유' }))
+        .catch(() => { try{ orig.call(a); }catch(_){} });
+      return;
+    }
+    return orig.call(this);
+  };
+})();
 window.addEventListener('pagehide', saveNow);
 document.addEventListener('visibilitychange', () => { if(document.visibilityState==='hidden') saveNow(); });
 
@@ -3327,13 +3342,15 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610281759';
+const APP_VER = '202610282125';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
   let bar = $('#verBar'); if(bar) bar.remove();
   const hosted = location.origin==='https://1000dayago.github.io';
+  const apk = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const go = () => {
+    if(apk){ window.open('https://github.com/1000dayago/mindmap/releases/latest', '_blank'); return; }
     if(hosted){ try{ saveNow(); }catch(_){} bar.querySelector('button.vgo').disabled = true; setTimeout(() => { location.replace(location.pathname+'?u='+remote); }, 300); return; }
     try{
       const url = URL.createObjectURL(new Blob([text], { type:'text/html;charset=utf-8' })), a = h('a',{ href:url, download:'index.html' });
@@ -3344,7 +3361,7 @@ function verBar(remote, text){
   bar = h('div',{ id:'verBar', role:'status' },
     h('span',{class:'vi',html:ic(hosted ? 'rf' : 'dl', 18)}),
     h('span',{class:'vt'}, h('b',{}, '새 버전이 있어요'), h('small',{}, verFmt(remote))),
-    h('button',{class:'vgo',type:'button',onclick:go}, hosted ? '업데이트' : '다운로드'),
+    h('button',{class:'vgo',type:'button',onclick:go}, apk ? 'APK 받기' : (hosted ? '업데이트' : '다운로드')),
     h('button',{class:'vx',type:'button','aria-label':'닫기',title:'이 버전은 그만 알림',html:'✕',onclick:() => { try{ localStorage.setItem('mm_ver_skip', remote); }catch(_){} bar.remove(); }}));
   document.body.append(bar);
 }
