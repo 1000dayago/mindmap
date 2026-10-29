@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610282125">
+<meta name="app-version" content="202610290832">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3342,7 +3342,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610282125';
+const APP_VER = '202610290832';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5752,11 +5752,11 @@ function ordAssign(list){
   list.forEach(e => { if(e.ord==null) e.ord = ++m; });
 }
 // 손잡이를 잡고 위아래로 끌면 순서가 바뀐다 (완료한 일정은 완료끼리만)
-function startReorder(e, ev, ds){
+function startReorder(e, ev, ds, only){
   if(e.button!=null && e.button!==0) return;
   e.preventDefault(); e.stopPropagation();
   const row = e.currentTarget.closest('.evrow'), box = row.parentNode;
-  const all = eventsOn(ds, true), rows = [...box.querySelectorAll(':scope > .evrow')];
+  const all = only || eventsOn(ds, true), rows = [...box.querySelectorAll(':scope > .evrow')];
   if(rows.length!==all.length) return;
   const dn = !!doneOf(ev, ds), idx = all.map((x, i) => i).filter(i => !!doneOf(all[i], ds)===dn);
   const grp = idx.map(i => all[i]), gr = idx.map(i => rows[i]), rc = gr.map(r => r.getBoundingClientRect());
@@ -5794,12 +5794,17 @@ function startReorder(e, ev, ds){
   shield.addEventListener('pointerup', () => end(true));
   shield.addEventListener('pointercancel', () => end(false));
 }
+function ordResetBtn(list){
+  if(!list.some(e => !e.grp && e.ord!=null)) return null;
+  return h('button',{ class:'mini', type:'button', style:'width:auto;padding:0 10px;font-size:12px;font-weight:700', title:'직접 정한 순서를 지우고 시간순으로 되돌려요',
+    onclick:e => { e.stopPropagation(); list.forEach(x => { if(!x.grp) delete x.ord; }); saveSoon(); refreshEvViews(); toast('시간순으로 되돌렸어요'); } }, '시간순으로');
+}
 function ordToggle(){
   return h('button',{ class:'mini ordtg'+(cal.rord ? ' on' : ''), type:'button', title:'순서 바꾸기 (위쪽 일정이 달력에 먼저 보여요)', 'aria-label':'순서 바꾸기', html:ic('sort',16),
     onclick:e => { e.stopPropagation(); cal.rord = !cal.rord; renderCal(); } });
 }
-function ordGrip(ev, ds){
-  return h('span',{ class:'ordgrip', title:'끌어서 순서 바꾸기', 'aria-label':'끌어서 순서 바꾸기', html:ic('grip',20), onpointerdown:e => startReorder(e, ev, ds), onclick:e => e.stopPropagation() });
+function ordGrip(ev, ds, only){
+  return h('span',{ class:'ordgrip', title:'끌어서 순서 바꾸기', 'aria-label':'끌어서 순서 바꾸기', html:ic('grip',20), onpointerdown:e => startReorder(e, ev, ds, only), onclick:e => e.stopPropagation() });
 }
 
 /* ===================== 일정 그룹 (관련 일정을 묶어서 보기) ===================== */
@@ -6935,7 +6940,7 @@ function evRow0(ev, ds, o){
     ck,
     h('span',{class:'tm'}, o.showDate ? fmtMD(ds)+(ev.allDay?'':' '+ev.time) : timeLabel(ev)),
     h('span',{class:'tt'}, h('b',{}, ev.title||'(제목 없음)'), dn ? h('small',{class:'dnl'}, '✓ 완료 '+(+dm[1])+'/'+(+dm[2])) : null, (o.memo && ev.memo) ? h('small',{}, ev.memo.split('\n')[0]) : null),
-    h('span',{class:'tgs'}, tags), go, o.ord ? ordGrip(ev, ds) : null);
+    h('span',{class:'tgs'}, tags), go, o.ord ? ordGrip(ev, ds) : (o.grip ? ordGrip(ev, ds, o.grip) : null));
 }
 function calAgenda(ds){
   const evs = eventsOn(ds, true);
@@ -6952,7 +6957,8 @@ function calAgenda(ds){
   const ind = h('div',{ class:'indep' });
   if(hasG) ind.append(h('div',{ class:'lbl' }, '단독 일정'));
   if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 단독 일정이 없어요.' : evs.length ? '이 날의 단독 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
-  solo.forEach(ev => ind.append(evRow(ev, ds, { memo:true })));
+  { const rb = solo.length>1 ? ordResetBtn(solo) : null; if(rb) ind.append(h('div',{ style:'text-align:right;margin:-2px 0 4px' }, rb)); }
+  solo.forEach(ev => ind.append(evRow(ev, ds, { memo:true, grip: solo.length>1 ? solo : null })));
   box.append(ind);
   if(fin.length){
     const fold = gfold().has('#done');
@@ -7313,8 +7319,8 @@ function calDay(body){
   const ds = cal.date, evs = eventsOn(ds, true);
   const wrap = h('div',{class:'cdy'});
   if(!evs.length) wrap.append(h('p',{class:'note',style:'text-align:center;padding:30px 0'},'이 날은 일정이 없어요.'));
-  if(evs.length) wrap.prepend(h('div',{class:'ordrow'}, ordToggle()));
-  evs.forEach((ev, i) => wrap.append(evRow(ev, ds, { memo:true, ord:cal.rord })));
+  if(evs.length) wrap.prepend(h('div',{class:'ordrow'}, ordToggle(), (evs.length>1 ? ordResetBtn(evs) : null)));
+  evs.forEach((ev, i) => wrap.append(evRow(ev, ds, { memo:true, ord:cal.rord, grip:(!cal.rord && evs.length>1) ? evs : null })));
   body.append(wrap);
 }
 function calYear(body){
@@ -10433,7 +10439,7 @@ function renderToday(){
   list('over', '기한 지남', overdue, x => taskRow(x), 'red');
 
   body.append(head('오늘', evsT.length + dueToday.length, '', null, 'today'));
-  if(evsT.length){ const ag = h('div',{ class:'agenda' }); evsT.forEach(ev => ag.append(evRow(ev, t, { dbl:false }))); body.append(ag); }
+  if(evsT.length){ const ag = h('div',{ class:'agenda' }); { const rb = evsT.length>1 ? ordResetBtn(evsT) : null; if(rb) ag.append(h('div',{ style:'text-align:right;margin:-2px 0 4px' }, rb)); evsT.forEach(ev => ag.append(evRow(ev, t, { dbl:false, grip: evsT.length>1 ? evsT : null }))); } body.append(ag); }
   dueToday.forEach(x => body.append(taskRow(x)));
   if(!evsT.length && !dueToday.length) body.append(h('p',{ class:'note tdnone' }, '오늘 일정과 기한이 없어요.'));
 
