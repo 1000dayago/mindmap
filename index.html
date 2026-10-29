@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610290832">
+<meta name="app-version" content="202610290922">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3342,7 +3342,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610290832';
+const APP_VER = '202610290922';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5796,7 +5796,7 @@ function startReorder(e, ev, ds, only){
 }
 function ordResetBtn(list){
   if(!list.some(e => !e.grp && e.ord!=null)) return null;
-  return h('button',{ class:'mini', type:'button', style:'width:auto;padding:0 10px;font-size:12px;font-weight:700', title:'직접 정한 순서를 지우고 시간순으로 되돌려요',
+  return h('button',{ type:'button', style:'display:inline-block;width:auto;height:auto;white-space:nowrap;padding:5px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;', title:'직접 정한 순서를 지우고 시간순으로 되돌려요',
     onclick:e => { e.stopPropagation(); list.forEach(x => { if(!x.grp) delete x.ord; }); saveSoon(); refreshEvViews(); toast('시간순으로 되돌렸어요'); } }, '시간순으로');
 }
 function ordToggle(){
