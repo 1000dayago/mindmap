@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610301112">
+<meta name="app-version" content="202610301250">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1753,7 +1753,7 @@ try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persis
     if(a.download && /^blob:/.test(a.href) && P.Filesystem && P.Share){
       fetch(a.href).then(r => r.blob()).then(b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(b); }))
         .then(b64 => P.Filesystem.writeFile({ path:a.download, data:b64, directory:'CACHE' }))
-        .then(r => P.Share.share({ title:a.download, url:r.uri, dialogTitle:'파일 저장 · 공유' }))
+        .then(r => P.Share.share({ title:a.download, files:[r.uri], dialogTitle:'파일 저장 · 공유' }))
         .catch(() => { try{ orig.call(a); }catch(_){} });
       return;
     }
@@ -3342,7 +3342,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610301112';
+const APP_VER = '202610301250';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
