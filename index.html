@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610290922">
+<meta name="app-version" content="202610301053">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3342,7 +3342,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610290922';
+const APP_VER = '202610301053';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5755,7 +5755,7 @@ function ordAssign(list){
 function startReorder(e, ev, ds, only){
   if(e.button!=null && e.button!==0) return;
   e.preventDefault(); e.stopPropagation();
-  const row = e.currentTarget.closest('.evrow'), box = row.parentNode;
+  const row = e.currentTarget.closest('.evrow'), box = row.parentNode; const _dr = row.draggable; row.draggable = false;
   const all = only || eventsOn(ds, true), rows = [...box.querySelectorAll(':scope > .evrow')];
   if(rows.length!==all.length) return;
   const dn = !!doneOf(ev, ds), idx = all.map((x, i) => i).filter(i => !!doneOf(all[i], ds)===dn);
@@ -5782,7 +5782,7 @@ function startReorder(e, ev, ds, only){
     if(v){ sc.scrollTop += v; upd(); }
   }, 16);
   const end = commit => {
-    clearInterval(tick); shield.remove();
+    clearInterval(tick); shield.remove(); row.draggable = _dr;
     if(commit && target!==cur){
       ordAssign(grp);
       const ords = grp.map(x => x.ord).sort((a, b) => a-b), order = grp.slice(); order.splice(cur, 1); order.splice(target, 0, ev);
@@ -5906,7 +5906,12 @@ function grpArea(){
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
-      g.evs.filter(ev => !pkIds.has(ev.id)).filter(ev => !dn(ev)).concat(g.evs.filter(ev => !pkIds.has(ev.id)).filter(dn)).forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
+      const vis = g.evs.filter(ev => !pkIds.has(ev.id)), dEvs = vis.filter(ev => !isRep(ev) && !doneOf(ev, ev.date)), dRows = [];
+      vis.filter(ev => !dn(ev)).concat(vis.filter(dn)).forEach(ev => {
+        const row = evRow(ev, ev.date, { showDate:true, memo:true });
+        if(dEvs.length>1 && dEvs.includes(ev)){ dRows.push(row); row.append(grpGrip(ev, dRows, dEvs)); }
+        box.append(row);
+      });
     }
     wrap.append(box);
   });
@@ -5946,11 +5951,10 @@ function openGroupDetail(name){
     if(g.evs.length){
       b.append(h('div',{ class:'lbl' }, '그룹 일정 (날짜 순)'));
       const list = h('div',{ class:'agenda' }), rowsBy = {};
+      const dEvs = g.evs.filter(x => !isRep(x) && !doneOf(x, x.date)), dRows = [];
       g.evs.forEach(ev => {
         const row = evRow(ev, ev.date, { showDate:true, memo:true, dbl:false, back:() => openGroupDetail(name) });
-        const sib = g.evs.filter(x => x.date===ev.date);
-        (rowsBy[ev.date] = rowsBy[ev.date] || []).push(row);
-        if(sib.length>1) row.append(h('span',{ class:'ordgrip', title:'끌어서 같은 날 순서 바꾸기', 'aria-label':'끌어서 순서 바꾸기', html:ic('grip',20), onpointerdown:e => grpDragStart(e, ev, rowsBy[ev.date], sib), onclick:e => e.stopPropagation() }));
+        if(dEvs.length>1 && dEvs.includes(ev)){ dRows.push(row); row.append(grpGrip(ev, dRows, dEvs)); }
         list.append(row);
       }); b.append(list);
     }
@@ -6187,34 +6191,47 @@ function grpDragStart(e, ev, rows, sibs){
   if(e.button!=null && e.button!==0) return;
   e.preventDefault(); e.stopPropagation();
   if(rows.length!==sibs.length || sibs.length<2) return;
-  const row = rows[sibs.indexOf(ev)], rc = rows.map(r => r.getBoundingClientRect()), cur = sibs.indexOf(ev);
-  const gap = rc.length>1 ? Math.max(0, rc[1].top-rc[0].bottom) : 5, step = rc[cur].height+gap, y0 = e.clientY;
+  const cur = sibs.indexOf(ev); if(cur<0) return;
+  const row = rows[cur], rc = rows.map(r => r.getBoundingClientRect()), y0 = e.clientY, _dr = row.draggable; row.draggable = false;
   rows.forEach((r, i) => { r.style.transition = i===cur ? 'none' : 'transform .15s'; });
   row.style.position = 'relative'; row.style.zIndex = '5'; row.style.boxShadow = '0 10px 26px rgba(0,0,0,.22)'; row.classList.add('dragging');
   const shield = h('div',{ class:'dragshield', style:'cursor:grabbing' }); document.body.append(shield);
   try{ shield.setPointerCapture(e.pointerId); }catch(_){}
-  let target = cur;
-  shield.addEventListener('pointermove', m => {
-    const dy = m.clientY-y0, center = rc[cur].top+rc[cur].height/2+dy;
+  let target = cur, lastY = y0;
+  let sc = row.parentNode; while(sc && sc!==document.body && !(/(auto|scroll)/.test(getComputedStyle(sc).overflowY) && sc.scrollHeight>sc.clientHeight+2)) sc = sc.parentElement;
+  const sc0 = sc ? sc.scrollTop : 0;
+  const upd = () => {
+    const dy = (lastY-y0)+(sc ? sc.scrollTop-sc0 : 0), center = rc[cur].top+rc[cur].height/2+dy;
     row.style.transform = 'translateY('+dy+'px)';
     target = 0; rc.forEach((r, j) => { if(j!==cur && r.top+r.height/2<center) target++; });
-    rows.forEach((r, j) => { if(j===cur) return; r.style.transform = (j>cur && j<=target) ? 'translateY('+(-step)+'px)' : (j<cur && j>=target) ? 'translateY('+step+'px)' : ''; });
-  });
+    rows.forEach((r, j) => { if(j===cur) return; let to = j; if(j>cur && j<=target) to = j-1; else if(j<cur && j>=target) to = j+1; r.style.transform = to!==j ? 'translateY('+(rc[to].top-rc[j].top)+'px)' : ''; });
+  };
+  shield.addEventListener('pointermove', m => { lastY = m.clientY; upd(); });
+  const tick = setInterval(() => {
+    if(!sc) return; const r = sc.getBoundingClientRect(), z = 70;
+    const v = lastY<r.top+z ? -Math.ceil((r.top+z-lastY)/5) : lastY>r.bottom-z ? Math.ceil((lastY-(r.bottom-z))/5) : 0;
+    if(v){ sc.scrollTop += v; upd(); }
+  }, 16);
   const end = commit => {
-    shield.remove();
+    clearInterval(tick); shield.remove(); row.draggable = _dr;
     if(commit && target!==cur){
       const snap = sibs.map(x => JSON.stringify(x));
       ordAssign(sibs);
-      const ords = sibs.map(x => x.ord).sort((a, b) => a-b), order = sibs.slice(); order.splice(cur, 1); order.splice(target, 0, ev);
-      order.forEach((x, i) => { x.ord = ords[i]; });
-      const n = grpChainTimes(order);
+      const ords = sibs.map(x => x.ord).sort((a, b) => a-b), slots = sibs.map(x => x.date), order = sibs.slice(); order.splice(cur, 1); order.splice(target, 0, ev);
+      let dch = 0;
+      order.forEach((x, i) => {
+        const sp = x.endDate ? dayDiff(x.date, x.endDate) : 0; x.ord = ords[i];
+        if(x.date!==slots[i]){ x.date = slots[i]; if(x.endDate) x.endDate = addDays(x.date, sp); dch++; if(x.link){ try{ pushEventToMap(x); }catch(_){} } }
+      });
+      let n = 0; const byD = {}; order.forEach(x => (byD[x.date] = byD[x.date] || []).push(x)); Object.values(byD).forEach(l => { n += grpChainTimes(l); });
       saveSoon(); refreshEvViews();
-      toast(n ? '순서를 바꾸고 시간 '+n+'곳을 앞 일정 뒤로 맞췄어요' : '순서를 바꿨어요', { label:'취소', fn:() => grpRestoreSnap(snap) });
+      toast(dch ? '순서를 바꾸고 날짜 '+dch+'개를 순서에 맞춰 옮겼어요' : (n ? '순서를 바꾸고 시간 '+n+'곳을 앞 일정 뒤로 맞췄어요' : '순서를 바꿨어요'), { label:'취소', fn:() => grpRestoreSnap(snap) });
     }else refreshEvViews();
   };
   shield.addEventListener('pointerup', () => end(true));
   shield.addEventListener('pointercancel', () => end(false));
 }
+function grpGrip(ev, rows, sibs){ return h('span',{ class:'ordgrip', title:'끌어서 그룹 안 순서 바꾸기', 'aria-label':'끌어서 순서 바꾸기', html:ic('grip',20), onpointerdown:e => grpDragStart(e, ev, rows, sibs), onclick:e => e.stopPropagation() }); }
 function grpDoneNext(g){
   const nx = grpNextEv(g); if(!nx) return;
   setEvDone(nx, nx.date, true); refreshEvViews();
@@ -7267,8 +7284,8 @@ function monthGrid(body, done){
     grid.append(h('div',{class:'cwn', style:'grid-row:'+(w+2)+';grid-column:1', title:isoWeek(addDays(ws,4))+'주'}, isoWeek(addDays(ws,4))));
     for(let wd=0; wd<7; wd++){
       const ds = addDays(ws, wd), dd = parseYmd(ds), hol = krHoliday(ds);
-      const cell = h('div',{ 'data-ds':ds, class:'cday'+(dd.getMonth()!==mo?' oth':'')+(done ? '' : (selW.has(w) ? ' sw' : ' ow'))+(!done && ds===cal.sel?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
-        onclick:() => { if(!done){ cal.pick = []; cal.sel = ds; renderCal(); } }, ondblclick:() => { if(!done) openEventEditor(null,{ ds }); } },
+      const cell = h('div',{ 'data-ds':ds, class:'cday'+(dd.getMonth()!==mo?' oth':'')+(done ? '' : (selW.has(w) ? ' sw' : ' ow'))+((done ? ds===cal.dpick : ds===cal.sel)?' sel':'')+(ds===today?' today':''), style:'grid-row:'+(w+2)+';grid-column:'+(wd+2),
+        onclick:() => { if(done){ cal.dpick = (cal.dpick===ds) ? '' : ds; if(cal.dpick) cal.sel = ds; renderCal(); } else { cal.pick = []; cal.sel = ds; renderCal(); } }, ondblclick:() => { openEventEditor(null,{ ds }); } },
         h('span',{class:'dn'+(wd===0||hol?' sun':wd===6?' sat':'')}, dd.getDate()));
       const hn = hol ? h('span',{class:'hn'}, hol) : null;
       if(sp.n) cell.append(h('div',{class:'cspc', style:'--n:'+sp.n}, hn)); else if(hn) cell.append(hn);
@@ -7277,7 +7294,10 @@ function monthGrid(body, done){
     }
     sp.bars.forEach(b => grid.append(barEl(b, b.ds || addDays(ws, b.c1), 'grid-row:'+(w+2)+';grid-column:'+(b.c1+2)+'/'+(b.c2+3)+';margin-top:calc(47px + var(--bs)*'+b.lane+')', done ? null : { kind:'month' })));
   }
-  body.append(h('div',{class:'cm'}, grid, done ? doneList(first, ymd(new Date(y,mo,daysIn(y,mo+1)))) : calAgenda(cal.sel)));
+  const dpOn = done && cal.dpick && cal.dpick>=start && cal.dpick<gEnd;
+  body.append(h('div',{class:'cm'}, grid, done ? (dpOn ? h('div',{ class:'dpday' },
+      h('div',{ style:'text-align:right;margin:4px 2px 0' }, h('button',{ type:'button', style:'display:inline-block;white-space:nowrap;padding:5px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800', onclick:() => { cal.dpick = ''; renderCal(); } }, '‹ 이 달 완료 목록')),
+      calAgenda(cal.dpick)) : doneList(first, ymd(new Date(y,mo,daysIn(y,mo+1))))) : calAgenda(cal.sel)));
 }
 function calMonth(body){ monthGrid(body, false); }
 function calDone(body){ monthGrid(body, true); }
