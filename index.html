@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
 <title>마인드맵</title>
-<meta name="app-version" content="202610301053">
+<meta name="app-version" content="202610301112">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3342,7 +3342,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202610301053';
+const APP_VER = '202610301112';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -7297,16 +7297,16 @@ function monthGrid(body, done){
   const dpOn = done && cal.dpick && cal.dpick>=start && cal.dpick<gEnd;
   body.append(h('div',{class:'cm'}, grid, done ? (dpOn ? h('div',{ class:'dpday' },
       h('div',{ style:'text-align:right;margin:4px 2px 0' }, h('button',{ type:'button', style:'display:inline-block;white-space:nowrap;padding:5px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800', onclick:() => { cal.dpick = ''; renderCal(); } }, '‹ 이 달 완료 목록')),
-      calAgenda(cal.dpick)) : doneList(first, ymd(new Date(y,mo,daysIn(y,mo+1))))) : calAgenda(cal.sel)));
+      doneList(cal.dpick, cal.dpick, true)) : doneList(first, ymd(new Date(y,mo,daysIn(y,mo+1))))) : calAgenda(cal.sel)));
 }
 function calMonth(body){ monthGrid(body, false); }
 function calDone(body){ monthGrid(body, true); }
 // 완료 목록: 그 달에 걸친 완료 기록을 완료한 날 순서(최근 먼저)로
-function doneList(m1, m2){
+function doneList(m1, m2, day){
   const list = doneItems().filter(x => { const lo = x.s<x.d ? x.s : x.d, hi = x.s<x.d ? x.d : x.s; return lo<=m2 && hi>=m1; })
     .sort((a, b) => b.d.localeCompare(a.d) || (a.ev.title||'').localeCompare(b.ev.title||''));
-  const box = h('div',{class:'agenda'}, h('div',{class:'ahead'}, h('b',{}, '완료한 일정 '+list.length+'개')));
-  if(!list.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'이 달에는 완료한 일정이 없어요. 일정 목록의 동그라미를 누르면 완료돼요.'));
+  const box = h('div',{class:'agenda'}, h('div',{class:'ahead'}, h('b',{}, (day ? fmtMD(m1)+' · ' : '')+'완료한 일정 '+list.length+'개')));
+  if(!list.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},(day ? '이 날 완료한 일정이 없어요.' : '이 달에는 완료한 일정이 없어요. 일정 목록의 동그라미를 누르면 완료돼요.')));
   list.slice(0,150).forEach(x => box.append(evRow(x.ev, x.s, { showDate:true, memo:false })));
   return box;
 }
