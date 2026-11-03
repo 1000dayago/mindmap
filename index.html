@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611031718">
+<meta name="app-version" content="202611031745">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3345,7 +3345,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611031718';
+const APP_VER = '202611031745';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6871,10 +6871,11 @@ function xlsxBlob(rows, widths, merges){   // rows: [[{v, s}]]  s = 스타일 �
     + '<fills count="9"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+fill('4F6BFF')+fill('E8ECFF')+fill('DDF3E4')+fill('FFEBD2')+fill('ECEFF4')+'<fill><patternFill patternType="none"/></fill>'+fill('FFF3C4')+'</fills>'
     + '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'+bd+'</borders>'
     + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-    + '<cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+    + '<cellXfs count="12"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
     + xf(1,2,1,'horizontal="center" vertical="center"') + xf(2,3,1,'horizontal="left" vertical="center"') + xf(0,0,1,'vertical="center" wrapText="1"') + xf(0,0,1,'horizontal="center" vertical="center" wrapText="1"')
     + xf(3,4,1,'horizontal="center" vertical="center"') + xf(3,5,1,'horizontal="center" vertical="center"') + xf(3,6,1,'horizontal="center" vertical="center"')
     + xf(3,8,1,'vertical="center" wrapText="1"') + xf(3,8,1,'horizontal="center" vertical="center" wrapText="1"')
+    + xf(0,8,1,'vertical="center" wrapText="1"') + xf(0,8,1,'horizontal="center" vertical="center" wrapText="1"')
     + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
   const te = new TextEncoder(), X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
   return zipStore([
@@ -6890,23 +6891,30 @@ function xlsxBlob(rows, widths, merges){   // rows: [[{v, s}]]  s = 스타일 �
 function exportRows(from, to){
   const out = [], today = todayStr();
   Object.values(data.events).forEach(ev => { if(isSpan(ev) && ev.date<=to && ev.endDate>=from) out.push({ ev, ds:ev.date, s:ev.date, e:ev.endDate, k:'0' }); });
-  grpList().forEach(g => { if(g.evs.length && g.from && g.from<=to && g.to>=from) out.push({ g, ds:(g.from>=from ? g.from : from), s:g.from, e:g.to, k:'00' }); });
   const n = Math.min(1100, dayDiff(from, to)+1);
   for(let i=0;i<n;i++){ const ds = addDays(from, i); eventsOn(ds, true).forEach((ev, j) => { if(!isSpan(ev)) out.push({ ev, ds, s:ds, e:ds, k:'1'+String(j).padStart(3,'0') }); }); }
   out.sort((a, b) => a.ds.localeCompare(b.ds) || a.k.localeCompare(b.k));
+  { // 그룹별로 묶기: 그룹 행 → 그 그룹의 일정(날짜순), 그룹은 시작이 빠른 순. 그룹이 아닌 일정은 그 뒤에 날짜순
+    const gm = new Map(), solo = [];
+    out.forEach(x => { if(x.ev.grp){ if(!gm.has(x.ev.grp)) gm.set(x.ev.grp, []); gm.get(x.ev.grp).push(x); } else solo.push(x); });
+    const gl = grpList().filter(g => gm.has(g.name)).sort((a, b) => (a.from||'').localeCompare(b.from||'') || a.name.localeCompare(b.name));
+    const ord = [];
+    gl.forEach(g => { ord.push({ g, ds:g.from, s:g.from, e:g.to }); gm.get(g.name).forEach(x => { x.child = true; ord.push(x); }); });
+    out.length = 0; ord.concat(solo).forEach(x => out.push(x));
+  }
   return out.map(x => {
     if(x.g){
       const g = x.g, f0 = d => (+d.slice(5,7))+'/'+(+d.slice(8,10))+'('+DOW[dow(d)]+')', pct = g.total ? Math.round(g.done*100/g.total) : 0;
       const alld = g.total>0 && g.done===g.total, st0 = alld ? '완료' : (g.from>today ? '예정' : '진행 중');
-      return { ds:x.ds, year:x.ds.slice(0,4), date:(+x.ds.slice(5,7))+'월 '+(+x.ds.slice(8,10))+'일 ('+DOW[dow(x.ds)]+')', title:'▣ 그룹: '+g.name,
+      return { ds:x.ds, year:x.ds.slice(0,4), date:(+x.ds.slice(5,7))+'월 '+(+x.ds.slice(8,10))+'일 ('+DOW[dow(x.ds)]+')', title:'* '+g.name,
         start:f0(g.from), end:f0(g.to), group:g.name, status:st0, stat:g.total ? '완료 '+g.done+'/'+g.total+' ('+pct+'%)' : st0, memo:'그룹 전체 일정 '+g.evs.length+'개', isGroup:true };
     }
     const ev = x.ev, dn = doneOf(ev, x.ds), tm = t => (!ev.allDay && t) ? ' '+t : '';
     const st = dn ? '완료' : (x.s>today ? '예정' : '진행 중');
     const memo = [ev.memo ? ev.memo.replace(/\s*\n\s*/g,' / ') : '', (ev.repeat && ev.repeat!=='none') ? '반복: '+REPEAT_LABEL[ev.repeat] : ''].filter(Boolean).join(' · ');
     const f = d => (+d.slice(5,7))+'/'+(+d.slice(8,10))+'('+DOW[dow(d)]+')';
-    return { ds:x.ds, year:x.ds.slice(0,4), date:(+x.ds.slice(5,7))+'월 '+(+x.ds.slice(8,10))+'일 ('+DOW[dow(x.ds)]+')', title:ev.title||'(제목 없음)',
-      start:f(x.s)+tm(ev.time), end:f(x.e)+tm(ev.endTime), group:ev.grp||'', status:st, stat:dn ? '완료 ('+(+dn.slice(5,7))+'/'+(+dn.slice(8,10))+')' : st, memo };
+    return { ds:x.ds, year:x.ds.slice(0,4), date:(+x.ds.slice(5,7))+'월 '+(+x.ds.slice(8,10))+'일 ('+DOW[dow(x.ds)]+')', title:(x.child ? '    - ' : '')+(ev.title||'(제목 없음)'),
+      start:f(x.s)+tm(ev.time), end:f(x.e)+tm(ev.endTime), group:ev.grp||'', status:st, child:!!x.child, stat:dn ? '완료 ('+(+dn.slice(5,7))+'/'+(+dn.slice(8,10))+')' : st, memo };
   });
 }
 function exportXlsx(from, to, label){
@@ -6916,6 +6924,7 @@ function exportXlsx(from, to, label){
   rs.forEach(r => {
     if(r.year!==yr){ yr = r.year; rows.push([{ v:yr+'년', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }]); merges.push('A'+rows.length+':G'+rows.length); }
     if(r.isGroup) rows.push([{ v:r.date, s:9 }, { v:r.title, s:8 }, { v:r.start, s:9 }, { v:r.end, s:9 }, { v:r.stat, s:9 }, { v:r.memo, s:8 }, { v:r.group||'', s:9 }]);
+    else if(r.child) rows.push([{ v:r.date, s:11 }, { v:r.title, s:10 }, { v:r.start, s:11 }, { v:r.end, s:11 }, { v:r.stat, s:11 }, { v:r.memo, s:10 }, { v:'', s:11 }]);
     else rows.push([{ v:r.date, s:4 }, { v:r.title, s:3 }, { v:r.start, s:4 }, { v:r.end, s:4 }, { v:r.stat, s:r.status==='완료' ? 5 : r.status==='예정' ? 7 : 6 }, { v:r.memo, s:3 }, { v:r.group||'', s:4 }]);
   });
   const blob = xlsxBlob(rows, [16, 38, 18, 18, 12, 34, 16], merges);
