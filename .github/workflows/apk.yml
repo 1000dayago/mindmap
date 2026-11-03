@@ -31,7 +31,13 @@ jobs:
           mkdir www
           cp ../index.html www/index.html
           for f in manifest.json sw.js icon-192.png icon-512.png; do [ -f ../$f ] && cp ../$f www/$f || true; done
-          echo '{ "appId":"com.mindmap.app", "appName":"마인드맵", "webDir":"www" }' > capacitor.config.json
+          echo '{ "appId":"com.mindmap.app", "appName":"마인드맵", "webDir":"www", "server": { "url":"https://1000dayago.github.io/mindmap/", "errorPath":"offline.html" } }' > capacitor.config.json
+          cat > www/offline.html <<'HTML'
+          <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>마인드맵</title>
+          <style>body{font-family:sans-serif;background:#fff4ea;color:#3b2a1e;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;text-align:center}
+          button{margin-top:16px;padding:12px 24px;border:0;border-radius:999px;background:#ff7a45;color:#fff;font-size:16px;font-weight:700}</style></head>
+          <body><div><h2>인터넷에 연결되지 않았어요</h2><p>처음 한 번은 인터넷이 필요해요.<br>연결한 뒤 다시 시도해 주세요.</p><button onclick="location.href='https://1000dayago.github.io/mindmap/'">다시 시도</button></div></body></html>
+          HTML
           npx cap add android
           npx cap sync android
 
@@ -70,10 +76,16 @@ jobs:
           ./gradlew assembleDebug --no-daemon
           cp app/build/outputs/apk/debug/app-debug.apk ../../mindmap.apk
 
+      - name: 서명 확인 (매번 같은 값이어야 덮어서 설치돼요)
+        continue-on-error: true
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          $BT/apksigner verify --print-certs mindmap.apk | grep -i "SHA-256"
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
           name: 마인드맵 APK ${{ github.run_number }}
-          body: "이 파일(mindmap.apk)을 받아 설치하세요. 기존 앱 위에 덮어서 설치하면 데이터는 유지돼요."
+          body: "이 파일(mindmap.apk)을 받아 설치하세요. 이 앱은 열 때마다 GitHub의 최신 앱을 불러와서, 앞으로는 index.html만 올리면 자동으로 업데이트돼요."
           files: mindmap.apk
           make_latest: true
