@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611031745">
+<meta name="app-version" content="202611031754">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3345,7 +3345,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611031745';
+const APP_VER = '202611031754';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6924,7 +6924,7 @@ function exportXlsx(from, to, label){
   rs.forEach(r => {
     if(r.year!==yr){ yr = r.year; rows.push([{ v:yr+'년', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }, { v:'', s:2 }]); merges.push('A'+rows.length+':G'+rows.length); }
     if(r.isGroup) rows.push([{ v:r.date, s:9 }, { v:r.title, s:8 }, { v:r.start, s:9 }, { v:r.end, s:9 }, { v:r.stat, s:9 }, { v:r.memo, s:8 }, { v:r.group||'', s:9 }]);
-    else if(r.child) rows.push([{ v:r.date, s:11 }, { v:r.title, s:10 }, { v:r.start, s:11 }, { v:r.end, s:11 }, { v:r.stat, s:11 }, { v:r.memo, s:10 }, { v:'', s:11 }]);
+    else if(r.child) rows.push([{ v:r.date, s:11 }, { v:r.title, s:10 }, { v:r.start, s:11 }, { v:r.end, s:11 }, { v:r.stat, s:11 }, { v:r.memo, s:10 }, { v:r.group||'', s:11 }]);
     else rows.push([{ v:r.date, s:4 }, { v:r.title, s:3 }, { v:r.start, s:4 }, { v:r.end, s:4 }, { v:r.stat, s:r.status==='완료' ? 5 : r.status==='예정' ? 7 : 6 }, { v:r.memo, s:3 }, { v:r.group||'', s:4 }]);
   });
   const blob = xlsxBlob(rows, [16, 38, 18, 18, 12, 34, 16], merges);
