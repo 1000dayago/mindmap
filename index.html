@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#e8ecf8">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611031707">
+<meta name="app-version" content="202611031718">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3342,13 +3345,13 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611031707';
+const APP_VER = '202611031718';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
   let bar = $('#verBar'); if(bar) bar.remove();
   const hosted = location.origin==='https://1000dayago.github.io';
-  const apk = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const apk = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) && !hosted;
   const go = () => {
     if(apk){ window.open('https://github.com/1000dayago/mindmap/releases/latest', '_blank'); return; }
     if(hosted){ try{ saveNow(); }catch(_){} bar.querySelector('button.vgo').disabled = true; setTimeout(() => { location.replace(location.pathname+'?u='+remote); }, 300); return; }
@@ -10692,6 +10695,11 @@ refreshSyncUI();
 if(syncOn() && syncCfg.auto) setTimeout(() => syncNow({ silent:true }), 1600);
 
 })();
+
+/* PWA: 서비스워커 등록 (https 또는 localhost 에서만). 항상 최신을 먼저 받고, 인터넷이 안 될 때만 저장본을 쓴다 */
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+  window.addEventListener('load', () => { try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} });
+}
 </script>
 </body>
 </html>
