@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611041044">
+<meta name="app-version" content="202611041122">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1226,6 +1226,9 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
+#sheetWrap.evtbl #sheet{width:min(1000px,97vw);height:min(88dvh,820px);max-height:96dvh}
+.evtbhead{display:flex;align-items:center;gap:10px;margin:0 0 6px;flex:none}.evtbhead small{color:var(--sub);font-size:11.5px}
+.tbmark{margin-left:4px;color:var(--accent,#5b6cff);font-size:12px}
 .hideye.trash:hover{color:var(--danger,#e5484d)}
 .hidrow{display:flex;align-items:center;gap:6px;opacity:.6;font-size:12.5px;padding:2px 4px 2px 8px;border:1px dashed var(--line);border-radius:8px;margin:3px 0}
 .hidrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2211,7 +2214,7 @@ function openSheet(title, build, onCancel){
 function closeSheet(byAction){
   if(sheetWrap.classList.contains('hidden')) return;
   stopMic();
-  sheetWrap.classList.add('hidden'); sheetWrap.classList.remove('dd');
+  sheetWrap.classList.add('hidden'); sheetWrap.classList.remove('dd'); sheetWrap.classList.remove('evtbl');
   const cb = sheetCancel; sheetCancel = null; sheetBody.innerHTML = '';
   placeCtl();
   if(!byAction && cb) cb();
@@ -3355,7 +3358,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611041044';
+const APP_VER = '202611041122';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5897,8 +5900,8 @@ const gfold = () => new Set(lsGet('mm_grp_fold', []));
 const HID = { mode:'all', g:new Set(), e:new Set(), init:false };
 function hidInit(){ if(HID.init) return; HID.init = true; try{ if(lsGet('mm_hide_keep', false)){ const o = lsGet('mm_hide', null); if(o){ HID.mode = o.mode||'all'; HID.g = new Set(o.g||[]); HID.e = new Set(o.e||[]); } } }catch(_){} }
 function hidSave(){ try{ if(lsGet('mm_hide_keep', false)) lsSet('mm_hide', { mode:HID.mode, g:[...HID.g], e:[...HID.e] }); }catch(_){} }
-function evHidden(ev){ hidInit(); if(HID.mode==='grp' && !ev.grp) return true; if(HID.mode==='solo' && ev.grp) return true; return ev.grp ? HID.g.has(ev.grp) : HID.e.has(ev.id); }
-function hidCount(){ hidInit(); let n = 0; const gs = new Set(grpList().map(g => g.name)); HID.g.forEach(g => { if(gs.has(g)) n++; }); HID.e.forEach(id => { const e = data.events[id]; if(e && !e.grp) n++; }); return n; }
+function evHidden(ev){ hidInit(); if(HID.mode==='grp' && !ev.grp) return true; if(HID.mode==='solo' && ev.grp) return true; return HID.e.has(ev.id) || (ev.grp ? HID.g.has(ev.grp) : false); }
+function hidCount(){ hidInit(); let n = 0; const gs = new Set(grpList().map(g => g.name)); HID.g.forEach(g => { if(gs.has(g)) n++; }); HID.e.forEach(id => { if(data.events[id]) n++; }); return n; }
 function hidToggle(kind, key){ hidInit(); const s = kind==='g' ? HID.g : HID.e; s.has(key) ? s.delete(key) : s.add(key); hidSave(); renderCal(); }
 function hidClearItems(){ HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
 function hidAll(){ HID.mode = 'all'; HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
@@ -5957,10 +5960,12 @@ function grpArea(){
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
-      const vis = g.evs.filter(ev => !pkIds.has(ev.id)), dEvs = vis.filter(ev => !isRep(ev) && !doneOf(ev, ev.date)), dRows = [];
+      const vis = g.evs.filter(ev => !pkIds.has(ev.id)), dEvs = vis.filter(ev => !isRep(ev) && !doneOf(ev, ev.date) && !HID.e.has(ev.id)), dRows = [];
       vis.filter(ev => !dn(ev)).concat(vis.filter(dn)).forEach(ev => {
+        if(HID.e.has(ev.id)){ box.append(h('div',{ class:'hidrow', title:'숨긴 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, fmtMD(ev.date)+' '+ev.title), hidEye('e', ev.id, true, ev.title))); return; }
         const row = evRow(ev, ev.date, { showDate:true, memo:true });
         if(dEvs.length>1 && dEvs.includes(ev)){ dRows.push(row); row.append(grpGrip(ev, dRows, dEvs)); }
+        row.append(hidEye('e', ev.id, false, ev.title), trashBtn('일정 삭제 (한 번 물어봐요)', () => soloDelete(ev)));
         box.append(row);
       });
     }
@@ -6787,6 +6792,7 @@ function evRow(ev, ds, o){
   o = o||{}; const row = evRow0(ev, ds, o); row.dataset.eid = ev.id;
   if(o.dbl!==false && !o.ord && ev.repeat==='none' && !doneOf(ev, ds)) evDragOn(row, ev, ds);
   if(!o.ord) evSwipeOn(row, ev, ds);
+  if(ev.table && ev.table.cells){ const tt0 = row.querySelector('.tt'); if(tt0) tt0.append(h('span',{ class:'tbmark', title:'표가 들어 있는 일정', html:'▦' })); }
   if(ev.grp){ const tt = row.querySelector('.tt'); if(tt) tt.insertBefore(grpChip(ev, o.dbl!==false), tt.firstChild); if(cal.grp && cal.grp!==ev.grp) row.classList.add('gdim'); }
   else if(cal.grp && o.dbl!==false) row.classList.add('gdim');
   return row;
@@ -7607,6 +7613,7 @@ function openEventEditor(id, o){
       h('p',{class:'note',style:'margin:2px 2px 8px;font-size:11.5px'},'앱을 닫으면 알림이 울리지 않아요 · 중요한 일정은 구글 캘린더로 올려 두세요'),
       h('div',{class:'evright'},
         h('div',{class:'lbl'},'내용'), cu.el,
+        evTblRow(ex, save, o),
         h('div',{class:'lbl'},'관련 마인드맵 노드'), refBox,
         h('div',{class:'lbl'},'색상'), sw));
     sync();
@@ -8169,10 +8176,39 @@ function sheetNew(nid, rows, cols, cells){
   mutate(m => { m.nodes[nid].table = { cells:grid }; });
   sheetSelStore[nid] = { or:0, oc:0, fr:0, fc:0, ar:0, ac:0 };
 }
-function bodyTable(body, n){
-  const nid = n.id;
-  const T = () => { const nn = N()[nid]; return nn && nn.table; };
-  const rebuild = () => { buildPanelBody(); updatePanelTabs(); };
+function sheetNewX(evm, nid, rows, cols, cells){
+  if(!evm) return sheetNew(nid, rows, cols, cells);
+  rows = clamp(rows, 1, MAXR); cols = clamp(cols, 1, MAXC);
+  const ev = data.events[nid]; if(!ev) return;
+  ev.table = { cells: cells || Array.from({ length:rows }, () => Array(cols).fill('')) };
+  sheetSelStore[nid] = { or:0, oc:0, fr:0, fc:0, ar:0, ac:0 }; saveSoon();
+}
+/* 일정 표: 일정 편집창의 「표」 버튼 → 넓은 창에서 엑셀처럼 편집 (자동 저장) */
+const EVT_O = {};
+function openEvTable(id, o){
+  const ev = data.events[id]; if(!ev) return;
+  o = o || {}; EVT_O[id] = o;
+  openSheet('표 · '+short(ev.title), b => {
+    b.append(h('div',{ class:'evtbhead' },
+      h('button',{ class:'btn', type:'button', title:'표는 입력하는 즉시 저장돼요', onclick:() => { try{ if(sheetFlush) sheetFlush(); }catch(_){} closeSheet(); } }, '← 일정으로'),
+      h('small',{}, '엑셀처럼 쓰는 표 · 자동 저장 · 엑셀에서 복사해 붙여넣기 가능')));
+    bodyTable(b, ev, true);
+  }, () => { sheetWrap.classList.remove('evtbl'); openEventEditor(id, o); });
+  sheetWrap.classList.add('evtbl');
+}
+function evTblRow(ex, save, o){
+  const has = ex && ex.table && ex.table.cells;
+  return h('div',{ class:'evtblrow', title:'일정 안에 엑셀처럼 쓰는 표(수식 · 칸 합치기 · 붙여넣기)를 넣어요. 누르면 지금 내용을 저장하고 표 창을 열어요' },
+    h('div',{ class:'lbl' }, '표 (엑셀처럼)'),
+    h('button',{ class:'btn', type:'button', style:'width:100%', onclick:() => { const e2 = save(); if(e2){ closeSheet(true); openEvTable(e2.id, o); } } },
+      has ? '▦ 표 열기 ('+ex.table.cells.length+'행 × '+ex.table.cells[0].length+'열)' : '▦ 표 만들기 · 엑셀 붙여넣기'));
+}
+function bodyTable(body, n, evMode){
+  const nid = n.id, EVM = !!evMode;
+  const NNX = id => EVM ? data.events[id] : N()[id];
+  const mutX = (fn, opts) => { if(!EVM) return mutate(fn, opts); const ev0 = data.events[nid]; if(!ev0) return; fn({ nodes:{ [nid]: ev0 } }); saveSoon(); };
+  const T = () => { const nn = NNX(nid); return nn && nn.table; };
+  const rebuild = () => { if(EVM){ openEvTable(nid, EVT_O[nid]); } else { buildPanelBody(); updatePanelTabs(); } };
   if(!n.table){
     const rs = h('input',{ class:'field', type:'number', min:'1', max:String(MAXR), value:'20' }), cs = h('input',{ class:'field', type:'number', min:'1', max:String(MAXC), value:'8' });
     const pasteBox = h('textarea',{ class:'field', rows:3, placeholder:'엑셀에서 복사한 내용을 여기에 붙여넣으면 바로 표가 만들어져요' });
@@ -8183,12 +8219,12 @@ function bodyTable(body, n){
       if(!rows.length) return;
       const C = clamp(Math.max(...rows.map(r => r.length)), 1, MAXC);
       const cells = rows.slice(0, MAXR).map(r => { const o = r.slice(0, C).map(x => String(x).slice(0,1000)); while(o.length<C) o.push(''); return o; });
-      sheetNew(nid, cells.length, C, cells); rebuild();
+      sheetNewX(EVM, nid, cells.length, C, cells); rebuild();
     });
     body.append(
       h('p',{ class:'note' }, '엑셀처럼 쓰는 표예요. 칸을 고르고 바로 입력하고, 수식(=SUM 등)과 복사·붙여넣기를 지원해요.'),
       h('div',{ class:'frow' }, h('div',{ style:'flex:1' }, h('div',{ class:'lbl' },'행'), rs), h('div',{ style:'flex:1' }, h('div',{ class:'lbl' },'열'), cs)),
-      h('div',{ class:'row end' }, h('button',{ class:'btn primary', onclick:() => { sheetNew(nid, parseInt(rs.value,10)||20, parseInt(cs.value,10)||8); rebuild(); } }, '표 만들기')),
+      h('div',{ class:'row end' }, h('button',{ class:'btn primary', onclick:() => { sheetNewX(EVM, nid, parseInt(rs.value,10)||20, parseInt(cs.value,10)||8); rebuild(); } }, '표 만들기')),
       h('div',{ class:'lbl', style:'margin-top:10px' }, '또는 엑셀 내용 붙여넣기'), pasteBox);
     return;
   }
@@ -8373,7 +8409,7 @@ function bodyTable(body, n){
       }
       rh[r] = need>SB.rowH ? Math.min(800, need) : 0;
     });
-    mutate(m => {
+    mutX(m => {
       const tt = m.nodes[nid].table;
       if(cols.length){ tt.colW = tt.colW || []; cols.forEach(c => { tt.colW[c] = cw[c]; }); }
       if(rows.length){ tt.rowHt = tt.rowHt || []; rows.forEach(r => { tt.rowHt[r] = rh[r]; }); }
@@ -8445,7 +8481,7 @@ function bodyTable(body, n){
   function changeCells(list, selAfter){
     if(!list.length) return;
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table; for(const [r,c,v] of list){ if(t.cells[r] && c<t.cells[r].length) t.cells[r][c] = String(v).slice(0,1000); } });
+    mutX(m => { const t = m.nodes[nid].table; for(const [r,c,v] of list){ if(t.cells[r] && c<t.cells[r].length) t.cells[r][c] = String(v).slice(0,1000); } });
     if(selAfter) Object.assign(st, selAfter);
     draw(); syncBar();
   }
@@ -8453,7 +8489,7 @@ function bodyTable(body, n){
     const { R, C } = dim(); R2 = Math.min(R2, MAXR); C2 = Math.min(C2, MAXC);
     if(R2<=R && C2<=C) return false;
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table;
+    mutX(m => { const t = m.nodes[nid].table;
       for(const row of t.cells){ while(row.length<C2) row.push(''); }
       while(t.cells.length<R2) t.cells.push(Array(Math.max(C,C2)).fill(''));
     }, { noUndo:true });
@@ -8710,7 +8746,7 @@ function bodyTable(body, n){
   /* ---------- 서식 ---------- */
   function applyFmt(patch){
     const b = box(); if(!areaOK(b)) return;
-    mutate(m => {
+    mutX(m => {
       const t = m.nodes[nid].table; t.fmt = t.fmt || {};
       eachCell(b, (r,c) => {
         const k = r+','+c, o = Object.assign({}, t.fmt[k]);
@@ -8741,25 +8777,25 @@ function bodyTable(body, n){
   function insRows(at, count){
     const { R, C } = dim(); if(R+count>MAXR){ toast('최대 '+MAXR+'행까지예요'); return; }
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table; for(let i=0;i<count;i++) t.cells.splice(at,0,Array(C).fill('')); if(t.rowHt) t.rowHt.splice(at,0,...Array(count).fill(0)); remapAll(t,'r','ins',at,count); });
+    mutX(m => { const t = m.nodes[nid].table; for(let i=0;i<count;i++) t.cells.splice(at,0,Array(C).fill('')); if(t.rowHt) t.rowHt.splice(at,0,...Array(count).fill(0)); remapAll(t,'r','ins',at,count); });
     selOne(at, st.ac); 
   }
   function delRows(at, count){
     const { R } = dim(); if(count>=R){ toast('행을 모두 지울 수는 없어요'); return; }
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table; t.cells.splice(at,count); if(t.rowHt) t.rowHt.splice(at,count); remapAll(t,'r','del',at,count); });
+    mutX(m => { const t = m.nodes[nid].table; t.cells.splice(at,count); if(t.rowHt) t.rowHt.splice(at,count); remapAll(t,'r','del',at,count); });
     selOne(Math.min(at, dim().R-1), st.ac);
   }
   function insCols(at, count){
     const { C } = dim(); if(C+count>MAXC){ toast('최대 '+MAXC+'열까지예요'); return; }
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table; t.cells.forEach(row => row.splice(at,0,...Array(count).fill(''))); if(t.colW){ t.colW.splice(at,0,...Array(count).fill(0)); } remapAll(t,'c','ins',at,count); });
+    mutX(m => { const t = m.nodes[nid].table; t.cells.forEach(row => row.splice(at,0,...Array(count).fill(''))); if(t.colW){ t.colW.splice(at,0,...Array(count).fill(0)); } remapAll(t,'c','ins',at,count); });
     selOne(st.ar, at);
   }
   function delCols(at, count){
     const { C } = dim(); if(count>=C){ toast('열을 모두 지울 수는 없어요'); return; }
     calcObj = null;
-    mutate(m => { const t = m.nodes[nid].table; t.cells.forEach(row => row.splice(at,count)); if(t.colW) t.colW.splice(at,count); remapAll(t,'c','del',at,count); });
+    mutX(m => { const t = m.nodes[nid].table; t.cells.forEach(row => row.splice(at,count)); if(t.colW) t.colW.splice(at,count); remapAll(t,'c','del',at,count); });
     selOne(st.ar, Math.min(at, dim().C-1));
   }
   function sortBy(asc){
@@ -8773,14 +8809,15 @@ function bodyTable(body, n){
     const cmp = (x,y) => { if(x.blank!==y.blank) return x.blank ? 1 : -1; if(x.blank) return 0; const a = x.v, c2 = y.v; if(typeof a===typeof c2){ if(typeof a==='string') return a.localeCompare(c2,'ko'); return a<c2?-1:a>c2?1:0; } return typeof a==='number' ? -1 : 1; };
     rows.sort((x,y) => asc ? (cmp(x,y) || x.r-y.r) : ((x.blank||y.blank) ? cmp(x,y) : (-cmp(x,y) || x.r-y.r)));
     calcObj = null;
-    mutate(m => { const tt = m.nodes[nid].table; rows.forEach((o,i) => { const nr = r1+i; tt.cells[nr] = o.raw.map(v => (v && v[0]==='=') ? shiftFormula(v, nr - o.r, 0) : v); }); });
+    mutX(m => { const tt = m.nodes[nid].table; rows.forEach((o,i) => { const nr = r1+i; tt.cells[nr] = o.raw.map(v => (v && v[0]==='=') ? shiftFormula(v, nr - o.r, 0) : v); }); });
     draw(); syncBar(); toast((asc?'오름차순':'내림차순')+'으로 정렬했어요');
   }
   function rowsToNodes(){
+    if(EVM){ toast('일정 표에서는 하위 노드를 만들 수 없어요'); return; }
     const b = box(), calc = getCalc(), titles = [];
     for(let r=b.r1;r<=b.r2;r++){ const d = calc(r, b.c1); if(String(d.t).trim()) titles.push(String(d.t).trim().slice(0,200)); }
     if(!titles.length){ toast('선택한 첫 열에 글자가 없어요'); return; }
-    mutate(m => {
+    mutX(m => {
       const p = m.nodes[nid]; p.collapsed = false;
       titles.forEach(tx => { const c = mkNode({ parent:nid, shape:'rounded', text:tx }); placeNew(p, c); m.nodes[c.id] = c; p.children.push(c.id); });
       if(S().auto) tidyMap(m);
@@ -8897,8 +8934,8 @@ function bodyTable(body, n){
     if(d.kind==='resize'){
       if(!d.moved){ fitFromHandle(d); return; }
       const t = T();
-      if(d.axis==='r'){ const hv = t.rowHt && t.rowHt[d.r]; if(hv){ mutate(m => { const tt = m.nodes[nid].table; tt.rowHt = tt.rowHt || []; tt.rowHt[d.r] = hv; }, { noUndo:true }); } }
-      else{ const w = t.colW && t.colW[d.c]; if(w){ mutate(m => { const tt = m.nodes[nid].table; tt.colW = tt.colW || []; tt.colW[d.c] = w; }, { noUndo:true }); } }
+      if(d.axis==='r'){ const hv = t.rowHt && t.rowHt[d.r]; if(hv){ mutX(m => { const tt = m.nodes[nid].table; tt.rowHt = tt.rowHt || []; tt.rowHt[d.r] = hv; }, { noUndo:true }); } }
+      else{ const w = t.colW && t.colW[d.c]; if(w){ mutX(m => { const tt = m.nodes[nid].table; tt.colW = tt.colW || []; tt.colW[d.c] = w; }, { noUndo:true }); } }
       draw(); return;
     }
     if(d.kind==='fill' && d.dst){ fillBox(d.src, d.dst); }
@@ -8912,7 +8949,7 @@ function bodyTable(body, n){
     if(false){
       const c = +rz.dataset.c, calc = getCalc(), { R } = dim(); let mx = 40;
       for(let r=0;r<Math.min(R,300);r++){ const s = fmtDisplay(calc(r,c), fmtOf(r,c)); if(s) mx = Math.max(mx, textW(s, SB.fs, false)+18); }
-      const t = T(); mutate(m => { const tt = m.nodes[nid].table; tt.colW = tt.colW || []; tt.colW[c] = Math.round(clamp(mx, 40, 520)); }, { noUndo:true }); draw(); return;
+      const t = T(); mutX(m => { const tt = m.nodes[nid].table; tt.colW = tt.colW || []; tt.colW[c] = Math.round(clamp(mx, 40, 520)); }, { noUndo:true }); draw(); return;
     }
     // 선택하면서 표를 다시 그리기 때문에 target 이 사라질 수 있어, 좌표로 칸을 다시 찾는다
     let td = e.target.closest && e.target.closest('td[data-r]');
@@ -9024,7 +9061,7 @@ function bodyTable(body, n){
     if(b.r1===b.r2 && b.c1===b.c2){ toast('합칠 칸을 여러 개 선택하세요'); return; }
     if(!areaOK(b)) return;
     calcObj = null;
-    mutate(m => {
+    mutX(m => {
       const t = m.nodes[nid].table;
       t.mg = (t.mg||[]).filter(g => !mgHit(g, b));
       t.mg.push({ r:b.r1, c:b.c1, rs:b.r2-b.r1+1, cs:b.c2-b.c1+1 });
@@ -9037,14 +9074,14 @@ function bodyTable(body, n){
   function unMerge(){
     const b = box(), t = T();
     if(!t.mg || !t.mg.some(g => mgHit(g, b))){ toast('병합된 칸이 없어요'); return; }
-    mutate(m => { const tt = m.nodes[nid].table; tt.mg = tt.mg.filter(g => !mgHit(g, b)); if(!tt.mg.length) delete tt.mg; });
+    mutX(m => { const tt = m.nodes[nid].table; tt.mg = tt.mg.filter(g => !mgHit(g, b)); if(!tt.mg.length) delete tt.mg; });
     draw(); syncBar();
   }
   const bdCur = { w:1, c:'#475569' };       // 테두리 굵기·색 (사용하는 동안 유지)
   function setBorder(kind){
     const b = box(); if(!areaOK(b)) return;
     const val = bdCur.w+':'+bdCur.c;
-    mutate(m => {
+    mutX(m => {
       const t = m.nodes[nid].table; t.fmt = t.fmt || {};
       eachCell(b, (r,c) => {
         const k = r+','+c, o = Object.assign({}, t.fmt[k]), d = Object.assign({}, o.bd);
@@ -9069,7 +9106,7 @@ function bodyTable(body, n){
   }
   function clearFmt(){
     const b = box(); if(!areaOK(b)) return;
-    mutate(m => { const t = m.nodes[nid].table; if(!t.fmt) return; eachCell(b, (r,c) => { delete t.fmt[r+','+c]; }); if(!Object.keys(t.fmt).length) delete t.fmt; });
+    mutX(m => { const t = m.nodes[nid].table; if(!t.fmt) return; eachCell(b, (r,c) => { delete t.fmt[r+','+c]; }); if(!Object.keys(t.fmt).length) delete t.fmt; });
     draw(); syncBar();
   }
   const allHas = key => { const b = box(); let all = true, any = false; eachCell(b, (r,c) => { any = true; const f = fmtOf(r,c); if(!(f && f[key])) all = false; }); return any && all; };
@@ -9187,7 +9224,7 @@ function bodyTable(body, n){
     if(auto!==true) toast('전체 열이 보이게 맞췄어요 ('+Math.round(z*100)+'%)');
   }
   const setFrz = nx => {
-    mutate(m => { const tt = m.nodes[nid].table; const o = { r:(nx&1)?1:0, c:(nx&2)?1:0 }; if(o.r||o.c) tt.frz = o; else delete tt.frz; }, { noUndo:true });
+    mutX(m => { const tt = m.nodes[nid].table; const o = { r:(nx&1)?1:0, c:(nx&2)?1:0 }; if(o.r||o.c) tt.frz = o; else delete tt.frz; }, { noUndo:true });
     draw(); toast(['틀 고정 해제','첫 행 고정','첫 열 고정','첫 행·첫 열 고정'][nx]);
   };
   function refreshTools(){
@@ -9199,7 +9236,7 @@ function bodyTable(body, n){
     const t = T(), calc = getCalc();
     const csv = t.cells.map((row,r) => row.map((v,c) => { const x = String(fmtDisplay(calc(r,c), fmtOf(r,c)) ?? ''); return /[",\r\n]/.test(x) ? '"'+x.replace(/"/g,'""')+'"' : x; }).join(',')).join('\r\n');
     const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' }), url = URL.createObjectURL(blob);
-    const a = h('a',{ href:url, download:(short(N()[nid].text).replace(/[\\/:*?"<>|]/g,'_') || '표')+'.csv' }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const a = h('a',{ href:url, download:(short(EVM ? data.events[nid].title : NNX(nid).text).replace(/[\\/:*?"<>|]/g,'_') || '표')+'.csv' }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast('CSV 파일로 저장했어요 (보이는 값 기준)');
   };
   const bEdit = dd('편집', '편집 · 복사 · 정렬 · 삭제', () => [
@@ -9207,7 +9244,7 @@ function bodyTable(body, n){
     ['내용 지우기  Delete', clearBox], ['서식 지우기', clearFmt], ['자동 합계  Alt+=', autoSum], null,
     ['이 열 오름차순 정렬', () => sortBy(true)], ['이 열 내림차순 정렬', () => sortBy(false)], null,
     ['선택한 줄을 하위 노드로', rowsToNodes], ['CSV 파일로 저장', csvBtn], null,
-    ['이 표 삭제', () => { if(confirm('이 노드의 표를 삭제할까요?')){ mutate(m => { m.nodes[nid].table = null; }); delete sheetSelStore[nid]; rebuild(); } }, 'd']]);
+    ['이 표 삭제', () => { if(confirm('이 노드의 표를 삭제할까요?')){ mutX(m => { m.nodes[nid].table = null; }); delete sheetSelStore[nid]; rebuild(); } }, 'd']]);
   const bRows = dd('행·열', '행 · 열 삽입 / 삭제', () => { const b = box(), nr = b.r2-b.r1+1, nc = b.c2-b.c1+1; return [
     ['위에 행 '+nr+'개 삽입', () => insRows(b.r1, nr)], ['아래에 행 '+nr+'개 삽입', () => insRows(b.r2+1, nr)],
     ['왼쪽에 열 '+nc+'개 삽입', () => insCols(b.c1, nc)], ['오른쪽에 열 '+nc+'개 삽입', () => insCols(b.c2+1, nc)], null,
