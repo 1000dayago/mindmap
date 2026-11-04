@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611031754">
+<meta name="app-version" content="202611040903">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3345,7 +3345,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611031754';
+const APP_VER = '202611040903';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -7128,9 +7128,9 @@ function startMove(e, ev, ctx, ds0){
   if(e.target.closest && e.target.closest('.rz')) return;
   if(e.button!=null && e.button!==0) return;
   const touch = e.pointerType==='touch', x0 = e.clientX, y0 = e.clientY, pid = e.pointerId;
-  const grab = dayFromPoint(x0, y0, ctx); if(!grab) return;
+  const grab = dayFromPoint(x0, y0, ctx); if(!grab){ evLongPress(e, ev, ds0); return; }   // 칸 사이 틈을 눌러도 오래 누르면 상세
   const orig = { date:ev.date, endDate:ev.endDate||'' };
-  let active = false, moved = false, done = false, timer = 0, shield = null, tip = null;
+  let active = false, moved = false, done = false, timer = 0, shield = null, tip = null, travel = 0;
   const label = () => { const en = ev.endDate || ev.date; return shortMD(ev.date)+(en!==ev.date ? ' ~ '+shortMD(en) : ''); };
   const revert = () => { ev.date = orig.date; ev.endDate = orig.endDate; };
   const apply = ds => {
@@ -7150,10 +7150,10 @@ function startMove(e, ev, ctx, ds0){
   if(touch){   // 손가락은 막대를 오래 눌러야 이동 시작 (그 전에 움직이면 화면 스크롤)
     document.addEventListener('touchmove', tmv, { passive:false, capture:true }); document.addEventListener('contextmenu', ctxm, true);
     timer = setTimeout(begin, 380);
-  }
+  }else timer = setTimeout(() => { if(!active && !done && travel<=5){ done = true; cleanup(); setTimeout(() => openEventEditor(ev.id,{ ds:ds0 }), 40); } }, 550);   // 마우스: 움직이지 않고 오래 누르면 상세
   function onMove(m){
     if(m.pointerId!==pid) return;
-    lx = m.clientX; ly = m.clientY;
+    lx = m.clientX; ly = m.clientY; travel = Math.max(travel, Math.hypot(m.clientX-x0, m.clientY-y0));
     if(!active){
       if(touch){ if(Math.hypot(m.clientX-x0, m.clientY-y0) > 10){ done = true; cleanup(); } return; }
       if(Math.hypot(m.clientX-x0, m.clientY-y0) > 5) begin();
@@ -7171,7 +7171,7 @@ function startMove(e, ev, ctx, ds0){
     if(!active) return;
     onDbl.drag = performance.now();
     tip.remove(); setTimeout(() => shield.remove(), 80);
-    if(!moved || !commit){ revert(); if(moved) renderCal(); return; }
+    if(!moved || !commit){ revert(); if(moved) renderCal(); if(!moved && commit && travel<=10) setTimeout(() => openEventEditor(ev.id,{ ds:ds0 }), 40); return; }   // 오래 누르고 그대로 떼면 상세
     if(ev.date===orig.date && (ev.endDate||'')===orig.endDate){ renderCal(); return; }
     if(ev.link) pushEventToMap(ev);
     saveSoon(); renderCal();
@@ -7257,12 +7257,20 @@ function doneBars(ws, maxLanes){
   items.sort((a, b) => a.lo.localeCompare(b.lo) || (b.c2-b.c1)-(a.c2-a.c1) || (a.ev.title||'').localeCompare(b.ev.title||''));
   return packBars(items, maxLanes);
 }
+function evLongPress(e, ev, ds0){
+  if(e.button!=null && e.button!==0) return;
+  const el = e.currentTarget, x0 = e.clientX, y0 = e.clientY; clearTimeout(evLongPress.t);
+  evLongPress.t = setTimeout(() => { evLongPress.fired = performance.now(); try{ if(navigator.vibrate) navigator.vibrate(18); }catch(_){} openEventEditor(ev.id,{ ds:ds0 }); }, 550);
+  const stop = () => clearTimeout(evLongPress.t);
+  el.addEventListener('pointermove', m => { if(Math.abs(m.clientX-x0)+Math.abs(m.clientY-y0)>10) stop(); });
+  ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, stop, { once:true }));
+}
 function barEl(b, ds0, pos, ctx){
   if(b.gbar){
     const g = b.gbar, tog = () => { const k = 'g:'+g.name, pk = cal.pick||[]; if(pk.includes(k)) cal.pick = pk.filter(x => x!==k); if(!b.open || gexp().has(g.name)) gexpToggle(g.name); renderCal(); };
     return h('div',{ class:'cbar gbar'+pickCls('g:'+g.name, false)+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
       title:g.name+(g.total ? ' · '+g.done+'/'+g.total+' 완료 ('+b.pct+'%)' : '')+' · '+fmtMD(g.nf)+(g.nt!==g.nf ? ' ~ '+fmtMD(g.nt) : '')+'\n두 번 누르면 '+(b.open ? '접기' : '펼치기')+' · 길게 누르면 빠른 메뉴',
-      onclick:e => { if(performance.now()-(grpLongPress.fired||0)<900) return; barClick('g:'+g.name, tog, () => pickToggle('g:'+g.name))(e); }, onpointerdown:grpLongPress(g.name), oncontextmenu:e => e.preventDefault(), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
+      onclick:e => { if(performance.now()-(grpLongPress.fired||0)<900) return; barClick('g:'+g.name, tog, () => {})(e); }, onpointerdown:grpLongPress(g.name), oncontextmenu:e => e.preventDefault(), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
       h('i',{ class:'gcv', onclick:e => { e.stopPropagation(); tog(); } }, b.open ? '▾' : '▸'), h('span',{}, b.label));
   }
   const ev = b.ev, gray = !!b.gray, tc = gray ? '#fff' : (evColor(ev)==='#eab308' ? '#422006' : '#fff');
@@ -7272,9 +7280,10 @@ function barEl(b, ds0, pos, ctx){
     if(!b.l) kids.unshift(rzHandle('s', ev, ctx, ds0));
     if(!b.r) kids.push(rzHandle('e', ev, ctx, ds0));
   }
-  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+(pickCls(ev.id, gray, ev.grp))+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 두 번 누르면 수정 · 오래 누른 뒤 끌면 날짜 이동' : ' · 두 번 누르면 수정'),
-    style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+((ev.grp && !gray) ? gv(evColor(ev)) : '')+pos, onclick:(gray || isRep(ev)) ? openEvOnDbl(ev, ds0) : barClick(ev.id, () => openEventEditor(ev.id,{ ds:ds0 }), () => pickToggle(ev.id)), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
+  const props = { class:'cbar'+(b.l ? ' l' : '')+(b.r ? ' r' : '')+(b.single ? ' one' : '')+(gray ? ' gray' : '')+((ctx && !gray && !isRep(ev)) ? ' mv' : '')+((ev.grp && !gray) ? ' gb' : '')+(pickCls(ev.id, gray, ev.grp))+((cal.grp && !gray && ev.grp!==cal.grp) ? ' gdim' : ''), role:'button', tabindex:'0', title:tip+((ctx && !gray && !isRep(ev)) ? ' · 오래 누르면 자세히 · 오래 누른 뒤 끌면 날짜 이동' : ' · 오래 누르면 자세히'),
+    style:'--c:'+(gray ? '#7c8696' : evColor(ev))+';--tc:'+tc+';'+((ev.grp && !gray) ? gv(evColor(ev)) : '')+pos, onclick:(gray || isRep(ev)) ? openEvOnDbl(ev, ds0) : barClick(ev.id, () => openEventEditor(ev.id,{ ds:ds0 }), () => {}), onkeydown:e => { if(e.key==='Enter') openEventEditor(ev.id,{ ds:ds0 }); } };
   if(ctx && !gray && !isRep(ev)) props.onpointerdown = e => startMove(e, ev, ctx, ds0);
+  else { props.onpointerdown = e => evLongPress(e, ev, ds0); props.oncontextmenu = e => e.preventDefault(); }
   return h('div', props, kids);
 }
 // 월 달력: done 이면 완료한 일정만, 시점→완료일을 회색 화살표 선으로 보여준다
