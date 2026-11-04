@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611041204">
+<meta name="app-version" content="202611041207">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3364,7 +3364,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611041204';
+const APP_VER = '202611041207';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -7572,7 +7572,7 @@ const ALARM_ALL = [['','알림 없음'],['-540','당일 오전 9시'],['900','�
 function openEventEditor(id, o){
   o = o||{};
   const ex = id ? data.events[id] : null;
-  const f = ex ? Object.assign({}, ex) : { title:o.title||'', date:o.ds||cal.sel||todayStr(), endDate:'', allDay:false, time:'09:00', endTime:'10:00', repeat:'none', until:'', alarm:null, memo:'', color:EV_COLORS[0] };
+  const f = ex ? Object.assign({}, ex) : { title:o.title||'', date:o.ds||cal.sel||todayStr(), endDate:'', allDay:false, time:'09:00', endTime:'10:00', repeat:'none', until:'', alarm:null, memo:'', color:EV_COLORS[7] };
   openSheet(ex ? (doneOf(ex, o.ds||ex.date) ? '완료 일정 수정' : '일정 수정') : '새 일정', b => {
     let allDay = !!f.allDay, color = f.color;
     const title = h('input',{class:'field',type:'text',placeholder:'제목'}); title.value = f.title;
@@ -10703,7 +10703,7 @@ function quickMake(kind, f){
   if(!title){ toast('내용을 입력하세요'); return null; }
   let ev = null, nid = '';
   if(kind!=='map'){
-    ev = normEvent({ id:uid(), title, date:f.ds||todayStr(), allDay:!!f.allDay, time:f.time||'09:00', repeat:f.repeat||'none', alarm:f.alarm, memo, color:EV_COLORS[0], created:Date.now() });
+    ev = normEvent({ id:uid(), title, date:f.ds||todayStr(), allDay:!!f.allDay, time:f.time||'09:00', repeat:f.repeat||'none', alarm:f.alarm, memo, color:EV_COLORS[7], created:Date.now() });
     if(!ev){ toast('날짜를 확인하세요'); return null; }
     data.events[ev.id] = ev;
   }
