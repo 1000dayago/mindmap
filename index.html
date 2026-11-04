@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611041122">
+<meta name="app-version" content="202611041140">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1228,6 +1228,11 @@ button.gchip{cursor:pointer}
 .ggrp.ghid{opacity:.55}
 #sheetWrap.evtbl #sheet{width:min(1000px,97vw);height:min(88dvh,820px);max-height:96dvh}
 .evtbhead{display:flex;align-items:center;gap:10px;margin:0 0 6px;flex:none}.evtbhead small{color:var(--sub);font-size:11.5px}
+.evpvw{overflow:auto;max-height:230px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--panel-solid)}
+.evpv{border-collapse:collapse;font-size:12px;white-space:nowrap;width:max-content;min-width:100%}
+.evpv th{background:var(--bg);color:var(--sub);font-weight:700;padding:2px 8px;border:1px solid var(--line);text-align:center;position:sticky;top:0}
+.evpv th.rn{position:static;left:0;min-width:24px}.evpv th.cn{min-width:24px}
+.evpv td{border:1px solid var(--line);padding:2px 8px;max-width:240px;overflow:hidden;text-overflow:ellipsis}.evpv td.num{text-align:right}
 .tbmark{margin-left:4px;color:var(--accent,#5b6cff);font-size:12px}
 .hideye.trash:hover{color:var(--danger,#e5484d)}
 .hidrow{display:flex;align-items:center;gap:6px;opacity:.6;font-size:12.5px;padding:2px 4px 2px 8px;border:1px dashed var(--line);border-radius:8px;margin:3px 0}
@@ -3358,7 +3363,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611041122';
+const APP_VER = '202611041140';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6415,7 +6420,20 @@ function evApplyContent(ev, c){
 }
 
 /* ---------- 일정 편집창의 「내용」 칸 ---------- */
-function evContentUI(f){
+function evTblPreview(t){
+  const calc = tableCalc(t.cells), R = t.cells.length, C = t.cells[0].length;
+  let lr = 0, lc = 0;
+  for(let r=0;r<R;r++) for(let c=0;c<C;c++){ if(String(t.cells[r][c]||'').trim()){ if(r>lr) lr = r; if(c>lc) lc = c; } }
+  const rr = Math.min(lr+1, 40), cc = lc+1, esc2 = x => String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let html = '<tr><th class="cn"></th>'; for(let c=0;c<cc;c++) html += '<th>'+colName(c)+'</th>'; html += '</tr>';
+  for(let r=0;r<rr;r++){
+    html += '<tr><th class="rn">'+(r+1)+'</th>';
+    for(let c=0;c<cc;c++){ const d = calc(r,c), f = (t.fmt && t.fmt[r+','+c]) || null; html += '<td'+(typeof d.v==='number' && !d.err ? ' class="num"' : '')+'>'+esc2(fmtDisplay(d, f))+'</td>'; }
+    html += '</tr>';
+  }
+  const tb = h('table',{ class:'evpv', html }); return tb;
+}
+function evContentUI(f, openTbl){
   const st = { memo:f.memo||'', memoH:f.memoH||'', checks:evnClone(f.checks||[]), urls:evnClone(f.urls||[]), table:f.table ? evnClone(f.table) : null };
   const oldUrls = new Set((String(f.memo||'').match(/https?:\/\/[^\s<>"')]+/g) || []).map(cleanUrl));
   const el = h('div',{ class:'evcont' });
@@ -6437,7 +6455,7 @@ function evContentUI(f){
     end(){},
     onPasteTable(text){   // 메모에 엑셀 내용을 붙이면 표로 넣는다
       const cells = cellsFrom(text); if(!cells || (cells.length<2 && cells[0].length<2)) return false;
-      setTable(cells); tblTa.value = tsvOf(st.table); tblSec.d.open = true; toast('엑셀 내용이라 표로 넣었어요 · 노드에도 표로 들어가요'); return true;
+      setTable(cells); drawTbl(); tblSec.d.open = true; toast('엑셀 내용이라 표로 넣었어요 · 노드에도 표로 들어가요'); return true;
     }
   };
   bodyMemo(mbox, { memo:st.memo, memoH:st.memoH }, io);
@@ -6486,8 +6504,22 @@ function evContentUI(f){
 
   // 표
   tblTa.value = tsvOf(st.table);
-  tblTa.addEventListener('input', () => setTable(cellsFrom(tblTa.value)));
-  tblSec.d.append(h('div',{ class:'evbody' }, tblTa, h('p',{ class:'note', style:'margin:4px 2px 0;font-size:11.5px' }, '칸 서식·수식은 연결된 노드의 표 탭에서 고칠 수 있어요.')));
+  const tblBody = h('div',{ class:'evbody' }); tblSec.d.append(tblBody);
+  const drawTbl = () => {
+    tblBody.innerHTML = '';
+    if(st.table && st.table.cells && st.table.cells.length){
+      tblBody.append(h('div',{ class:'evpvw', title:'눌러서 크게 열기 (수식 · 서식 · 칸 합치기까지 엑셀처럼 편집)', onclick:() => openTbl && openTbl() }, evTblPreview(st.table)),
+        h('div',{ class:'row', style:'margin-top:6px;gap:6px' },
+          h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => openTbl && openTbl() }, '▦ 표 크게 열기 · 편집 ('+st.table.cells.length+'행 × '+st.table.cells[0].length+'열)'),
+          h('button',{ class:'btn', type:'button', style:'color:var(--danger)', title:'이 일정의 표를 지워요', onclick:() => { if(confirm('이 일정의 표를 삭제할까요?')){ setTable(null); drawTbl(); } } }, '표 삭제')));
+    }else{
+      tblTa.value = '';
+      tblBody.append(tblTa, h('p',{ class:'note', style:'margin:4px 2px 6px;font-size:11.5px' }, '엑셀에서 복사해 위 칸에 붙여넣으면 엑셀 표가 돼요. 수식 · 서식은 만든 뒤 크게 열어서 고쳐요.'),
+        h('button',{ class:'btn', type:'button', style:'width:100%', onclick:() => { setTable(Array.from({ length:20 }, () => Array(8).fill(''))); drawTbl(); } }, '▦ 빈 표 만들기 (20행 × 8열)'));
+    }
+  };
+  tblTa.addEventListener('input', () => { const c = cellsFrom(tblTa.value); if(c){ setTable(c); drawTbl(); } });
+  drawTbl();
 
   el.append(ckSec.d, lkSec.d, tblSec.d);
   return { el, get(){
@@ -7528,7 +7560,7 @@ function openEventEditor(id, o){
     const rep = h('select',{class:'field'}, Object.keys(REPEAT_LABEL).map(k => h('option',{value:k}, REPEAT_LABEL[k]))); rep.value = f.repeat||'none';
     const untilI = h('input',{class:'field',type:'date',value:f.until||''});
     const alarm = h('select',{class:'field'});
-    const cu = evContentUI(f);
+    const cu = evContentUI(f, () => { const e2 = save(); if(e2){ closeSheet(true); openEvTable(e2.id, o); } });
     const timeBox = h('div',{class:'frow'}, h('div',{style:'flex:1'}, h('div',{class:'lbl'},'시작 시간'), timeI), h('div',{style:'flex:1'}, h('div',{class:'lbl'},'종료 시간'), etimeI));
     const endBox = h('div',{}, h('div',{class:'lbl'},'종료 날짜 (여러 날 일정일 때만)'), endI);
     const untilBox = h('div',{}, h('div',{class:'lbl'},'반복 종료 날짜 (비우면 계속)'), untilI);
@@ -7613,7 +7645,6 @@ function openEventEditor(id, o){
       h('p',{class:'note',style:'margin:2px 2px 8px;font-size:11.5px'},'앱을 닫으면 알림이 울리지 않아요 · 중요한 일정은 구글 캘린더로 올려 두세요'),
       h('div',{class:'evright'},
         h('div',{class:'lbl'},'내용'), cu.el,
-        evTblRow(ex, save, o),
         h('div',{class:'lbl'},'관련 마인드맵 노드'), refBox,
         h('div',{class:'lbl'},'색상'), sw));
     sync();
