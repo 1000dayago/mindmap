@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611041038">
+<meta name="app-version" content="202611041044">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1226,6 +1226,7 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
+.hideye.trash:hover{color:var(--danger,#e5484d)}
 .hidrow{display:flex;align-items:center;gap:6px;opacity:.6;font-size:12.5px;padding:2px 4px 2px 8px;border:1px dashed var(--line);border-radius:8px;margin:3px 0}
 .hidrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lvtree{display:block;min-width:0}
@@ -3354,7 +3355,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611041038';
+const APP_VER = '202611041044';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5901,6 +5902,21 @@ function hidCount(){ hidInit(); let n = 0; const gs = new Set(grpList().map(g =>
 function hidToggle(kind, key){ hidInit(); const s = kind==='g' ? HID.g : HID.e; s.has(key) ? s.delete(key) : s.add(key); hidSave(); renderCal(); }
 function hidClearItems(){ HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
 function hidAll(){ HID.mode = 'all'; HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
+function trashBtn(tip, fn){ return h('button',{ type:'button', class:'hideye trash', title:tip, 'aria-label':tip, html:ic('trash', 16), onclick:e => { e.stopPropagation(); fn(); } }); }
+function grpDelete(g){
+  const t = g.evs.slice(), refs = (g.refs||[]).slice(), col = g.color;
+  askDlg({ title:'“'+g.name+'” 그룹을 삭제할까요?', sub:(t.length ? '그룹과 안에 있는 일정 '+t.length+'개가 모두 지워져요.' : '그룹이 지워져요.')+' 삭제 직후엔 취소할 수 있어요.', ok:'삭제', danger:true }, () => {
+    const snap = t.map(e => JSON.stringify(e));
+    t.forEach(e => deleteEvent(e.id)); regDel(g.name); if(cal.grp===g.name) cal.grp = ''; HID.g.delete(g.name); saveSoon(); refreshEvViews();
+    toast('“'+g.name+'” 그룹을 삭제했어요', { label:'취소', fn:() => { regSet(g.name, col); if(refs.length) grpRefsSet(g.name, refs); grpRestoreSnap(snap); } });
+  });
+}
+function soloDelete(ev){
+  askDlg({ title:'“'+ev.title+'” 일정을 삭제할까요?', sub:'삭제 직후엔 취소할 수 있어요.', ok:'삭제', danger:true }, () => {
+    const snap = JSON.stringify(ev); deleteEvent(ev.id); refreshEvViews();
+    toast('일정을 삭제했어요', { label:'취소', fn:() => grpRestoreSnap([snap]) });
+  });
+}
 function hidEye(kind, key, on, label){ return h('button',{ type:'button', class:'hideye'+(on ? ' off' : ''), title:(on ? '숨김 상태 · 누르면 다시 보여요' : '눈을 누르면 달력과 목록에서 숨겨요')+(label ? ' ('+label+')' : ''), 'aria-label':on ? '다시 보기' : '숨기기', html:ic(on ? 'eyeOff' : 'eye', 16), onclick:e => { e.stopPropagation(); hidToggle(kind, key); } }); }
 function hidBar(){
   hidInit(); const n = hidCount(), all = HID.mode==='all' && n===0, keep = lsGet('mm_hide_keep', false);
@@ -5936,7 +5952,8 @@ function grpArea(){
         h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음'))),
       (g.refs && g.refs.length) ? h('button',{ type:'button', class:'gnode', title:'연결된 노드로 이동', 'aria-label':'연결된 노드로 이동', html:ic('mindmap',15), onclick:() => refOpen(g.refs) }) : null,
       hidEye('g', g.name, hid, g.name),
-      h('button',{ type:'button', class:'gedit', title:'그룹 편집 (이름·색·템플릿)', 'aria-label':'그룹 편집', onclick:() => openGroupDetail(g.name) }, '✎')));
+      h('button',{ type:'button', class:'gedit', title:'그룹 편집 (이름·색·템플릿)', 'aria-label':'그룹 편집', onclick:() => openGroupDetail(g.name) }, '✎'),
+      trashBtn('그룹 삭제 (안의 일정도 함께, 한 번 물어봐요)', () => grpDelete(g))));
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
@@ -7046,7 +7063,7 @@ function calAgenda(ds){
   if(hasG) ind.append(h('div',{ class:'lbl' }, '단독 일정'));
   if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 단독 일정이 없어요.' : evs.length ? '이 날의 단독 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
   { const rb = solo.length>1 ? ordResetBtn(solo) : null; if(rb) ind.append(h('div',{ style:'text-align:right;margin:-2px 0 4px' }, rb)); }
-  solo.forEach(ev => { const r = evRow(ev, ds, { memo:true, grip: solo.length>1 ? solo : null }); r.append(hidEye('e', ev.id, false, ev.title)); ind.append(r); });
+  solo.forEach(ev => { const r = evRow(ev, ds, { memo:true, grip: solo.length>1 ? solo : null }); r.append(hidEye('e', ev.id, false, ev.title), trashBtn('일정 삭제 (한 번 물어봐요)', () => soloDelete(ev))); ind.append(r); });
   hsolo.forEach(ev => ind.append(h('div',{ class:'hidrow', title:'숨긴 단독 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, (ev.time && !ev.allDay ? ev.time+' ' : '')+ev.title), hidEye('e', ev.id, true, ev.title))));
   if(HID.mode!=='grp') box.append(ind);
   if(fin.length){
