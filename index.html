@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611041158">
+<meta name="app-version" content="202611041204">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3364,7 +3364,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611041158';
+const APP_VER = '202611041204';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6174,8 +6174,14 @@ function openTplEdit(i){
 function pickOnly(key){
   const pk = cal.pick||[]; cal.pick = (pk.length===1 && pk[0]===key) ? [] : [key];
   try{ if(navigator.vibrate) navigator.vibrate(18); }catch(_){}
+  // 손을 떼면서 생기는 클릭이 바뀐 화면(날짜 칸 · 목록 행)을 눌러 선택이 풀리거나 편집창이 열리지 않게 한 번 막는다
+  const sw = e => { e.stopPropagation(); e.preventDefault(); document.removeEventListener('click', sw, true); };
+  const arm = () => { document.addEventListener('click', sw, true); setTimeout(() => document.removeEventListener('click', sw, true), 300); };
+  if(pickOnly.down) document.addEventListener('pointerup', () => setTimeout(arm, 0), { once:true, capture:true }); else arm();
   renderCal();
 }
+document.addEventListener('pointerdown', () => { pickOnly.down = true; }, true);
+['pointerup','pointercancel'].forEach(t => document.addEventListener(t, () => { pickOnly.down = false; }, true));
 function pickToggle(key){
   const a = (cal.pick||[]).slice(), i = a.indexOf(key);
   if(i>=0) a.splice(i, 1); else { a.push(key); while(a.length>3) a.shift(); }
@@ -6216,7 +6222,7 @@ function pickSection(){
       const pct = g.total ? Math.round(g.done*100/g.total) : 0, nx = grpNextEv(g);
       const box = h('div',{ class:'ggrp foc', style:gv(g.color) },
         h('div',{ class:'ghead' }, h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료 · '+pct+'%' : g.evs.length+'개'), h('span',{ class:'sp' }),
-          h('button',{ type:'button', class:'gab', onclick:() => openGroupDetail(g.name) }, '상세')));
+          h('button',{ type:'button', class:'gab', title:'다음 단계 완료 · 하루 미루기 · 템플릿 등 빠른 메뉴', onclick:() => grpBarMenu(g.name) }, '메뉴'), h('button',{ type:'button', class:'gab', onclick:() => openGroupDetail(g.name) }, '상세')));
       if(nx) box.append(h('p',{ class:'gnx' }, '다음: '+(nx.title||'(제목 없음)')+' · '+sdm(nx.date)));
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정이 없어요'));
       g.evs.forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
@@ -6341,7 +6347,7 @@ function grpLongPress(name){
   return e => {
     if(e.button!=null && e.button!==0) return;
     const el = e.currentTarget, x0 = e.clientX, y0 = e.clientY; clearTimeout(grpLongPress.t);
-    grpLongPress.t = setTimeout(() => { grpLongPress.fired = performance.now(); grpBarMenu(name); }, 550);
+    grpLongPress.t = setTimeout(() => { grpLongPress.fired = performance.now(); pickOnly('g:'+name); }, 550);
     const stop = () => clearTimeout(grpLongPress.t);
     el.addEventListener('pointermove', m => { if(Math.abs(m.clientX-x0)+Math.abs(m.clientY-y0)>10) stop(); });
     ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, stop, { once:true }));
@@ -7381,7 +7387,7 @@ function barEl(b, ds0, pos, ctx){
   if(b.gbar){
     const g = b.gbar, tog = () => { const k = 'g:'+g.name, pk = cal.pick||[]; if(pk.includes(k)) cal.pick = pk.filter(x => x!==k); if(!b.open || gexp().has(g.name)) gexpToggle(g.name); renderCal(); };
     return h('div',{ class:'cbar gbar'+pickCls('g:'+g.name, false)+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
-      title:g.name+(g.total ? ' · '+g.done+'/'+g.total+' 완료 ('+b.pct+'%)' : '')+' · '+fmtMD(g.nf)+(g.nt!==g.nf ? ' ~ '+fmtMD(g.nt) : '')+'\n두 번 누르면 '+(b.open ? '접기' : '펼치기')+' · 길게 누르면 빠른 메뉴',
+      title:g.name+(g.total ? ' · '+g.done+'/'+g.total+' 완료 ('+b.pct+'%)' : '')+' · '+fmtMD(g.nf)+(g.nt!==g.nf ? ' ~ '+fmtMD(g.nt) : '')+'\n두 번 누르면 '+(b.open ? '접기' : '펼치기')+' · 길게 누르면 이 그룹만 보기 (메뉴는 선택 후 목록의 「메뉴」)',
       onclick:e => { if(performance.now()-(grpLongPress.fired||0)<900) return; barClick('g:'+g.name, tog, () => {})(e); }, onpointerdown:grpLongPress(g.name), oncontextmenu:e => e.preventDefault(), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
       h('i',{ class:'gcv', onclick:e => { e.stopPropagation(); tog(); } }, b.open ? '▾' : '▸'), h('span',{}, b.label));
   }
