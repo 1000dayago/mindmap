@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611040903">
+<meta name="app-version" content="202611041038">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1219,6 +1219,15 @@ button.gchip{cursor:pointer}
 .qtip{position:fixed;z-index:99999;pointer-events:none;background:#2b2130;color:#fff;font-size:12.5px;font-weight:600;line-height:1.35;padding:7px 11px;border-radius:10px;max-width:260px;box-shadow:0 6px 18px rgba(0,0,0,.28);opacity:0;transform:translateY(3px);transition:opacity .12s,transform .12s}
 .qtip.on{opacity:1;transform:none}
 
+.hidbar{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:0 0 6px}
+.hidbar .hb{border:1px solid var(--line);background:transparent;color:var(--sub);border-radius:999px;padding:0 9px;font-size:12px;font-weight:700;min-height:26px;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.hidbar .hb.on{background:var(--accent,#5b6cff);color:#fff;border-color:transparent}
+.hidbar .hb.st{margin-left:auto;color:var(--danger,#e5484d);border-color:var(--danger,#e5484d)}
+.hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
+.hideye.off{color:var(--danger,#e5484d)}
+.ggrp.ghid{opacity:.55}
+.hidrow{display:flex;align-items:center;gap:6px;opacity:.6;font-size:12.5px;padding:2px 4px 2px 8px;border:1px dashed var(--line);border-radius:8px;margin:3px 0}
+.hidrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lvtree{display:block;min-width:0}
 .lvtree .lv{display:flex;gap:5px;align-items:baseline;white-space:nowrap;overflow:hidden;font-size:12px;line-height:1.5;color:var(--sub)}
 .lvtree .lv .lvn{flex:none;font-weight:800;font-size:11px;color:var(--accent,#5b6cff);letter-spacing:-.5px}
@@ -3345,7 +3354,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611040903';
+const APP_VER = '202611041038';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5883,6 +5892,27 @@ let grpRedraw = null;
 const gexp = () => new Set(lsGet('mm_grp_exp', []));
 function gexpToggle(k){ const s = gexp(); s.has(k) ? s.delete(k) : s.add(k); lsSet('mm_grp_exp', [...s]); }
 const gfold = () => new Set(lsGet('mm_grp_fold', []));
+/* ---- 눈 아이콘: 보기 전용 숨김 (오늘 할 일 · 내보내기에는 영향 없음) ---- */
+const HID = { mode:'all', g:new Set(), e:new Set(), init:false };
+function hidInit(){ if(HID.init) return; HID.init = true; try{ if(lsGet('mm_hide_keep', false)){ const o = lsGet('mm_hide', null); if(o){ HID.mode = o.mode||'all'; HID.g = new Set(o.g||[]); HID.e = new Set(o.e||[]); } } }catch(_){} }
+function hidSave(){ try{ if(lsGet('mm_hide_keep', false)) lsSet('mm_hide', { mode:HID.mode, g:[...HID.g], e:[...HID.e] }); }catch(_){} }
+function evHidden(ev){ hidInit(); if(HID.mode==='grp' && !ev.grp) return true; if(HID.mode==='solo' && ev.grp) return true; return ev.grp ? HID.g.has(ev.grp) : HID.e.has(ev.id); }
+function hidCount(){ hidInit(); let n = 0; const gs = new Set(grpList().map(g => g.name)); HID.g.forEach(g => { if(gs.has(g)) n++; }); HID.e.forEach(id => { const e = data.events[id]; if(e && !e.grp) n++; }); return n; }
+function hidToggle(kind, key){ hidInit(); const s = kind==='g' ? HID.g : HID.e; s.has(key) ? s.delete(key) : s.add(key); hidSave(); renderCal(); }
+function hidClearItems(){ HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
+function hidAll(){ HID.mode = 'all'; HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
+function hidEye(kind, key, on, label){ return h('button',{ type:'button', class:'hideye'+(on ? ' off' : ''), title:(on ? '숨김 상태 · 누르면 다시 보여요' : '눈을 누르면 달력과 목록에서 숨겨요')+(label ? ' ('+label+')' : ''), 'aria-label':on ? '다시 보기' : '숨기기', html:ic(on ? 'eyeOff' : 'eye', 16), onclick:e => { e.stopPropagation(); hidToggle(kind, key); } }); }
+function hidBar(){
+  hidInit(); const n = hidCount(), all = HID.mode==='all' && n===0, keep = lsGet('mm_hide_keep', false);
+  const chip = (t, on, tip, fn) => h('button',{ type:'button', class:'hb'+(on ? ' on' : ''), title:tip, onclick:fn }, t);
+  return h('div',{ class:'hidbar' },
+    h('span',{ class:'hideye', title:'보기 필터 — 그룹·단독 일정을 골라서 봐요', html:ic('eye', 16), style:'cursor:default' }),
+    chip('전체', all, '숨긴 것과 필터를 모두 풀고 전부 보기', hidAll),
+    chip('그룹만', HID.mode==='grp', '그룹 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='grp' ? 'all' : 'grp'; hidSave(); renderCal(); }),
+    chip('단독만', HID.mode==='solo', '단독 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='solo' ? 'all' : 'solo'; hidSave(); renderCal(); }),
+    n ? chip('숨김 '+n+'개 · 모두 보기', false, '눈 아이콘으로 숨긴 그룹·일정을 모두 다시 보여요', hidClearItems) : null,
+    (n || HID.mode!=='all') ? chip(keep ? '유지 ✓' : '유지', !!keep, '켜면 앱을 다시 열어도 숨김 상태를 기억해요 (끄면 열 때마다 전체 보기)', () => { lsSet('mm_hide_keep', !keep); hidSave(); renderCal(); }) : null);
+}
 function gfoldSet(k, on){ const s = gfold(); on ? s.add(k) : s.delete(k); lsSet('mm_grp_fold', [...s]); }
 /* ---- 일정 목록 위 그룹 영역 ---- */
 function grpArea(){
@@ -5898,13 +5928,14 @@ function grpArea(){
   const pkIds = pickIds(), pkG = pickGroups();
   gs_.forEach(g => {
     if(pkG.has(g.name)) return;   // 선택한 그룹은 맨 위 「선택한 일정」으로 옮겨 보여준다
-    const closed = fold.has(g.name);
-    const box = h('div',{ class:'ggrp'+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:gv(g.color) });
+    const hid = HID.g.has(g.name), closed = fold.has(g.name) || hid;
+    const box = h('div',{ class:'ggrp'+(hid ? ' ghid' : '')+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:gv(g.color) });
     box.append(h('div',{ class:'ghead' },
       h('button',{ type:'button', class:'gtog', 'aria-label':'접기·펴기', onclick:() => { gfoldSet(g.name, !closed); renderCal(); } }, closed ? '▸' : '▾'),
       h('button',{ type:'button', class:'gname', title:'누르면 달력에서 이 그룹만 강조', onclick:() => { cal.grp = cal.grp===g.name ? '' : g.name; renderCal(); } },
         h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음'))),
       (g.refs && g.refs.length) ? h('button',{ type:'button', class:'gnode', title:'연결된 노드로 이동', 'aria-label':'연결된 노드로 이동', html:ic('mindmap',15), onclick:() => refOpen(g.refs) }) : null,
+      hidEye('g', g.name, hid, g.name),
       h('button',{ type:'button', class:'gedit', title:'그룹 편집 (이름·색·템플릿)', 'aria-label':'그룹 편집', onclick:() => openGroupDetail(g.name) }, '✎')));
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
@@ -5994,7 +6025,10 @@ function openGroupDetail(name){
       h('p',{ class:'note', style:'margin:2px 2px 6px' }, '지금 일정을 틀로 저장해 두면 다음에 「템플릿으로 단계 추가」로 그대로 쓸 수 있어요. 템플릿 관리는 일정 목록 위 「템플릿」 버튼에서 해요.'));
     dt.append(h('div',{ class:'lbl' }, '관련 마인드맵 노드'), refField(() => grpRefsGet(g.name), v => { grpRefsSet(g.name, v); }, true));
     b.append(dt);
-    b.append(h('div',{ class:'row', style:'margin-top:16px' }, h('button',{ class:'btn', type:'button', style:'color:var(--danger)', onclick:() => askDlg({ title:'그룹을 해제할까요?', sub:'일정은 그대로 남고 그룹 표시만 사라져요.', ok:'해제', danger:true }, () => { grpClear(g.name); closeSheet(true); toast('그룹을 해제했어요'); }) }, '그룹 해제')));
+    b.append(h('div',{ class:'row', style:'margin-top:16px;gap:6px', title:'이 그룹의 모든 일정을 한 번에 완료하거나 삭제해요 (직후엔 취소 가능)' },
+      h('button',{ class:'btn', type:'button', style:'flex:1', disabled:!g.evs.some(e => !isRep(e) && !doneOf(e, e.date)), onclick:() => grpDoneAll(g) }, '✓ 전체 일정 완료'),
+      h('button',{ class:'btn', type:'button', style:'flex:1;color:var(--danger)', disabled:!g.evs.length, onclick:() => grpDelAll(g) }, '🗑 전체 일정 삭제')));
+    b.append(h('div',{ class:'row', style:'margin-top:10px' }, h('button',{ class:'btn', type:'button', style:'color:var(--danger)', onclick:() => askDlg({ title:'그룹을 해제할까요?', sub:'일정은 그대로 남고 그룹 표시만 사라져요.', ok:'해제', danger:true }, () => { grpClear(g.name); closeSheet(true); toast('그룹을 해제했어요'); }) }, '그룹 해제')));
   };
   openSheet('그룹', b => { draw(b); grpRedraw = () => { if(sheetWrap.classList.contains('hidden')){ grpRedraw = null; return; } draw(sheetBody); }; });
 }
@@ -6280,6 +6314,19 @@ function grpLongPress(name){
     ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, stop, { once:true }));
   };
 }
+function grpDoneAll(g){
+  const t = g.evs.filter(e => !isRep(e) && !doneOf(e, e.date)); if(!t.length){ toast('이미 모두 완료돼 있어요'); return; }
+  t.forEach(e => setEvDone(e, e.date, true)); refreshEvViews();
+  toast('“'+g.name+'” 일정 '+t.length+'개를 모두 완료했어요', { label:'취소', fn:() => { t.forEach(e => setEvDone(e, e.date, false)); refreshEvViews(); } });
+}
+function grpDelAll(g){
+  const t = g.evs.slice(); if(!t.length){ toast('지울 일정이 없어요'); return; }
+  askDlg({ title:'일정 '+t.length+'개를 모두 삭제할까요?', sub:'“'+g.name+'” 그룹에 속한 일정이 전부 지워져요. 그룹 자체는 남아요. 삭제 직후엔 취소할 수 있어요.', ok:'모두 삭제', danger:true }, () => {
+    const snap = t.map(e => JSON.stringify(e));
+    t.forEach(e => deleteEvent(e.id)); refreshEvViews();
+    toast('일정 '+t.length+'개를 삭제했어요', { label:'취소', fn:() => grpRestoreSnap(snap) });
+  });
+}
 function grpBarMenu(name){
   const g = grpList().find(x => x.name===name); if(!g) return;
   const nx = grpNextEv(g), pct = g.total ? Math.round(g.done*100/g.total) : 0;
@@ -6292,7 +6339,9 @@ function grpBarMenu(name){
       item('하루 미루기 (다음 단계만)', () => grpShift([nx], 1, '“'+nx.title+'”을 하루 미뤘어요'), !nx),
       item('뒤 단계 전부 하루 밀기', () => grpShift(later, 1, '뒤 '+later.length+'개를 하루씩 밀었어요'), !nx),
       item('같은 날 순서 바꾸기 · 단계 추가 (그룹 열기)', () => openGroupDetail(name)),
-      item('템플릿 만들기', () => gtplSaveFrom(g), !g.evs.length)));
+      item('✓ 전체 일정 완료', () => grpDoneAll(g), !g.evs.some(e => !isRep(e) && !doneOf(e, e.date))),
+      item('템플릿 만들기', () => gtplSaveFrom(g), !g.evs.length),
+      item('🗑 전체 일정 삭제', () => grpDelAll(g), !g.evs.length)));
   });
 }
 function grpTodayNext(body, head){
@@ -6989,15 +7038,17 @@ function calAgenda(ds){
     evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:true })));
     return box;
   }
+  box.append(hidBar());
   { const ps = pickSection(); if(ps) box.append(ps); }
-  box.append(grpArea());
-  const pks = pickIds(), solo0 = evs.filter(ev => !ev.grp && !pks.has(ev.id)), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
+  if(HID.mode!=='solo') box.append(grpArea());
+  const pks = pickIds(), solo0 = evs.filter(ev => !ev.grp && !pks.has(ev.id) && !evHidden(ev)), hsolo = HID.mode==='grp' ? [] : evs.filter(ev => !ev.grp && !pks.has(ev.id) && HID.e.has(ev.id)), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
   const ind = h('div',{ class:'indep' });
   if(hasG) ind.append(h('div',{ class:'lbl' }, '단독 일정'));
   if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 단독 일정이 없어요.' : evs.length ? '이 날의 단독 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
   { const rb = solo.length>1 ? ordResetBtn(solo) : null; if(rb) ind.append(h('div',{ style:'text-align:right;margin:-2px 0 4px' }, rb)); }
-  solo.forEach(ev => ind.append(evRow(ev, ds, { memo:true, grip: solo.length>1 ? solo : null })));
-  box.append(ind);
+  solo.forEach(ev => { const r = evRow(ev, ds, { memo:true, grip: solo.length>1 ? solo : null }); r.append(hidEye('e', ev.id, false, ev.title)); ind.append(r); });
+  hsolo.forEach(ev => ind.append(h('div',{ class:'hidrow', title:'숨긴 단독 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, (ev.time && !ev.allDay ? ev.time+' ' : '')+ev.title), hidEye('e', ev.id, true, ev.title))));
+  if(HID.mode!=='grp') box.append(ind);
   if(fin.length){
     const fold = gfold().has('#done');
     box.append(h('div',{ class:'donesec' },
@@ -7208,7 +7259,7 @@ function spanBars(ws, maxLanes, withSingles){
   if(cal.view==='month') (cal.pick||[]).forEach(k => { if(k.startsWith('g:')) gopen.add(k.slice(2)); });   // 선택한 그룹은 관련 일정까지 펼쳐서 보여준다
   grpList().forEach(g => {
     if(!g.nf) return; const open = gopen.has(g.name); if(!open) colp.add(g.name);
-    if(g.nf>we || g.nt<ws) return;
+    if(g.nf>we || g.nt<ws || HID.g.has(g.name) || HID.mode==='solo') return;
     if(cal.grp && g.name!==cal.grp) return;   // 그룹을 골라 보는 중이면 다른 그룹 막대는 숨긴다
     const pct = g.total ? Math.round(g.done*100/g.total) : 0, label = g.name+(g.total ? ' · '+pct+'%' : '');
     const c1 = Math.max(0, dayDiff(ws, g.nf)), cr = Math.min(6, dayDiff(ws, g.nt));
@@ -7219,7 +7270,7 @@ function spanBars(ws, maxLanes, withSingles){
     const fill = Math.max(0, Math.min(seg, fd-off))/(c2-c1+1)*100;
     gitems.push({ gbar:g, label, pct, open, fill, ev:{ id:'g:'+g.name, title:g.name, date:g.nf }, c1, c2, l:g.nf<ws, r:g.nt>we });
   });
-  const inCol = ev => ev.grp && ((cal.grp && ev.grp!==cal.grp) || (!isRep(ev) && colp.has(ev.grp)));
+  const inCol = ev => evHidden(ev) || ev.grp && ((cal.grp && ev.grp!==cal.grp) || (!isRep(ev) && colp.has(ev.grp)));
   const evs = Object.values(data.events).filter(ev => isSpan(ev) && !inCol(ev) && !doneOf(ev, ev.date) && ev.date<=we && ev.endDate>=ws);
   evs.sort((a, b) => a.date.localeCompare(b.date) || b.endDate.localeCompare(a.endDate) || (a.title||'').localeCompare(b.title||''));
   const items = evs.map(ev => ({ ev, c1:Math.max(0, dayDiff(ws, ev.date)), c2:Math.min(6, dayDiff(ws, ev.endDate)), l:ev.date<ws, r:ev.endDate>we }));   // l: 앞 주에서 이어짐 · r: 다음 주로 이어짐
@@ -7354,7 +7405,7 @@ function calWeek(body){
     all.append(strip);
   }
   for(let i=0;i<7;i++){
-    const ds = addDays(s,i), wd = i, evs = eventsOn(ds, true).filter(ev => !isSpan(ev) || doneOf(ev, ds));
+    const ds = addDays(s,i), wd = i, evs = eventsOn(ds, true).filter(ev => (!isSpan(ev) || doneOf(ev, ds)) && !evHidden(ev));
     const col = h('div',{'data-ds':ds, class:'wkd'+(ds===today?' today':'')},
       h('button',{class:'wkh'+(wd===0||krHoliday(ds)?' sun':wd===6?' sat':''), onclick:() => { cal.date = ds; cal.sel = ds; cal.view = 'day'; renderCal(); }}, DOW[wd]+' '+parseYmd(ds).getDate()+(krHoliday(ds) ? ' '+krHoliday(ds) : '')));
     if(!evs.length) col.append(h('span',{class:'wke'},'—'));
@@ -7366,7 +7417,7 @@ function calWeek(body){
 }
 
 function calDay(body){
-  const ds = cal.date, evs = eventsOn(ds, true);
+  const ds = cal.date, evs = eventsOn(ds, true).filter(ev => !evHidden(ev));
   const wrap = h('div',{class:'cdy'});
   if(!evs.length) wrap.append(h('p',{class:'note',style:'text-align:center;padding:30px 0'},'이 날은 일정이 없어요.'));
   if(evs.length) wrap.prepend(h('div',{class:'ordrow'}, ordToggle(), (evs.length>1 ? ordResetBtn(evs) : null)));
