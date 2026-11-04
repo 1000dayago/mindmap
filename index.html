@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611041207">
+<meta name="app-version" content="202611041218">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -275,6 +275,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .evrow:hover{background:var(--accent-soft)}
 .evrow .tm{font-size:12px;font-weight:800;color:var(--c,var(--accent));min-width:50px;flex:none}
 .evrow .tt{flex:1;min-width:0}
+.evrow{gap:6px!important;padding:6px 8px 6px 10px!important;min-height:40px!important}
+.evrow .tm{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;font-size:11px!important;min-width:0!important;gap:1px}
+.evrow .tm .tme{font-weight:600;opacity:.75;font-size:10.5px}
+.evrow .tt b{white-space:normal!important;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;font-size:13px!important;line-height:1.28;word-break:break-all}
+.evrow .tt small{font-size:11px!important}
+.evrow .tgs{gap:2px!important}
+.evrow .tgs .tg svg{width:12px;height:12px}
+.evrow .hideye{width:22px;height:24px}
+.evrow .ordgrip{width:22px!important;height:30px!important;margin:-6px -2px -6px 0!important}
+.evrow .evck{margin:0!important}
+@media(min-width:821px){ .cm > .agenda{width:360px!important} }
 .evrow .tt b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .evrow .tt small{display:block;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .evrow .tgs{display:flex;gap:4px;color:var(--sub)}
@@ -3364,7 +3375,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611041207';
+const APP_VER = '202611041218';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -7092,7 +7103,7 @@ function evRow0(ev, ds, o){
     onclick:e => { e.stopPropagation(); setEvDone(ev, ds, !dn); refreshEvViews(); } });
   return h('div',{ class:'evrow'+(dn?' done':''), role:'button', tabindex:'0', style:'--c:'+evColor(ev), onclick:(o.dbl===false || dn) ? () => openEventEditor(ev.id,{ ds, back:o.back }) : openEvOnDbl(ev, ds), title:(o.dbl===false || dn) ? (dn ? '눌러서 완료 일정 수정' : null) : '두 번 누르면 수정', onkeydown:e => { if(e.key==='Enter' && e.target===e.currentTarget) openEventEditor(ev.id,{ ds }); } },
     ck,
-    h('span',{class:'tm'}, o.showDate ? fmtMD(ds)+(ev.allDay?'':' '+ev.time) : timeLabel(ev)),
+    h('span',{class:'tm'}, ...(o.showDate ? [h('span',{}, fmtMD(ds)), ev.allDay ? null : h('span',{}, ev.time)] : (ev.allDay ? [h('span',{}, '종일')] : [h('span',{}, ev.time), ev.endTime ? h('span',{ class:'tme' }, '~'+ev.endTime) : null]))),
     h('span',{class:'tt'}, h('b',{}, ev.title||'(제목 없음)'), dn ? h('small',{class:'dnl'}, '✓ 완료 '+(+dm[1])+'/'+(+dm[2])) : null, (o.memo && ev.memo) ? h('small',{}, ev.memo.split('\n')[0]) : null),
     h('span',{class:'tgs'}, tags), go, o.ord ? ordGrip(ev, ds) : (o.grip ? ordGrip(ev, ds, o.grip) : null));
 }
