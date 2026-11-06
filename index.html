@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611060915">
+<meta name="app-version" content="202611060939">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3376,7 +3376,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611060915';
+const APP_VER = '202611060939';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4792,6 +4792,13 @@ function bodyMemo(body, n, io){   // io: 일정 편집창 등 노드 밖에서 �
   ed.addEventListener('focus', () => { setTimeout(fitNpanelToViewport, 50); setTimeout(fitNpanelToViewport, 280); });
   ed.addEventListener('paste', e => {
     e.preventDefault();
+    { const imf = clipImage(e);
+      if(imf){
+        if(io && io.onPasteFile) io.onPasteFile(imf);
+        else if(!io && typeof pn !== 'undefined' && pn){ const pid = pn.id; driveUploadTo(imf, it => { addLinkItem(pid, it); try{ updatePanelTabs(); }catch(_){} }); }
+        else toast('여기에는 사진을 붙일 수 없어요');
+        return;
+      } }
     const t = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
     if(io && io.onPasteTable && /\t/.test(t) && /\n/.test(t.replace(/\r?\n$/, '')) && io.onPasteTable(t)) return;   // 엑셀에서 복사한 내용이면 표로
     if(t) document.execCommand('insertText', false, t);
@@ -5026,13 +5033,83 @@ function driveNotReady(e){
   if(e && /알 수 없는 요청/.test(e.message||'')) return 'Apps Script 를 새 코드로 업데이트해야 해요 (동기화 설정 → 코드 복사 → 새 버전으로 배포)';
   return e && e.message || '실패';
 }
-function openDrivePicker(nid){
+const ATTACH_DEFAULT = '1ikX3bQO2q8rDhNwskM_Q57xyAkimQqSF';
+const attachFolderId = () => String(lsGet('mm_attach_folder', ATTACH_DEFAULT) || ATTACH_DEFAULT);
+const attachFolderUrl = () => 'https://drive.google.com/drive/folders/'+attachFolderId();
+function parseFolderId(s){ s = String(s||'').trim(); const m = s.match(/folders\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/); if(m) return m[1]; return /^[A-Za-z0-9_-]{15,}$/.test(s) ? s : ''; }
+function attachFolderField(){
+  const inp = h('input',{ class:'field', type:'text', inputmode:'url', value:attachFolderUrl(), placeholder:'https://drive.google.com/drive/folders/…', title:'사진·파일이 저장되는 드라이브 폴더. 비우면 기본 폴더' });
+  inp.addEventListener('change', () => {
+    const v = inp.value.trim();
+    if(!v){ lsSet('mm_attach_folder', ATTACH_DEFAULT); inp.value = attachFolderUrl(); toast('기본 첨부 폴더로 돌렸어요'); return; }
+    const id = parseFolderId(v); if(!id){ toast('드라이브 폴더 링크를 확인해 주세요'); inp.value = attachFolderUrl(); return; }
+    lsSet('mm_attach_folder', id); toast('첨부 폴더를 바꿨어요');
+  });
+  return inp;
+}
+const clipImgName = f => { const d = new Date(), p = n => String(n).padStart(2,'0'); const ext = String((f.type||'image/png').split('/')[1]||'png').replace('jpeg','jpg'); return '사진_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'.'+ext; };
+function clipImage(e){   // 글자 없이 사진만 복사했을 때만 (엑셀 복사는 표로 처리)
+  const cd = e.clipboardData; if(!cd) return null;
+  if(String(cd.getData('text/plain')||'').trim()) return null;
+  const f = [...(cd.files||[])].find(x => /^image\//.test(x.type)); if(f) return f;
+  const it = [...(cd.items||[])].find(x => x.kind==='file' && /^image\//.test(x.type)); return it ? it.getAsFile() : null;
+}
+async function shrinkImage(file){
+  if(!/^image\/(png|jpe?g|webp|bmp)$/i.test(file.type) || file.size < 900*1024) return file;
+  try{
+    const bmp = await createImageBitmap(file), sc = Math.min(1, 2400/Math.max(bmp.width, bmp.height));
+    const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(bmp.width*sc)); cv.height = Math.max(1, Math.round(bmp.height*sc));
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.86));
+    if(blob && blob.size < file.size) return new File([blob], file.name.replace(/\.[a-z0-9]+$/i, '')+'.jpg', { type:'image/jpeg' });
+  }catch(_){}
+  return file;
+}
+async function driveUploadTo(file, onAdd){
+  if(!syncOn()){ toast('먼저 「더보기 → 동기화 · 구글 연동」에서 연결하세요'); return; }
+  if(!file.name || /^image\.(png|jpe?g|gif|webp)$/i.test(file.name)) file = new File([file], clipImgName(file), { type:file.type });
+  file = await shrinkImage(file);
+  if(file.size > 15*1024*1024){ toast('15MB 이하 파일만 올릴 수 있어요'); return; }
+  toast('드라이브에 올리는 중… '+file.name);
+  try{
+    const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]||''); r.onerror = () => rej(new Error('파일을 읽지 못했어요')); r.readAsDataURL(file); });
+    const j = await gs('dupload', { name:file.name, mime:file.type||'application/octet-stream', data });
+    if(!j.ok) throw gsErr(j.error||'올리지 못했어요');
+    onAdd({ name:String(j.name||file.name).slice(0,100), url:cleanUrl(j.url), k:driveKind(j.mime, j.name) });
+    toast('올렸어요 · 드라이브 첨부 폴더에 저장하고 링크를 붙였어요');
+  }catch(e){ toast('올리기 실패: '+driveNotReady(e)); }
+}
+function attachActions(o){
+  const fin = h('input',{ type:'file', multiple:true, style:'display:none', onchange:e => { [...e.target.files].forEach(f => driveUploadTo(f, o.add)); e.target.value = ''; } });
+  const mk = (t, tip, fn) => h('button',{ type:'button', class:'btn', style:'flex:1;white-space:nowrap;padding:6px 4px;font-size:12px', title:tip, onclick:fn }, t);
+  return h('div',{ class:'row', style:'gap:6px;margin:4px 0 6px;flex-wrap:wrap' }, fin,
+    mk('📎 파일·사진 올리기', '파일이나 사진을 골라 드라이브 첨부 폴더에 올리고 링크를 붙여요', () => fin.click()),
+    mk('📋 사진 붙여넣기', '복사해 둔 사진을 올려요 (PC는 메모 칸에서 Ctrl+V도 돼요)', async () => {
+      try{
+        const items = await navigator.clipboard.read(); let got = false;
+        for(const it of items){ const t = it.types.find(x => x.startsWith('image/')); if(t){ const b = await it.getType(t); driveUploadTo(new File([b], clipImgName({ type:t }), { type:t }), o.add); got = true; } }
+        if(!got) toast('클립보드에 사진이 없어요');
+      }catch(e){ toast('붙여넣기가 막혔어요 — 메모 칸을 누르고 Ctrl+V (폰은 길게 눌러 붙여넣기)를 해 보세요'); }
+    }),
+    mk('드라이브에서 찾기', '이미 드라이브에 있는 파일을 찾아 링크로 붙여요', o.pick));
+}
+function evAddUrl(id, it){ const ev = data.events[id]; if(!ev) return; ev.urls = (ev.urls||[]).slice(); if(!ev.urls.some(x => x.url===it.url)) ev.urls.push({ id:uid(), name:it.name||'', url:it.url||'', path:'', k:it.k||'' }); saveSoon(); try{ evnSoon(); }catch(_){} }
+function grpUrlsGet(name){ const r = regLoad().find(x => x.name===name); return (r && Array.isArray(r.urls)) ? r.urls : []; }
+function grpUrlsSet(name, urls){
+  const a = regLoad(); let r = a.find(x => x.name===name);
+  if(!r){ if(!urls.length) return; r = { name, color:grpColorOf(name)||EV_COLORS[0] }; a.push(r); }
+  if(urls.length) r.urls = urls.slice(0, 60); else delete r.urls;
+  lsSet('mm_grp_reg', a); try{ evnSoon(); }catch(_){}
+}
+function grpUrlAdd(name, it){ const u = grpUrlsGet(name).slice(); if(u.some(x => x.url===it.url)) return; u.push({ id:uid(), name:it.name||'', url:it.url||'', path:'', k:it.k||'' }); grpUrlsSet(name, u); }
+function openDrivePicker(nid, onAdd, onDone){
   if(!syncOn()){ toast('먼저 「더보기 → 동기화 · 구글 연동」에서 연결하세요'); return; }
   openSheet('드라이브에서 파일 붙이기', b => {
     const q = h('input',{ class:'field', type:'text', placeholder:'파일 이름 일부 (비우면 「마인드맵 첨부」 폴더)' });
     const list = h('div',{ class:'list', style:'margin-top:8px' }), st = h('p',{ class:'note', style:'margin:6px 2px 0' });
     const goBtn = h('button',{ class:'btn primary', type:'button' }, '찾기');
     const pick = f => {
+      if(onAdd){ onAdd({ name:String(f.name||'').slice(0,100), url:cleanUrl(f.url), k:driveKind(f.mime, f.name) }); closeSheet(true); if(onDone) onDone(); toast('링크를 붙였어요'); return; }
       addLinkItem(nid, { name:String(f.name||'').slice(0,100), url:cleanUrl(f.url), k:driveKind(f.mime, f.name) });
       closeSheet(true); openPanel(nid, 'links'); toast('링크를 붙였어요');
     };
@@ -5058,7 +5135,7 @@ function openDrivePicker(nid){
     b.append(h('div',{ style:'display:flex;gap:8px' }, h('div',{ style:'flex:1;min-width:0' }, q), goBtn), st, list,
       h('div',{ class:'row end', style:'margin-top:8px' }, h('button',{ class:'btn', onclick:() => closeSheet() }, '닫기')));
     run();
-  });
+  }, onAdd ? (() => { if(onDone) onDone(); }) : undefined);
 }
 async function driveUploadFor(nid, file){
   if(!syncOn()){ toast('먼저 「더보기 → 동기화 · 구글 연동」에서 연결하세요'); return; }
@@ -5852,7 +5929,7 @@ function gv(c){
 const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(e){ return d; } };
 const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
 const regLoad = () => { const a = lsGet('mm_grp_reg', []); return Array.isArray(a) ? a.filter(x => x && x.name) : []; };
-const regSet = (name, color) => { const o = regLoad().find(x => x.name===name), a = regLoad().filter(x => x.name!==name), r = { name, color }; if(o && o.refs) r.refs = o.refs; if(o && o.memo) r.memo = o.memo; a.push(r); lsSet('mm_grp_reg', a); };
+const regSet = (name, color) => { const o = regLoad().find(x => x.name===name), a = regLoad().filter(x => x.name!==name), r = { name, color }; if(o && o.refs) r.refs = o.refs; if(o && o.memo) r.memo = o.memo; if(o && o.urls) r.urls = o.urls; a.push(r); lsSet('mm_grp_reg', a); };
 const regDel = name => lsSet('mm_grp_reg', regLoad().filter(x => x.name!==name));
 function grpColorOf(name){
   const r = regLoad().find(x => x.name===name); if(r && r.color) return r.color;
@@ -5861,7 +5938,7 @@ function grpColorOf(name){
 function evColor(ev){ return (ev.grp && ev.gcol) ? ev.gcol : ev.color; }
 function grpList(){
   const m = {};
-  regLoad().forEach(r => { m[r.name] = { name:r.name, color:r.color||EV_COLORS[0], reg:true, evs:[], refs:r.refs||[], memo:r.memo||'' }; });
+  regLoad().forEach(r => { m[r.name] = { name:r.name, color:r.color||EV_COLORS[0], reg:true, evs:[], refs:r.refs||[], memo:r.memo||'', urls:Array.isArray(r.urls) ? r.urls : [] }; });
   Object.values(data.events).forEach(ev => {
     if(!ev.grp) return;
     const g = m[ev.grp] || (m[ev.grp] = { name:ev.grp, color:ev.gcol||EV_COLORS[0], evs:[] });
@@ -5883,7 +5960,7 @@ function grpEdit(name, newName, color){
   const col = color || grpColorOf(name) || EV_COLORS[0];
   if(newName!==name){ const ex = grpColorOf(newName); if(ex && !color) color = ex; }
   Object.values(data.events).forEach(ev => { if(ev.grp===name){ ev.grp = newName; ev.gcol = color||col; } });
-  const orefs = regLoad().find(x => x.name===name); regDel(name); regSet(newName, color||col); if(orefs && (orefs.refs || orefs.memo)){ const a2 = regLoad(), t = a2.find(x => x.name===newName); if(t){ if(orefs.refs) t.refs = orefs.refs; if(orefs.memo) t.memo = orefs.memo; lsSet('mm_grp_reg', a2); } }
+  const orefs = regLoad().find(x => x.name===name); regDel(name); regSet(newName, color||col); if(orefs && (orefs.refs || orefs.memo || orefs.urls)){ const a2 = regLoad(), t = a2.find(x => x.name===newName); if(t){ if(orefs.refs) t.refs = orefs.refs; if(orefs.memo) t.memo = orefs.memo; if(orefs.urls) t.urls = orefs.urls; lsSet('mm_grp_reg', a2); } }
   if(cal.grp===name) cal.grp = newName;
   saveSoon(); refreshEvViews();
 }
@@ -5925,11 +6002,11 @@ function hidClearItems(){ HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); 
 function hidAll(){ HID.mode = 'all'; HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
 function trashBtn(tip, fn){ return h('button',{ type:'button', class:'hideye trash', title:tip, 'aria-label':tip, html:ic('trash', 16), onclick:e => { e.stopPropagation(); fn(); } }); }
 function grpDelete(g){
-  const t = g.evs.slice(), refs = (g.refs||[]).slice(), col = g.color, memo0 = g.memo||'';
+  const t = g.evs.slice(), refs = (g.refs||[]).slice(), col = g.color, memo0 = g.memo||'', urls0 = (g.urls||[]).slice();
   askDlg({ title:'“'+g.name+'” 그룹을 삭제할까요?', sub:(t.length ? '그룹과 안에 있는 일정 '+t.length+'개가 모두 지워져요.' : '그룹이 지워져요.')+' 삭제 직후엔 취소할 수 있어요.', ok:'삭제', danger:true }, () => {
     const snap = t.map(e => JSON.stringify(e));
     t.forEach(e => deleteEvent(e.id)); regDel(g.name); if(cal.grp===g.name) cal.grp = ''; HID.g.delete(g.name); saveSoon(); refreshEvViews();
-    toast('“'+g.name+'” 그룹을 삭제했어요', { label:'취소', fn:() => { regSet(g.name, col); if(refs.length) grpRefsSet(g.name, refs); if(memo0) grpMemoSet(g.name, memo0); grpRestoreSnap(snap); } });
+    toast('“'+g.name+'” 그룹을 삭제했어요', { label:'취소', fn:() => { regSet(g.name, col); if(refs.length) grpRefsSet(g.name, refs); if(memo0) grpMemoSet(g.name, memo0); if(urls0.length) grpUrlsSet(g.name, urls0); grpRestoreSnap(snap); } });
   });
 }
 function soloDelete(ev){
@@ -5972,11 +6049,11 @@ function grpArea(){
       h('button',{ type:'button', class:'gname', title:'누르면 달력에서 이 그룹만 강조', onclick:() => { cal.grp = cal.grp===g.name ? '' : g.name; renderCal(); } },
         h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음'))),
       (g.refs && g.refs.length) ? h('button',{ type:'button', class:'gnode', title:'연결된 노드로 이동', 'aria-label':'연결된 노드로 이동', html:ic('mindmap',15), onclick:() => refOpen(g.refs) }) : null,
+      gMemoIcon(g),
       hidEye('g', g.name, hid, g.name),
       h('button',{ type:'button', class:'hideye', title:'이 그룹에 일정 추가 (보고 있는 날짜로 열려요)', 'aria-label':'그룹내 일정 추가', html:ic('plus', 16), onclick:e => { e.stopPropagation(); openEventEditor(null,{ grp:g.name, ds:cal.sel||todayStr() }); } }),
       h('button',{ type:'button', class:'gedit', title:'그룹 편집 (이름·색·템플릿)', 'aria-label':'그룹 편집', onclick:() => openGroupDetail(g.name) }, '✎'),
       trashBtn('그룹 삭제 (안의 일정도 함께, 한 번 물어봐요)', () => grpDelete(g))));
-    { const me = gMemoEl(g); if(me) box.append(me); }
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
@@ -6028,6 +6105,20 @@ function openGroupDetail(name){
       ta.addEventListener('input', () => grpMemoSet(name, ta.value));
       ta.addEventListener('change', () => { grpMemoSet(name, ta.value); renderCal(); });
       b.append(h('div',{ class:'lbl' }, '그룹 개요 (메모) · 입력하면 바로 저장돼요'), ta, h('div',{ style:'height:6px' })); }
+    { const box = h('div',{ class:'eclist' }), cntEl = h('span',{ style:'color:var(--sub);font-weight:600' }, '');
+      const draw2 = () => {
+        box.innerHTML = ''; const us = grpUrlsGet(name); cntEl.textContent = us.length ? ' '+us.length+'개' : '';
+        us.forEach(u => box.append(h('div',{ class:'ecrow' },
+          h('a',{ class:'evlk', href:u.url || '#', target:'_blank', rel:'noopener', title:u.url }, lkBadge(linkKind(u)), ' '+(u.name || hostOf(u.url || ''))),
+          h('button',{ type:'button', class:'evx', title:'삭제', 'aria-label':'삭제', html:ic('x',13), onclick:() => { grpUrlsSet(name, grpUrlsGet(name).filter(x => x.id!==u.id)); draw2(); renderCal(); } }))));
+      };
+      const add = it => { grpUrlAdd(name, it); draw2(); renderCal(); };
+      const act = attachActions({ add, pick:() => { closeSheet(true); openDrivePicker(null, it => grpUrlAdd(name, it), () => openGroupDetail(name)); } });
+      const inp = h('input',{ class:'evin add', type:'url', placeholder:'https://… 주소 붙여넣고 Enter', enterkeyhint:'done', autocapitalize:'off' });
+      inp.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229 || e.key!=='Enter') return; e.preventDefault(); const raw = inp.value.trim(); if(!raw) return; const u = cleanUrl(/^[a-z]+:\/\//i.test(raw) ? raw : 'https://'+raw); if(!u){ toast('주소를 확인해 주세요'); return; } add({ name:'', url:u, k:'' }); inp.value = ''; });
+      inp.addEventListener('paste', e => { const f = clipImage(e); if(f){ e.preventDefault(); driveUploadTo(f, add); } });
+      const mta = b.querySelector('textarea'); if(mta) mta.addEventListener('paste', e => { const f = clipImage(e); if(f){ e.preventDefault(); driveUploadTo(f, add); } });
+      b.append(h('div',{ class:'lbl' }, '첨부 · 링크 (사진·파일은 드라이브 폴더에 저장되고 링크만 붙어요)', cntEl), box, act, inp, h('div',{ style:'height:6px' })); draw2(); }
     if(g.evs.length){
       b.append(h('div',{ class:'lbl' }, '그룹 일정 (날짜 순)'));
       const list = h('div',{ class:'agenda' }), rowsBy = {};
@@ -6239,9 +6330,8 @@ function pickSection(){
       const g = grpList().find(x => x.name===k.slice(2)); if(!g) return;
       const pct = g.total ? Math.round(g.done*100/g.total) : 0, nx = grpNextEv(g);
       const box = h('div',{ class:'ggrp foc', style:gv(g.color) },
-        h('div',{ class:'ghead' }, h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료 · '+pct+'%' : g.evs.length+'개'), h('span',{ class:'sp' }),
+        h('div',{ class:'ghead' }, h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료 · '+pct+'%' : g.evs.length+'개'), gMemoIcon(g), h('span',{ class:'sp' }),
           h('button',{ type:'button', class:'gab', title:'다음 단계 완료 · 하루 미루기 · 템플릿 등 빠른 메뉴', onclick:() => grpBarMenu(g.name) }, '메뉴'), h('button',{ type:'button', class:'gab', onclick:() => openGroupDetail(g.name) }, '상세')));
-      { const me = gMemoEl(g); if(me) box.append(me); }
       if(nx) box.append(h('p',{ class:'gnx' }, '다음: '+(nx.title||'(제목 없음)')+' · '+sdm(nx.date)));
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정이 없어요'));
       g.evs.forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
@@ -6464,7 +6554,7 @@ function evTblPreview(t){
   }
   const tb = h('table',{ class:'evpv', html }); return tb;
 }
-function evContentUI(f, openTbl){
+function evContentUI(f, openTbl, openPick){
   const st = { memo:f.memo||'', memoH:f.memoH||'', checks:evnClone(f.checks||[]), urls:evnClone(f.urls||[]), table:f.table ? evnClone(f.table) : null };
   const oldUrls = new Set((String(f.memo||'').match(/https?:\/\/[^\s<>"')]+/g) || []).map(cleanUrl));
   const el = h('div',{ class:'evcont' });
@@ -6484,6 +6574,7 @@ function evContentUI(f, openTbl){
   const io = {
     set:(t, s) => { st.memo = t; st.memoH = s; },
     end(){},
+    onPasteFile(file){ driveUploadTo(file, it => { if(!st.urls.some(x => x.url===it.url)) st.urls.push({ id:uid(), name:it.name||'', url:it.url||'', path:'', k:it.k||'' }); lkSec.d.open = true; drawLk(); }); },
     onPasteTable(text){   // 메모에 엑셀 내용을 붙이면 표로 넣는다
       const cells = cellsFrom(text); if(!cells || (cells.length<2 && cells[0].length<2)) return false;
       setTable(cells); drawTbl(); tblSec.d.open = true; toast('엑셀 내용이라 표로 넣었어요 · 노드에도 표로 들어가요'); return true;
@@ -6520,7 +6611,7 @@ function evContentUI(f, openTbl){
   const drawLk = () => {
     lkList.innerHTML = ''; lkSec.cnt.textContent = st.urls.length ? String(st.urls.length) : '';
     st.urls.forEach(u => lkList.append(h('div',{ class:'ecrow' },
-      h('a',{ class:'evlk', href:u.url || '#', target:'_blank', rel:'noopener', title:u.url }, u.name || hostOf(u.url || u.path || '')),
+      h('a',{ class:'evlk', href:u.url || '#', target:'_blank', rel:'noopener', title:u.url }, lkBadge(linkKind(u)), ' '+(u.name || hostOf(u.url || u.path || ''))),
       h('button',{ type:'button', class:'evx', title:'삭제', 'aria-label':'삭제', html:ic('x',13), onclick:() => { st.urls = st.urls.filter(x => x!==u); drawLk(); } }))));
   };
   const lkAdd = h('input',{ class:'evin add', type:'url', placeholder:'https://… 주소 붙여넣고 Enter', enterkeyhint:'done', autocapitalize:'off' });
@@ -6531,7 +6622,9 @@ function evContentUI(f, openTbl){
     if(!st.urls.some(x => x.url===u)) st.urls.push({ id:uid(), name:'', url:u, path:'', k:'' });
     lkAdd.value = ''; drawLk();
   });
-  lkSec.d.append(h('div',{ class:'evbody' }, lkList, lkAdd)); drawLk();
+  lkAdd.addEventListener('paste', e => { const f = clipImage(e); if(f){ e.preventDefault(); io.onPasteFile(f); } });
+  const lkAct = attachActions({ add:it => io.onPasteFile ? (() => { if(!st.urls.some(x => x.url===it.url)) st.urls.push({ id:uid(), name:it.name||'', url:it.url||'', path:'', k:it.k||'' }); lkSec.d.open = true; drawLk(); })() : null, pick:() => { if(openPick) openPick(); } });
+  lkSec.d.append(h('div',{ class:'evbody' }, lkList, lkAct, lkAdd)); drawLk();
 
   // 표
   tblTa.value = tsvOf(st.table);
@@ -6643,6 +6736,8 @@ function evnReconcile(force){   // (ev.sn = 빠른 입력으로 만든 독립 �
             if(!G){ if(r.k) continue; G = mkChild(P, { text:g.name, evId:'g:'+g.name, evRole:'grp', color:gi.color }); r.k = G.id; regCh = true; }
             else if(r.k!==G.id){ r.k = G.id; regCh = true; }
             resolved.add(G.id); r.ek = r.ek || {};
+            { const gm = gi.memo||'', gu = gi.urls||[], sg = (gm || gu.length) ? evnHash(JSON.stringify([gm, gu])) : '';
+              if(sg && G.esig!==sg){ G.memo = gm; G.memoH = ''; G.urls = gu.map(u => ({ id:u.id||uid(), name:u.name||'', url:u.url||'', path:u.path||'', k:u.k||'' })); G.esig = sg; c = true; } }
             for(const ev of gi.evs){
               let n = (r.ek[ev.id] && nodes[r.ek[ev.id]] && nodes[r.ek[ev.id]].evId===ev.id) ? nodes[r.ek[ev.id]] : findChild(G, x => x.evRole==='evn' && x.evId===ev.id);
               if(!n){
@@ -6730,7 +6825,12 @@ function grpMemoSet(name, text){
   if(text.trim()) r.memo = text; else delete r.memo;
   lsSet('mm_grp_reg', a);
 }
-function gMemoEl(g){ return g.memo ? h('div',{ class:'gmemo', title:'그룹 개요 — 눌러서 수정', onclick:() => openGroupDetail(g.name) }, g.memo) : null; }
+function gMemoIcon(g){
+  const bt = (t, tip) => h('button',{ type:'button', class:'hideye gm', title:tip, 'aria-label':tip, html:t, onclick:e => { e.stopPropagation(); openGroupDetail(g.name); } });
+  const a = []; if(g.memo) a.push(bt('<span style="font-size:13px;line-height:1">📝</span>', '메모가 있어요 — 눌러서 보기'));
+  if(g.urls && g.urls.length) a.push(bt('<span style="font-size:12px;line-height:1">📎<b style="font-size:10px">'+g.urls.length+'</b></span>', '첨부·링크 '+g.urls.length+'개 — 눌러서 보기'));
+  return a.length ? h('span',{ style:'display:inline-flex' }, ...a) : null;
+}
 function grpRefsGet(name){ const r = regLoad().find(x => x.name===name); return (r && Array.isArray(r.refs)) ? r.refs : []; }
 function grpRefsSet(name, refs){
   const a = regLoad(); let r = a.find(x => x.name===name);
@@ -7611,7 +7711,8 @@ function openEventEditor(id, o){
     const rep = h('select',{class:'field'}, Object.keys(REPEAT_LABEL).map(k => h('option',{value:k}, REPEAT_LABEL[k]))); rep.value = f.repeat||'none';
     const untilI = h('input',{class:'field',type:'date',value:f.until||''});
     const alarm = h('select',{class:'field'});
-    const cu = evContentUI(f, () => { const e2 = save(); if(e2){ closeSheet(true); openEvTable(e2.id, o); } });
+    const cu = evContentUI(f, () => { const e2 = save(); if(e2){ closeSheet(true); openEvTable(e2.id, o); } },
+      () => { const e2 = save(); if(e2){ closeSheet(true); openDrivePicker(null, it => evAddUrl(e2.id, it), () => openEventEditor(e2.id, o)); } });
     const timeBox = h('div',{class:'frow'}, h('div',{style:'flex:1'}, h('div',{class:'lbl'},'시작 시간'), timeI), h('div',{style:'flex:1'}, h('div',{class:'lbl'},'종료 시간'), etimeI));
     const endBox = h('div',{}, h('div',{class:'lbl'},'종료 날짜 (여러 날 일정일 때만)'), endI);
     const untilBox = h('div',{}, h('div',{class:'lbl'},'반복 종료 날짜 (비우면 계속)'), untilI);
@@ -9362,7 +9463,7 @@ function bodyTable(body, n, evMode){
   setTimeout(() => { if(root.isConnected){ if(autoFitOn()) fitWidth(true); scrollTo(st.ar, st.ac); } }, 0);
 }
 
-const GS_CODE = "/**\n * 마인드맵 · 일정 앱 — 동기화 + 구글 캘린더 업로드용 Apps Script\n *\n * [설치 방법]\n * 1) https://script.google.com 에서 「새 프로젝트」를 만들고, 이 코드를 전부 붙여넣습니다.\n * 2) 아래 TOKEN 을 나만 아는 긴 문자열로 바꿉니다. (앱의 「비밀키」 칸에 똑같이 입력)\n * 3) 왼쪽 톱니(프로젝트 설정) → 「시간대」를 Asia/Seoul 로 맞춥니다.\n * 4) 위쪽 함수 선택에서 `authorize` 를 고르고 ▶ 실행 → 권한 허용\n *    (드라이브 파일 1개, 캘린더 접근 권한을 묻습니다)\n * 5) 오른쪽 위 「배포」 → 「새 배포」 → 유형 「웹 앱」\n *      · 다음 사용자로 실행: 나\n *      · 액세스 권한이 있는 사용자: 모든 사용자\n *    → 배포 후 나오는 「웹 앱 URL」(…/exec)을 앱의 「웹앱 URL」 칸에 붙여넣습니다.\n * 6) 코드를 고쳤다면 「배포 관리 → 수정 → 새 버전」으로 다시 배포해야 반영됩니다.\n *\n * [동작]\n * - 동기화: 드라이브에 JSON 파일 1개(FILE_NAME)를 만들어 앱 데이터를 저장합니다.\n *   (다른 기기에서 먼저 바뀌었으면 덮어쓰지 않고 「충돌」로 알려 줍니다.)\n * - 캘린더 업로드: 앱의 일정을 구글 캘린더로 한 방향으로만 올립니다.\n *   같은 일정을 다시 올리면 새로 만들지 않고 기존 것을 갱신합니다.\n *   내 캘린더 목록에서 올릴 캘린더를 고를 수 있고, 일정마다 다른 캘린더로도 올릴 수 있습니다.\n * - 파일 붙이기: 드라이브에서 파일을 찾아 링크를 붙이거나, 앱에서 고른 파일을 「마인드맵 첨부」 폴더에 올려 링크를 붙입니다.\n * - 캘린더 가져오기: 고른 캘린더의 일정을 기간을 정해 앱으로 읽어 갑니다. (구글 → 앱, 읽기만 하고 구글은 바꾸지 않아요)\n */\n\nvar TOKEN = '여기에-나만-아는-긴-비밀키를-입력';\nvar FILE_NAME = 'mindmap-sync.json';\nvar CALENDAR_ID = ''; // 비우면 내 기본 캘린더. 다른 캘린더에 올리려면 캘린더 ID 입력\nvar MAX_BYTES = 8 * 1024 * 1024;\nvar ATTACH_FOLDER = '마인드맵 첨부'; // 앱에서 올린 파일이 모이는 드라이브 폴더 (나만 볼 수 있어요)\nvar MAX_UPLOAD = 20 * 1024 * 1024;\n\n/** 처음 한 번 실행해서 권한을 허용하는 용도 */\nfunction authorize() {\n  DriveApp.getRootFolder();\n  CalendarApp.getDefaultCalendar();\n  CalendarApp.getAllOwnedCalendars();\n  DriveApp.getFiles();\n  Logger.log('권한 확인 완료');\n}\n\nfunction doGet(e) {\n  return respond_(route_((e && e.parameter) || {}, null));\n}\n\nfunction doPost(e) {\n  var body = {};\n  try { body = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch (err) { return respond_({ ok: false, error: '잘못된 요청(JSON)' }); }\n  return respond_(route_((e && e.parameter) || {}, body));\n}\n\nfunction respond_(obj) {\n  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);\n}\n\nfunction route_(params, body) {\n  var src = body || params;\n  var token = String(src.token || params.token || '');\n  if (!TOKEN || TOKEN.indexOf('여기에') === 0) return { ok: false, error: '스크립트의 TOKEN 을 먼저 바꿔 주세요' };\n  if (token !== TOKEN) return { ok: false, error: '비밀키가 맞지 않아요' };\n  var action = String(src.action || params.action || 'ping');\n  try {\n    if (action === 'ping') return { ok: true, time: Date.now(), tz: Session.getScriptTimeZone() };\n    if (action === 'get') return getData_();\n    if (action === 'put') return putData_(body || {});\n    if (action === 'calendars') return listCalendars_();\n    if (action === 'events') return listEvents_(body || params);\n    if (action === 'dsearch') return driveSearch_(body || params);\n    if (action === 'dupload') return driveUpload_(body || {});\n    if (action === 'calendar') return calendarUpsert_(body || {});\n    if (action === 'gdelete') return calendarDelete_(body || {});\n    return { ok: false, error: '알 수 없는 요청: ' + action };\n  } catch (err) {\n    return { ok: false, error: String(err && err.message || err) };\n  }\n}\n\n/* ---------------- 드라이브 동기화 ---------------- */\n\nfunction findFile_() {\n  var it = DriveApp.getFilesByName(FILE_NAME);\n  return it.hasNext() ? it.next() : null;\n}\n\nfunction readBox_(file) {\n  try {\n    var o = JSON.parse(file.getBlob().getDataAsString('UTF-8'));\n    if (o && typeof o === 'object') return o;\n  } catch (e) { /* 손상된 파일은 없는 것으로 처리 */ }\n  return null;\n}\n\nfunction getData_() {\n  var f = findFile_();\n  if (!f) return { ok: true, empty: true, rev: 0 };\n  var box = readBox_(f);\n  if (!box) return { ok: true, empty: true, rev: 0 };\n  return { ok: true, rev: box.rev || 0, savedAt: box.savedAt || 0, data: box.data };\n}\n\nfunction putData_(body) {\n  if (!body.data || typeof body.data !== 'object') return { ok: false, error: '저장할 데이터가 없어요' };\n  var text = JSON.stringify(body.data);\n  if (text.length > MAX_BYTES) return { ok: false, error: '데이터가 너무 커요 (8MB 초과)' };\n  var lock = LockService.getScriptLock();\n  lock.waitLock(20000);\n  try {\n    var f = findFile_();\n    var box = f ? readBox_(f) : null;\n    var rev = box ? (box.rev || 0) : 0;\n    var baseRev = Number(body.baseRev || 0);\n    if (rev !== baseRev && !body.force) {\n      return { ok: false, conflict: true, rev: rev, savedAt: box ? box.savedAt : 0, error: '다른 기기에서 먼저 저장했어요' };\n    }\n    var next = { rev: rev + 1, savedAt: Date.now(), data: body.data };\n    var out = JSON.stringify(next);\n    if (f) { f.setContent(out); } else { DriveApp.createFile(FILE_NAME, out, MimeType.PLAIN_TEXT); }\n    return { ok: true, rev: next.rev, savedAt: next.savedAt };\n  } finally {\n    lock.releaseLock();\n  }\n}\n\n/* ---------------- 구글 캘린더 업로드 (앱 → 구글, 한 방향) ---------------- */\n\nfunction getCal_(id) {\n  var cid = id || CALENDAR_ID;\n  var cal = cid ? CalendarApp.getCalendarById(cid) : CalendarApp.getDefaultCalendar();\n  if (!cal) throw new Error('캘린더를 찾을 수 없어요 (캘린더 ID 확인)');\n  return cal;\n}\n\n/** 내가 만든 캘린더 목록 (앱의 캘린더 선택 화면용) */\nfunction listCalendars_() {\n  var def = CalendarApp.getDefaultCalendar().getId();\n  var list = CalendarApp.getAllOwnedCalendars().map(function (c) {\n    return { id: c.getId(), name: c.getName(), color: c.getColor(), def: c.getId() === def };\n  });\n  return { ok: true, calendars: list, defaultId: def };\n}\n\nfunction parseDate_(ds) { // 'YYYY-MM-DD' → 스크립트 시간대 00:00\n  return Utilities.parseDate(ds + ' 00:00', Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');\n}\nfunction parseDateTime_(ds, hm) {\n  return Utilities.parseDate(ds + ' ' + hm, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');\n}\nfunction addDays_(d, n) { return new Date(d.getTime() + n * 86400000); }\n\nfunction buildRecurrence_(ev) {\n  var r = CalendarApp.newRecurrence();\n  var rule;\n  if (ev.repeat === 'daily') rule = r.addDailyRule();\n  else if (ev.repeat === 'weekly') rule = r.addWeeklyRule();\n  else if (ev.repeat === 'monthly') rule = r.addMonthlyRule();\n  else if (ev.repeat === 'yearly') rule = r.addYearlyRule();\n  else return null;\n  if (ev.until) rule.until(addDays_(parseDate_(ev.until), 1));\n  return r;\n}\n\nfunction removeOld_(cal, props, key) {\n  var v = props.getProperty(key);\n  if (!v) return false;\n  try {\n    var kind = v.charAt(0), id = v.substring(2);\n    var obj = kind === 's' ? cal.getEventSeriesById(id) : cal.getEventById(id);\n    if (obj) obj.deleteEvent ? obj.deleteEvent() : obj.deleteEventSeries();\n  } catch (e) { /* 이미 구글에서 지웠으면 무시 */ }\n  props.deleteProperty(key);\n  return true;\n}\n\nfunction createOne_(cal, ev) {\n  var title = String(ev.title || '(제목 없음)');\n  var opts = { description: String(ev.memo || '') + (ev.memo ? '\\n\\n' : '') + '— 마인드맵 앱에서 올린 일정' };\n  var rec = buildRecurrence_(ev);\n  var made, kind;\n  if (ev.allDay) {\n    var s = parseDate_(ev.date);\n    if (rec) { made = cal.createAllDayEventSeries(title, s, rec, opts); kind = 's'; }\n    else if (ev.endDate && ev.endDate > ev.date) { made = cal.createAllDayEvent(title, s, addDays_(parseDate_(ev.endDate), 1), opts); kind = 'e'; }\n    else { made = cal.createAllDayEvent(title, s, opts); kind = 'e'; }\n  } else {\n    var st = parseDateTime_(ev.date, ev.time || '09:00');\n    var et;\n    if (ev.endTime) et = parseDateTime_(ev.endDate && !rec ? ev.endDate : ev.date, ev.endTime);\n    else et = new Date(st.getTime() + 3600000);\n    if (et.getTime() <= st.getTime()) et = new Date(st.getTime() + 3600000);\n    if (rec) { made = cal.createEventSeries(title, st, et, rec, opts); kind = 's'; }\n    else { made = cal.createEvent(title, st, et, opts); kind = 'e'; }\n  }\n  try {\n    made.removeAllReminders();\n    var a = ev.alarm;\n    if (a !== null && a !== undefined && a !== '' && Number(a) >= 0 && Number(a) <= 40320) made.addPopupReminder(Number(a));\n  } catch (e) { /* 알림 설정 실패는 무시 */ }\n  return kind + ':' + made.getId();\n}\n\nfunction calendarUpsert_(body) {\n  var list = body.events || [];\n  if (!list.length) return { ok: true, created: 0, updated: 0, failed: [] };\n  if (list.length > 500) return { ok: false, error: '한 번에 500개까지 올릴 수 있어요' };\n  var props = PropertiesService.getScriptProperties();\n  var cache = {};\n  var created = 0, updated = 0, failed = [], done = [];\n  var lock = LockService.getScriptLock();\n  lock.waitLock(20000);\n  try {\n    list.forEach(function (ev) {\n      try {\n        if (!ev || !ev.id || !/^\\d{4}-\\d{2}-\\d{2}$/.test(ev.date || '')) throw new Error('날짜 형식 오류');\n        var key = 'ev_' + ev.id;\n        var cal = calOf_(cache, ev.calId || body.calendarId);          // 이 일정이 올라갈 캘린더\n        var oldCid = props.getProperty('evc_' + ev.id);                // 예전에 올린 캘린더\n        var oldCal = (oldCid && oldCid !== cal.getId()) ? calOf_(cache, oldCid) : cal;\n        var existed = removeOld_(oldCal, props, key);                  // 캘린더를 바꿨으면 옛 캘린더에서 지움\n        var ref = createOne_(cal, ev);\n        props.setProperty(key, ref);\n        props.setProperty('evc_' + ev.id, cal.getId());\n        if (existed) updated++; else created++;\n        done.push(ev.id);\n      } catch (err) {\n        failed.push({ id: ev && ev.id, error: String(err && err.message || err) });\n      }\n    });\n  } finally {\n    lock.releaseLock();\n  }\n  return { ok: true, created: created, updated: updated, failed: failed, done: done };\n}\n\n/* ---------------- 구글 캘린더 가져오기 (구글 → 앱, 읽기 전용) ---------------- */\n\nfunction fmt_(d, f) { return Utilities.formatDate(d, Session.getScriptTimeZone(), f); }\n\nfunction listEvents_(body) {\n  var ids = body.calendarIds || [];\n  if (typeof ids === 'string') ids = ids.split(',');\n  if (!ids.length) return { ok: false, error: '가져올 캘린더를 고르세요' };\n  var from = String(body.from || ''), to = String(body.to || '');\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(from) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(to)) return { ok: false, error: '기간 형식 오류' };\n  var start = parseDate_(from), end = addDays_(parseDate_(to), 1);\n  if (end.getTime() <= start.getTime()) return { ok: false, error: '끝 날짜가 시작 날짜보다 빨라요' };\n  if ((end.getTime() - start.getTime()) / 86400000 > 800) return { ok: false, error: '기간은 최대 800일까지 가능해요' };\n  // 앱에서 올린 일정(구글 ID)은 되돌려 받지 않도록 제외\n  var all = PropertiesService.getScriptProperties().getProperties();\n  var mine = {};\n  Object.keys(all).forEach(function (k) { if (k.indexOf('ev_') === 0) mine[String(all[k]).substring(2)] = 1; });\n  var out = [], skipped = 0, missing = [];\n  ids.forEach(function (cid) {\n    var cal = CalendarApp.getCalendarById(cid);\n    if (!cal) { missing.push(cid); return; }\n    cal.getEvents(start, end).forEach(function (e) {\n      var gid = e.getId();\n      if (mine[gid]) { skipped++; return; }\n      var allDay = e.isAllDayEvent();\n      var st = e.getStartTime(), en = e.getEndTime();\n      var date, endDate = '', time = '', endTime = '';\n      if (allDay) {\n        date = fmt_(e.getAllDayStartDate(), 'yyyy-MM-dd');\n        var last = fmt_(addDays_(e.getAllDayEndDate(), -1), 'yyyy-MM-dd');\n        if (last > date) endDate = last;\n      } else {\n        date = fmt_(st, 'yyyy-MM-dd'); time = fmt_(st, 'HH:mm');\n        var ed = fmt_(en, 'yyyy-MM-dd'), et = fmt_(en, 'HH:mm');\n        if (ed > date && et === '00:00' && fmt_(addDays_(en, -1), 'yyyy-MM-dd') === date) { /* 자정에 끝나는 하루 일정 */ }\n        else { endDate = ed > date ? ed : ''; endTime = et; }\n      }\n      var alarm = null;\n      try { var rs = e.getPopupReminders(); if (rs && rs.length) alarm = rs[0]; } catch (err) { /* 알림 정보 없음 */ }\n      var desc = '';\n      try { desc = String(e.getDescription() || '').replace(/\\n*— 마인드맵 앱에서 올린 일정\\s*$/, ''); } catch (err) { /* 설명 없음 */ }\n      out.push({ key: cid + '|' + gid + '|' + st.getTime(), cal: cid, title: e.getTitle() || '(제목 없음)',\n        date: date, endDate: endDate, allDay: allDay, time: time, endTime: endTime, memo: desc.slice(0, 5000),\n        alarm: alarm, recurring: e.isRecurringEvent() });\n    });\n  });\n  if (out.length > 2500) return { ok: false, error: '일정이 너무 많아요 (' + out.length + '개). 기간을 줄여 주세요' };\n  return { ok: true, events: out, skipped: skipped, missing: missing };\n}\n\n/* ---------------- 드라이브 파일 붙이기 (찾기 · 올리기) ---------------- */\n\nfunction attachFolder_() {\n  var it = DriveApp.getFoldersByName(ATTACH_FOLDER);\n  return it.hasNext() ? it.next() : DriveApp.createFolder(ATTACH_FOLDER);\n}\n\nfunction fileInfo_(f, isFolder) {\n  return {\n    id: f.getId(), name: f.getName(), url: f.getUrl(),\n    mime: isFolder ? 'application/vnd.google-apps.folder' : f.getMimeType(),\n    size: isFolder ? 0 : f.getSize(), updated: f.getLastUpdated().getTime()\n  };\n}\n\nfunction driveSearch_(body) {\n  var q = String(body.q || '').trim();\n  var out = [];\n  if (!q) { // 비우면 「마인드맵 첨부」 폴더의 최근 파일\n    var it0 = attachFolder_().getFiles();\n    while (it0.hasNext() && out.length < 300) out.push(fileInfo_(it0.next(), false));\n  } else {\n    var qq = q.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, \"\\\\'\");\n    var it = DriveApp.searchFiles(\"title contains '\" + qq + \"' and trashed = false\");\n    while (it.hasNext() && out.length < 60) out.push(fileInfo_(it.next(), false));\n    var fo = DriveApp.searchFolders(\"title contains '\" + qq + \"' and trashed = false\");\n    var n = 0;\n    while (fo.hasNext() && n < 10) { out.push(fileInfo_(fo.next(), true)); n++; }\n  }\n  out.sort(function (a, b) { return b.updated - a.updated; });\n  return { ok: true, files: out.slice(0, 30) };\n}\n\nfunction driveUpload_(body) {\n  var name = String(body.name || '파일').replace(/[\\\\/:*?\"<>|]/g, '_').slice(0, 150);\n  if (!body.data) return { ok: false, error: '파일 내용이 없어요' };\n  var bytes = Utilities.base64Decode(String(body.data));\n  if (bytes.length > MAX_UPLOAD) return { ok: false, error: '파일이 너무 커요 (20MB 초과)' };\n  var blob = Utilities.newBlob(bytes, String(body.mime || 'application/octet-stream'), name);\n  var f = attachFolder_().createFile(blob);\n  return { ok: true, file: fileInfo_(f, false), name: f.getName(), url: f.getUrl(), mime: f.getMimeType() };\n}\n\nfunction calOf_(cache, id) {\n  var k = id || '_default';\n  if (!cache[k]) cache[k] = getCal_(id);\n  return cache[k];\n}\n\nfunction calendarDelete_(body) {\n  var ids = body.ids || [];\n  var props = PropertiesService.getScriptProperties();\n  var cache = {};\n  var n = 0;\n  ids.forEach(function (id) {\n    var cid = props.getProperty('evc_' + id) || body.calendarId;     // 올릴 때 쓴 캘린더에서 지움\n    if (removeOld_(calOf_(cache, cid), props, 'ev_' + id)) n++;\n    props.deleteProperty('evc_' + id);\n  });\n  return { ok: true, deleted: n };\n}\n";
+const GS_CODE = "/**\n * 마인드맵 · 일정 앱 — 동기화 + 구글 캘린더 업로드용 Apps Script\n *\n * [설치 방법]\n * 1) https://script.google.com 에서 「새 프로젝트」를 만들고, 이 코드를 전부 붙여넣습니다.\n * 2) 아래 TOKEN 을 나만 아는 긴 문자열로 바꿉니다. (앱의 「비밀키」 칸에 똑같이 입력)\n * 3) 왼쪽 톱니(프로젝트 설정) → 「시간대」를 Asia/Seoul 로 맞춥니다.\n * 4) 위쪽 함수 선택에서 `authorize` 를 고르고 ▶ 실행 → 권한 허용\n *    (드라이브 파일 1개, 캘린더 접근 권한을 묻습니다)\n * 5) 오른쪽 위 「배포」 → 「새 배포」 → 유형 「웹 앱」\n *      · 다음 사용자로 실행: 나\n *      · 액세스 권한이 있는 사용자: 모든 사용자\n *    → 배포 후 나오는 「웹 앱 URL」(…/exec)을 앱의 「웹앱 URL」 칸에 붙여넣습니다.\n * 6) 코드를 고쳤다면 「배포 관리 → 수정 → 새 버전」으로 다시 배포해야 반영됩니다.\n *\n * [동작]\n * - 동기화: 드라이브에 JSON 파일 1개(FILE_NAME)를 만들어 앱 데이터를 저장합니다.\n *   (다른 기기에서 먼저 바뀌었으면 덮어쓰지 않고 「충돌」로 알려 줍니다.)\n * - 캘린더 업로드: 앱의 일정을 구글 캘린더로 한 방향으로만 올립니다.\n *   같은 일정을 다시 올리면 새로 만들지 않고 기존 것을 갱신합니다.\n *   내 캘린더 목록에서 올릴 캘린더를 고를 수 있고, 일정마다 다른 캘린더로도 올릴 수 있습니다.\n * - 파일 붙이기: 드라이브에서 파일을 찾아 링크를 붙이거나, 앱에서 고른 파일·클립보드 사진을 첨부 폴더에 올려 링크를 붙입니다.\n *   (첨부 폴더는 앱의 「동기화 설정 → 첨부 폴더」에서 정해요. 비워 두면 「마인드맵 첨부」 폴더를 씁니다.)\n * - 캘린더 가져오기: 고른 캘린더의 일정을 기간을 정해 앱으로 읽어 갑니다. (구글 → 앱, 읽기만 하고 구글은 바꾸지 않아요)\n */\n\nvar TOKEN = '여기에-나만-아는-긴-비밀키를-입력';\nvar FILE_NAME = 'mindmap-sync.json';\nvar CALENDAR_ID = ''; // 비우면 내 기본 캘린더. 다른 캘린더에 올리려면 캘린더 ID 입력\nvar MAX_BYTES = 8 * 1024 * 1024;\nvar ATTACH_FOLDER = '마인드맵 첨부'; // 앱에서 올린 파일이 모이는 드라이브 폴더 (나만 볼 수 있어요)\nvar MAX_UPLOAD = 20 * 1024 * 1024;\n\n/** 처음 한 번 실행해서 권한을 허용하는 용도 */\nfunction authorize() {\n  DriveApp.getRootFolder();\n  CalendarApp.getDefaultCalendar();\n  CalendarApp.getAllOwnedCalendars();\n  DriveApp.getFiles();\n  Logger.log('권한 확인 완료');\n}\n\nfunction doGet(e) {\n  return respond_(route_((e && e.parameter) || {}, null));\n}\n\nfunction doPost(e) {\n  var body = {};\n  try { body = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch (err) { return respond_({ ok: false, error: '잘못된 요청(JSON)' }); }\n  return respond_(route_((e && e.parameter) || {}, body));\n}\n\nfunction respond_(obj) {\n  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);\n}\n\nfunction route_(params, body) {\n  var src = body || params;\n  var token = String(src.token || params.token || '');\n  if (!TOKEN || TOKEN.indexOf('여기에') === 0) return { ok: false, error: '스크립트의 TOKEN 을 먼저 바꿔 주세요' };\n  if (token !== TOKEN) return { ok: false, error: '비밀키가 맞지 않아요' };\n  var action = String(src.action || params.action || 'ping');\n  try {\n    if (action === 'ping') return { ok: true, time: Date.now(), tz: Session.getScriptTimeZone() };\n    if (action === 'get') return getData_();\n    if (action === 'put') return putData_(body || {});\n    if (action === 'calendars') return listCalendars_();\n    if (action === 'events') return listEvents_(body || params);\n    if (action === 'dsearch') return driveSearch_(body || params);\n    if (action === 'dupload') return driveUpload_(body || {});\n    if (action === 'calendar') return calendarUpsert_(body || {});\n    if (action === 'gdelete') return calendarDelete_(body || {});\n    return { ok: false, error: '알 수 없는 요청: ' + action };\n  } catch (err) {\n    return { ok: false, error: String(err && err.message || err) };\n  }\n}\n\n/* ---------------- 드라이브 동기화 ---------------- */\n\nfunction findFile_() {\n  var it = DriveApp.getFilesByName(FILE_NAME);\n  return it.hasNext() ? it.next() : null;\n}\n\nfunction readBox_(file) {\n  try {\n    var o = JSON.parse(file.getBlob().getDataAsString('UTF-8'));\n    if (o && typeof o === 'object') return o;\n  } catch (e) { /* 손상된 파일은 없는 것으로 처리 */ }\n  return null;\n}\n\nfunction getData_() {\n  var f = findFile_();\n  if (!f) return { ok: true, empty: true, rev: 0 };\n  var box = readBox_(f);\n  if (!box) return { ok: true, empty: true, rev: 0 };\n  return { ok: true, rev: box.rev || 0, savedAt: box.savedAt || 0, data: box.data };\n}\n\nfunction putData_(body) {\n  if (!body.data || typeof body.data !== 'object') return { ok: false, error: '저장할 데이터가 없어요' };\n  var text = JSON.stringify(body.data);\n  if (text.length > MAX_BYTES) return { ok: false, error: '데이터가 너무 커요 (8MB 초과)' };\n  var lock = LockService.getScriptLock();\n  lock.waitLock(20000);\n  try {\n    var f = findFile_();\n    var box = f ? readBox_(f) : null;\n    var rev = box ? (box.rev || 0) : 0;\n    var baseRev = Number(body.baseRev || 0);\n    if (rev !== baseRev && !body.force) {\n      return { ok: false, conflict: true, rev: rev, savedAt: box ? box.savedAt : 0, error: '다른 기기에서 먼저 저장했어요' };\n    }\n    var next = { rev: rev + 1, savedAt: Date.now(), data: body.data };\n    var out = JSON.stringify(next);\n    if (f) { f.setContent(out); } else { DriveApp.createFile(FILE_NAME, out, MimeType.PLAIN_TEXT); }\n    return { ok: true, rev: next.rev, savedAt: next.savedAt };\n  } finally {\n    lock.releaseLock();\n  }\n}\n\n/* ---------------- 구글 캘린더 업로드 (앱 → 구글, 한 방향) ---------------- */\n\nfunction getCal_(id) {\n  var cid = id || CALENDAR_ID;\n  var cal = cid ? CalendarApp.getCalendarById(cid) : CalendarApp.getDefaultCalendar();\n  if (!cal) throw new Error('캘린더를 찾을 수 없어요 (캘린더 ID 확인)');\n  return cal;\n}\n\n/** 내가 만든 캘린더 목록 (앱의 캘린더 선택 화면용) */\nfunction listCalendars_() {\n  var def = CalendarApp.getDefaultCalendar().getId();\n  var list = CalendarApp.getAllOwnedCalendars().map(function (c) {\n    return { id: c.getId(), name: c.getName(), color: c.getColor(), def: c.getId() === def };\n  });\n  return { ok: true, calendars: list, defaultId: def };\n}\n\nfunction parseDate_(ds) { // 'YYYY-MM-DD' → 스크립트 시간대 00:00\n  return Utilities.parseDate(ds + ' 00:00', Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');\n}\nfunction parseDateTime_(ds, hm) {\n  return Utilities.parseDate(ds + ' ' + hm, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');\n}\nfunction addDays_(d, n) { return new Date(d.getTime() + n * 86400000); }\n\nfunction buildRecurrence_(ev) {\n  var r = CalendarApp.newRecurrence();\n  var rule;\n  if (ev.repeat === 'daily') rule = r.addDailyRule();\n  else if (ev.repeat === 'weekly') rule = r.addWeeklyRule();\n  else if (ev.repeat === 'monthly') rule = r.addMonthlyRule();\n  else if (ev.repeat === 'yearly') rule = r.addYearlyRule();\n  else return null;\n  if (ev.until) rule.until(addDays_(parseDate_(ev.until), 1));\n  return r;\n}\n\nfunction removeOld_(cal, props, key) {\n  var v = props.getProperty(key);\n  if (!v) return false;\n  try {\n    var kind = v.charAt(0), id = v.substring(2);\n    var obj = kind === 's' ? cal.getEventSeriesById(id) : cal.getEventById(id);\n    if (obj) obj.deleteEvent ? obj.deleteEvent() : obj.deleteEventSeries();\n  } catch (e) { /* 이미 구글에서 지웠으면 무시 */ }\n  props.deleteProperty(key);\n  return true;\n}\n\nfunction createOne_(cal, ev) {\n  var title = String(ev.title || '(제목 없음)');\n  var opts = { description: String(ev.memo || '') + (ev.memo ? '\\n\\n' : '') + '— 마인드맵 앱에서 올린 일정' };\n  var rec = buildRecurrence_(ev);\n  var made, kind;\n  if (ev.allDay) {\n    var s = parseDate_(ev.date);\n    if (rec) { made = cal.createAllDayEventSeries(title, s, rec, opts); kind = 's'; }\n    else if (ev.endDate && ev.endDate > ev.date) { made = cal.createAllDayEvent(title, s, addDays_(parseDate_(ev.endDate), 1), opts); kind = 'e'; }\n    else { made = cal.createAllDayEvent(title, s, opts); kind = 'e'; }\n  } else {\n    var st = parseDateTime_(ev.date, ev.time || '09:00');\n    var et;\n    if (ev.endTime) et = parseDateTime_(ev.endDate && !rec ? ev.endDate : ev.date, ev.endTime);\n    else et = new Date(st.getTime() + 3600000);\n    if (et.getTime() <= st.getTime()) et = new Date(st.getTime() + 3600000);\n    if (rec) { made = cal.createEventSeries(title, st, et, rec, opts); kind = 's'; }\n    else { made = cal.createEvent(title, st, et, opts); kind = 'e'; }\n  }\n  try {\n    made.removeAllReminders();\n    var a = ev.alarm;\n    if (a !== null && a !== undefined && a !== '' && Number(a) >= 0 && Number(a) <= 40320) made.addPopupReminder(Number(a));\n  } catch (e) { /* 알림 설정 실패는 무시 */ }\n  return kind + ':' + made.getId();\n}\n\nfunction calendarUpsert_(body) {\n  var list = body.events || [];\n  if (!list.length) return { ok: true, created: 0, updated: 0, failed: [] };\n  if (list.length > 500) return { ok: false, error: '한 번에 500개까지 올릴 수 있어요' };\n  var props = PropertiesService.getScriptProperties();\n  var cache = {};\n  var created = 0, updated = 0, failed = [], done = [];\n  var lock = LockService.getScriptLock();\n  lock.waitLock(20000);\n  try {\n    list.forEach(function (ev) {\n      try {\n        if (!ev || !ev.id || !/^\\d{4}-\\d{2}-\\d{2}$/.test(ev.date || '')) throw new Error('날짜 형식 오류');\n        var key = 'ev_' + ev.id;\n        var cal = calOf_(cache, ev.calId || body.calendarId);          // 이 일정이 올라갈 캘린더\n        var oldCid = props.getProperty('evc_' + ev.id);                // 예전에 올린 캘린더\n        var oldCal = (oldCid && oldCid !== cal.getId()) ? calOf_(cache, oldCid) : cal;\n        var existed = removeOld_(oldCal, props, key);                  // 캘린더를 바꿨으면 옛 캘린더에서 지움\n        var ref = createOne_(cal, ev);\n        props.setProperty(key, ref);\n        props.setProperty('evc_' + ev.id, cal.getId());\n        if (existed) updated++; else created++;\n        done.push(ev.id);\n      } catch (err) {\n        failed.push({ id: ev && ev.id, error: String(err && err.message || err) });\n      }\n    });\n  } finally {\n    lock.releaseLock();\n  }\n  return { ok: true, created: created, updated: updated, failed: failed, done: done };\n}\n\n/* ---------------- 구글 캘린더 가져오기 (구글 → 앱, 읽기 전용) ---------------- */\n\nfunction fmt_(d, f) { return Utilities.formatDate(d, Session.getScriptTimeZone(), f); }\n\nfunction listEvents_(body) {\n  var ids = body.calendarIds || [];\n  if (typeof ids === 'string') ids = ids.split(',');\n  if (!ids.length) return { ok: false, error: '가져올 캘린더를 고르세요' };\n  var from = String(body.from || ''), to = String(body.to || '');\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(from) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(to)) return { ok: false, error: '기간 형식 오류' };\n  var start = parseDate_(from), end = addDays_(parseDate_(to), 1);\n  if (end.getTime() <= start.getTime()) return { ok: false, error: '끝 날짜가 시작 날짜보다 빨라요' };\n  if ((end.getTime() - start.getTime()) / 86400000 > 800) return { ok: false, error: '기간은 최대 800일까지 가능해요' };\n  // 앱에서 올린 일정(구글 ID)은 되돌려 받지 않도록 제외\n  var all = PropertiesService.getScriptProperties().getProperties();\n  var mine = {};\n  Object.keys(all).forEach(function (k) { if (k.indexOf('ev_') === 0) mine[String(all[k]).substring(2)] = 1; });\n  var out = [], skipped = 0, missing = [];\n  ids.forEach(function (cid) {\n    var cal = CalendarApp.getCalendarById(cid);\n    if (!cal) { missing.push(cid); return; }\n    cal.getEvents(start, end).forEach(function (e) {\n      var gid = e.getId();\n      if (mine[gid]) { skipped++; return; }\n      var allDay = e.isAllDayEvent();\n      var st = e.getStartTime(), en = e.getEndTime();\n      var date, endDate = '', time = '', endTime = '';\n      if (allDay) {\n        date = fmt_(e.getAllDayStartDate(), 'yyyy-MM-dd');\n        var last = fmt_(addDays_(e.getAllDayEndDate(), -1), 'yyyy-MM-dd');\n        if (last > date) endDate = last;\n      } else {\n        date = fmt_(st, 'yyyy-MM-dd'); time = fmt_(st, 'HH:mm');\n        var ed = fmt_(en, 'yyyy-MM-dd'), et = fmt_(en, 'HH:mm');\n        if (ed > date && et === '00:00' && fmt_(addDays_(en, -1), 'yyyy-MM-dd') === date) { /* 자정에 끝나는 하루 일정 */ }\n        else { endDate = ed > date ? ed : ''; endTime = et; }\n      }\n      var alarm = null;\n      try { var rs = e.getPopupReminders(); if (rs && rs.length) alarm = rs[0]; } catch (err) { /* 알림 정보 없음 */ }\n      var desc = '';\n      try { desc = String(e.getDescription() || '').replace(/\\n*— 마인드맵 앱에서 올린 일정\\s*$/, ''); } catch (err) { /* 설명 없음 */ }\n      out.push({ key: cid + '|' + gid + '|' + st.getTime(), cal: cid, title: e.getTitle() || '(제목 없음)',\n        date: date, endDate: endDate, allDay: allDay, time: time, endTime: endTime, memo: desc.slice(0, 5000),\n        alarm: alarm, recurring: e.isRecurringEvent() });\n    });\n  });\n  if (out.length > 2500) return { ok: false, error: '일정이 너무 많아요 (' + out.length + '개). 기간을 줄여 주세요' };\n  return { ok: true, events: out, skipped: skipped, missing: missing };\n}\n\n/* ---------------- 드라이브 파일 붙이기 (찾기 · 올리기) ---------------- */\n\nfunction attachFolder_(body) {\n  var id = body && String(body.folderId || '').trim();   // 앱의 「첨부 폴더」 설정 (드라이브 폴더 링크의 ID)\n  if (id) {\n    try { return DriveApp.getFolderById(id); }\n    catch (err) { throw new Error('첨부 폴더를 열 수 없어요. 폴더 링크를 확인하고, 이 스크립트를 실행하는 구글 계정이 그 폴더를 편집할 수 있어야 해요'); }\n  }\n  var it = DriveApp.getFoldersByName(ATTACH_FOLDER);\n  return it.hasNext() ? it.next() : DriveApp.createFolder(ATTACH_FOLDER);\n}\n\nfunction fileInfo_(f, isFolder) {\n  return {\n    id: f.getId(), name: f.getName(), url: f.getUrl(),\n    mime: isFolder ? 'application/vnd.google-apps.folder' : f.getMimeType(),\n    size: isFolder ? 0 : f.getSize(), updated: f.getLastUpdated().getTime()\n  };\n}\n\nfunction driveSearch_(body) {\n  var q = String(body.q || '').trim();\n  var out = [];\n  if (!q) { // 비우면 「마인드맵 첨부」 폴더의 최근 파일\n    var it0 = attachFolder_(body).getFiles();\n    while (it0.hasNext() && out.length < 300) out.push(fileInfo_(it0.next(), false));\n  } else {\n    var qq = q.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, \"\\\\'\");\n    var it = DriveApp.searchFiles(\"title contains '\" + qq + \"' and trashed = false\");\n    while (it.hasNext() && out.length < 60) out.push(fileInfo_(it.next(), false));\n    var fo = DriveApp.searchFolders(\"title contains '\" + qq + \"' and trashed = false\");\n    var n = 0;\n    while (fo.hasNext() && n < 10) { out.push(fileInfo_(fo.next(), true)); n++; }\n  }\n  out.sort(function (a, b) { return b.updated - a.updated; });\n  return { ok: true, files: out.slice(0, 30) };\n}\n\nfunction driveUpload_(body) {\n  var name = String(body.name || '파일').replace(/[\\\\/:*?\"<>|]/g, '_').slice(0, 150);\n  if (!body.data) return { ok: false, error: '파일 내용이 없어요' };\n  var bytes = Utilities.base64Decode(String(body.data));\n  if (bytes.length > MAX_UPLOAD) return { ok: false, error: '파일이 너무 커요 (20MB 초과)' };\n  var blob = Utilities.newBlob(bytes, String(body.mime || 'application/octet-stream'), name);\n  var f = attachFolder_(body).createFile(blob);\n  return { ok: true, file: fileInfo_(f, false), name: f.getName(), url: f.getUrl(), mime: f.getMimeType() };\n}\n\nfunction calOf_(cache, id) {\n  var k = id || '_default';\n  if (!cache[k]) cache[k] = getCal_(id);\n  return cache[k];\n}\n\nfunction calendarDelete_(body) {\n  var ids = body.ids || [];\n  var props = PropertiesService.getScriptProperties();\n  var cache = {};\n  var n = 0;\n  ids.forEach(function (id) {\n    var cid = props.getProperty('evc_' + id) || body.calendarId;     // 올릴 때 쓴 캘린더에서 지움\n    if (removeOld_(calOf_(cache, cid), props, 'ev_' + id)) n++;\n    props.deleteProperty('evc_' + id);\n  });\n  return { ok: true, deleted: n };\n}\n";
 /* ===================== 4단계: 동기화(드라이브) · 구글 캘린더 업로드 ===================== */
 const SYNC_KEY = 'mindmap_sync_v1', PRESYNC_KEY = 'mindmap_presync_backup';
 const CONN_KEY = 'mm_sync_conn', DRAFT_KEY = 'mm_sync_draft';
@@ -9405,7 +9506,7 @@ async function gs(action, body){
   const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), ((action==='calendar' || action==='events' || action==='dupload') ? 120000 : 30000));
   try{
     let res;
-    if(body) res = await fetch(url, { method:'POST', body:JSON.stringify(Object.assign({ token:syncCfg.token, action }, body)), headers:{ 'Content-Type':'text/plain;charset=utf-8' }, signal:ctrl.signal, redirect:'follow' });
+    if(body) res = await fetch(url, { method:'POST', body:JSON.stringify(Object.assign({ token:syncCfg.token, action }, (action==='dupload' || action==='dsearch') ? { folderId:attachFolderId() } : null, body)), headers:{ 'Content-Type':'text/plain;charset=utf-8' }, signal:ctrl.signal, redirect:'follow' });
     else res = await fetch(url+(url.includes('?')?'&':'?')+'action='+action+'&token='+encodeURIComponent(syncCfg.token), { signal:ctrl.signal, redirect:'follow' });
     const txt = await res.text();
     let j; try{ j = JSON.parse(txt); }catch(e){ throw gsErr('서버 응답을 읽지 못했어요. 웹앱 URL(…/exec)과 「액세스: 모든 사용자」 배포를 확인하세요','bad'); }
@@ -9834,7 +9935,7 @@ function openSyncSheet(){
           try{ const j = await gs('ping'); if(!j.ok) throw gsErr(j.error||'연결 실패'); toast(changed ? '연결됐어요' : '연결이 잘 돼요'); refreshSyncUI(); if(changed) show('sync'); }
           catch(e){ toast('연결 실패: '+e.message); }
         };
-        panel.append(h('div',{ class:'lbl' }, '웹앱 URL'), urlI, h('div',{ class:'lbl' }, '비밀키'), tokI,
+        panel.append(h('div',{ class:'lbl' }, '웹앱 URL'), urlI, h('div',{ class:'lbl' }, '비밀키'), tokI, h('div',{ class:'lbl' }, '첨부 폴더 (사진·파일이 저장되는 드라이브 폴더 링크)'), attachFolderField(),
           h('div',{ class:'list', style:'margin-top:10px' },
             item('#10b981', 'check', '저장 · 연결 확인', saveConn),
             item('#f59e0b', 'copy', 'Apps Script 코드 복사', () => copyAny(GS_CODE, 'Apps Script 코드를 복사했어요')),
