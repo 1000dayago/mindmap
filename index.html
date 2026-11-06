@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611060939">
+<meta name="app-version" content="202611061013">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3376,7 +3376,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611060939';
+const APP_VER = '202611061013';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6009,6 +6009,16 @@ function grpDelete(g){
     toast('“'+g.name+'” 그룹을 삭제했어요', { label:'취소', fn:() => { regSet(g.name, col); if(refs.length) grpRefsSet(g.name, refs); if(memo0) grpMemoSet(g.name, memo0); if(urls0.length) grpUrlsSet(g.name, urls0); grpRestoreSnap(snap); } });
   });
 }
+function evDuplicate(ev, back){
+  const c = JSON.parse(JSON.stringify(ev));
+  c.id = uid(); c.created = Date.now(); c.link = null;
+  delete c.dn; delete c.evNode; delete c.nid;
+  if(Array.isArray(c.urls)) c.urls = c.urls.map(u => Object.assign({}, u, { id:uid() }));
+  const t = String(c.title||''); c.title = (t.slice(0,190) + ' (복사)');
+  data.events[c.id] = c; saveSoon(); refreshEvViews();
+  closeSheet(true);
+  setTimeout(() => { openEventEditor(c.id, back ? { back } : {}); toast('복사했어요 — 내용을 바꿔 저장하세요'); }, 80);
+}
 function soloDelete(ev){
   askDlg({ title:'“'+ev.title+'” 일정을 삭제할까요?', sub:'삭제 직후엔 취소할 수 있어요.', ok:'삭제', danger:true }, () => {
     const snap = JSON.stringify(ev); deleteEvent(ev.id); refreshEvViews();
@@ -7818,6 +7828,7 @@ function openEventEditor(id, o){
     { const gb = gcalBox(ex, save); gcalPick = gb._pick; b.append(gb); }
     b.append(h('div',{class:'row end'},
       ex ? h('button',{class:'btn',style:'margin-right:auto;color:var(--danger)',onclick:() => { if(confirm('“'+short(ex.title)+'” 일정을 삭제할까요?'+(ex.repeat!=='none'?'\n(반복 일정은 전체가 삭제돼요)':'')+(ex.link?'\n마인드맵의 해당 노드도 함께 삭제돼요.':''))){ closeSheet(true); if(o.back) setTimeout(o.back, 60); const wasSent = !!syncCfg.sent[ex.id], eid = ex.id; deleteEvent(eid); if(wasSent && syncOn() && confirm('구글 캘린더에도 올려 둔 일정이 있어요. 그것도 지울까요?')){ gs('gdelete', { ids:[eid], calendarId:syncCfg.calId||'' }).then(j => { if(j.ok){ delete syncCfg.sent[eid]; saveSync(); toast('구글 캘린더에서도 지웠어요'); } else toast('구글 삭제 실패: '+j.error); }).catch(e => toast('구글 삭제 실패: '+e.message)); } } }},'삭제') : null,
+      ex ? h('button',{class:'btn',type:'button',title:'같은 내용·메모·표·첨부로 새 일정을 하나 더 만들어요',onclick:() => { const e2 = save(); if(e2) evDuplicate(e2, o.back); }, html:ic('dup',15)+' 복사'}) : null,
       h('button',{class:'btn',onclick:() => closeSheet()},'취소'),
       h('button',{class:'btn primary',onclick:() => { if(save()){ closeSheet(true); checkAlarms(); if(o.back) setTimeout(o.back, 60); } }},'저장')));
     setTimeout(() => { if(!ex) title.focus(); }, 60);
