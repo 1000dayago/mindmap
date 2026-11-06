@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611041218">
+<meta name="app-version" content="202611060915">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1238,6 +1238,7 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
+.gmemo{font-size:12px;color:var(--sub);white-space:pre-wrap;line-height:1.35;margin:0 8px 6px 24px;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;word-break:break-word}
 #sheetWrap.evtbl #sheet{width:min(1000px,97vw);height:min(88dvh,820px);max-height:96dvh}
 .evtbhead{display:flex;align-items:center;gap:10px;margin:0 0 6px;flex:none}.evtbhead small{color:var(--sub);font-size:11.5px}
 .evpvw{overflow:auto;max-height:230px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--panel-solid)}
@@ -3375,7 +3376,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611041218';
+const APP_VER = '202611060915';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5851,7 +5852,7 @@ function gv(c){
 const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(e){ return d; } };
 const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
 const regLoad = () => { const a = lsGet('mm_grp_reg', []); return Array.isArray(a) ? a.filter(x => x && x.name) : []; };
-const regSet = (name, color) => { const o = regLoad().find(x => x.name===name), a = regLoad().filter(x => x.name!==name), r = { name, color }; if(o && o.refs) r.refs = o.refs; a.push(r); lsSet('mm_grp_reg', a); };
+const regSet = (name, color) => { const o = regLoad().find(x => x.name===name), a = regLoad().filter(x => x.name!==name), r = { name, color }; if(o && o.refs) r.refs = o.refs; if(o && o.memo) r.memo = o.memo; a.push(r); lsSet('mm_grp_reg', a); };
 const regDel = name => lsSet('mm_grp_reg', regLoad().filter(x => x.name!==name));
 function grpColorOf(name){
   const r = regLoad().find(x => x.name===name); if(r && r.color) return r.color;
@@ -5860,7 +5861,7 @@ function grpColorOf(name){
 function evColor(ev){ return (ev.grp && ev.gcol) ? ev.gcol : ev.color; }
 function grpList(){
   const m = {};
-  regLoad().forEach(r => { m[r.name] = { name:r.name, color:r.color||EV_COLORS[0], reg:true, evs:[], refs:r.refs||[] }; });
+  regLoad().forEach(r => { m[r.name] = { name:r.name, color:r.color||EV_COLORS[0], reg:true, evs:[], refs:r.refs||[], memo:r.memo||'' }; });
   Object.values(data.events).forEach(ev => {
     if(!ev.grp) return;
     const g = m[ev.grp] || (m[ev.grp] = { name:ev.grp, color:ev.gcol||EV_COLORS[0], evs:[] });
@@ -5882,7 +5883,7 @@ function grpEdit(name, newName, color){
   const col = color || grpColorOf(name) || EV_COLORS[0];
   if(newName!==name){ const ex = grpColorOf(newName); if(ex && !color) color = ex; }
   Object.values(data.events).forEach(ev => { if(ev.grp===name){ ev.grp = newName; ev.gcol = color||col; } });
-  const orefs = regLoad().find(x => x.name===name); regDel(name); regSet(newName, color||col); if(orefs && orefs.refs){ const a2 = regLoad(), t = a2.find(x => x.name===newName); if(t){ t.refs = orefs.refs; lsSet('mm_grp_reg', a2); } }
+  const orefs = regLoad().find(x => x.name===name); regDel(name); regSet(newName, color||col); if(orefs && (orefs.refs || orefs.memo)){ const a2 = regLoad(), t = a2.find(x => x.name===newName); if(t){ if(orefs.refs) t.refs = orefs.refs; if(orefs.memo) t.memo = orefs.memo; lsSet('mm_grp_reg', a2); } }
   if(cal.grp===name) cal.grp = newName;
   saveSoon(); refreshEvViews();
 }
@@ -5924,11 +5925,11 @@ function hidClearItems(){ HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); 
 function hidAll(){ HID.mode = 'all'; HID.g.clear(); HID.e.clear(); hidSave(); renderCal(); }
 function trashBtn(tip, fn){ return h('button',{ type:'button', class:'hideye trash', title:tip, 'aria-label':tip, html:ic('trash', 16), onclick:e => { e.stopPropagation(); fn(); } }); }
 function grpDelete(g){
-  const t = g.evs.slice(), refs = (g.refs||[]).slice(), col = g.color;
+  const t = g.evs.slice(), refs = (g.refs||[]).slice(), col = g.color, memo0 = g.memo||'';
   askDlg({ title:'“'+g.name+'” 그룹을 삭제할까요?', sub:(t.length ? '그룹과 안에 있는 일정 '+t.length+'개가 모두 지워져요.' : '그룹이 지워져요.')+' 삭제 직후엔 취소할 수 있어요.', ok:'삭제', danger:true }, () => {
     const snap = t.map(e => JSON.stringify(e));
     t.forEach(e => deleteEvent(e.id)); regDel(g.name); if(cal.grp===g.name) cal.grp = ''; HID.g.delete(g.name); saveSoon(); refreshEvViews();
-    toast('“'+g.name+'” 그룹을 삭제했어요', { label:'취소', fn:() => { regSet(g.name, col); if(refs.length) grpRefsSet(g.name, refs); grpRestoreSnap(snap); } });
+    toast('“'+g.name+'” 그룹을 삭제했어요', { label:'취소', fn:() => { regSet(g.name, col); if(refs.length) grpRefsSet(g.name, refs); if(memo0) grpMemoSet(g.name, memo0); grpRestoreSnap(snap); } });
   });
 }
 function soloDelete(ev){
@@ -5972,8 +5973,10 @@ function grpArea(){
         h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음'))),
       (g.refs && g.refs.length) ? h('button',{ type:'button', class:'gnode', title:'연결된 노드로 이동', 'aria-label':'연결된 노드로 이동', html:ic('mindmap',15), onclick:() => refOpen(g.refs) }) : null,
       hidEye('g', g.name, hid, g.name),
+      h('button',{ type:'button', class:'hideye', title:'이 그룹에 일정 추가 (보고 있는 날짜로 열려요)', 'aria-label':'그룹내 일정 추가', html:ic('plus', 16), onclick:e => { e.stopPropagation(); openEventEditor(null,{ grp:g.name, ds:cal.sel||todayStr() }); } }),
       h('button',{ type:'button', class:'gedit', title:'그룹 편집 (이름·색·템플릿)', 'aria-label':'그룹 편집', onclick:() => openGroupDetail(g.name) }, '✎'),
       trashBtn('그룹 삭제 (안의 일정도 함께, 한 번 물어봐요)', () => grpDelete(g))));
+    { const me = gMemoEl(g); if(me) box.append(me); }
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
@@ -6021,6 +6024,10 @@ function openGroupDetail(name){
     b.append(h('div',{ class:'gprog', style:gv(g.color) },
       h('div',{ class:'gbar' }, h('i',{ style:'width:'+pct+'%' })),
       h('small',{}, (g.total ? g.done+'/'+g.total+' 완료' : '일정 '+g.evs.length+'개')+(g.from ? ' · '+fmtMD(g.from)+(g.to!==g.from ? ' ~ '+fmtMD(g.to) : '') : ''))));
+    { const ta = h('textarea',{ class:'field', rows:4, maxlength:5000, placeholder:'이 그룹의 전체 개요 · 목적 · 메모를 적어 두세요 (일정 목록의 그룹 제목 아래에도 보여요)', style:'width:100%;resize:vertical;min-height:84px;line-height:1.4', title:'입력하는 즉시 저장돼요' }, g.memo||'');
+      ta.addEventListener('input', () => grpMemoSet(name, ta.value));
+      ta.addEventListener('change', () => { grpMemoSet(name, ta.value); renderCal(); });
+      b.append(h('div',{ class:'lbl' }, '그룹 개요 (메모) · 입력하면 바로 저장돼요'), ta, h('div',{ style:'height:6px' })); }
     if(g.evs.length){
       b.append(h('div',{ class:'lbl' }, '그룹 일정 (날짜 순)'));
       const list = h('div',{ class:'agenda' }), rowsBy = {};
@@ -6234,6 +6241,7 @@ function pickSection(){
       const box = h('div',{ class:'ggrp foc', style:gv(g.color) },
         h('div',{ class:'ghead' }, h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료 · '+pct+'%' : g.evs.length+'개'), h('span',{ class:'sp' }),
           h('button',{ type:'button', class:'gab', title:'다음 단계 완료 · 하루 미루기 · 템플릿 등 빠른 메뉴', onclick:() => grpBarMenu(g.name) }, '메뉴'), h('button',{ type:'button', class:'gab', onclick:() => openGroupDetail(g.name) }, '상세')));
+      { const me = gMemoEl(g); if(me) box.append(me); }
       if(nx) box.append(h('p',{ class:'gnx' }, '다음: '+(nx.title||'(제목 없음)')+' · '+sdm(nx.date)));
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정이 없어요'));
       g.evs.forEach(ev => box.append(evRow(ev, ev.date, { showDate:true, memo:true })));
@@ -6715,6 +6723,14 @@ function refIdx(){
   refCache = { t:now, idx }; return idx;
 }
 function refCount(nid){ const s = refIdx()[data.current+'|'+nid]; return s ? s.evs.length+s.grps.length : 0; }
+function grpMemoSet(name, text){
+  text = String(text||'').slice(0, 5000);
+  const a = regLoad(); let r = a.find(x => x.name===name);
+  if(!r){ if(!text.trim()) return; r = { name, color:grpColorOf(name)||EV_COLORS[0] }; a.push(r); }
+  if(text.trim()) r.memo = text; else delete r.memo;
+  lsSet('mm_grp_reg', a);
+}
+function gMemoEl(g){ return g.memo ? h('div',{ class:'gmemo', title:'그룹 개요 — 눌러서 수정', onclick:() => openGroupDetail(g.name) }, g.memo) : null; }
 function grpRefsGet(name){ const r = regLoad().find(x => x.name===name); return (r && Array.isArray(r.refs)) ? r.refs : []; }
 function grpRefsSet(name, refs){
   const a = regLoad(); let r = a.find(x => x.name===name);
