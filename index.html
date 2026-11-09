@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611061013">
+<meta name="app-version" content="202611090907">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1238,6 +1238,11 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
+.gordsec{margin:4px 0 10px;padding:6px 8px;border-radius:14px;background:var(--accent-soft)}
+.gordh{display:flex;align-items:center;gap:8px;padding:2px 2px 6px}.gordh small{color:var(--sub);font-size:11.5px}.gordh .sp{flex:1}
+.gordh .gab{padding:4px 11px;border-radius:999px;background:var(--bg,#fff);color:var(--accent);font-size:12px;font-weight:800}
+.gordrow{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;border-radius:12px;background:var(--bg,#fff);border-left:4px solid var(--gc)}
+.gordrow .gd{width:9px;height:9px;border-radius:50%;background:var(--gc);flex:none}.gordrow b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}.gordrow small{color:var(--sub);font-size:11.5px;flex:none}
 .gmemo{font-size:12px;color:var(--sub);white-space:pre-wrap;line-height:1.35;margin:0 8px 6px 24px;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;word-break:break-word}
 #sheetWrap.evtbl #sheet{width:min(1000px,97vw);height:min(88dvh,820px);max-height:96dvh}
 .evtbhead{display:flex;align-items:center;gap:10px;margin:0 0 6px;flex:none}.evtbhead small{color:var(--sub);font-size:11.5px}
@@ -3376,7 +3381,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611061013';
+const APP_VER = '202611090907';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5930,6 +5935,22 @@ const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); re
 const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
 const regLoad = () => { const a = lsGet('mm_grp_reg', []); return Array.isArray(a) ? a.filter(x => x && x.name) : []; };
 const regSet = (name, color) => { const o = regLoad().find(x => x.name===name), a = regLoad().filter(x => x.name!==name), r = { name, color }; if(o && o.refs) r.refs = o.refs; if(o && o.memo) r.memo = o.memo; if(o && o.urls) r.urls = o.urls; a.push(r); lsSet('mm_grp_reg', a); };
+const gordGet = () => { const a = lsGet('mm_grp_ord', []); return Array.isArray(a) ? a.filter(x => typeof x==='string') : []; };
+const gordSet = a => { lsSet('mm_grp_ord', a); };
+function gordSection(){   // 순서 바꾸기 모드: 그룹을 위아래로 끌어서 정렬
+  const gs_ = grpList(); if(gs_.length<2) return null;
+  const rows = [], names = gs_.map(g => g.name);
+  const sec = h('div',{ class:'gordsec' },
+    h('div',{ class:'gordh' }, h('b',{}, '그룹 순서'), h('small',{}, '위쪽 그룹이 먼저 보여요'), h('span',{ class:'sp' }),
+      gordGet().length ? h('button',{ type:'button', class:'gab', title:'직접 정한 순서를 지우고 기본 순서(일정 날짜순)로 되돌려요', onclick:e => { e.stopPropagation(); gordSet([]); renderCal(); toast('그룹을 기본 순서로 되돌렸어요'); } }, '기본순서') : null));
+  gs_.forEach((g, i) => {
+    const r = h('div',{ class:'gordrow', style:gv(g.color) }, h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음')),
+      h('span',{ class:'ordgrip', title:'끌어서 그룹 순서 바꾸기', 'aria-label':'끌어서 그룹 순서 바꾸기', html:ic('grip',20),
+        onpointerdown:e => vDragRows(e, rows, i, (from, to) => { const a = names.slice(), x = a.splice(from, 1)[0]; a.splice(to, 0, x); gordSet(a); renderCal(); toast('그룹 순서를 바꿨어요'); }), onclick:e => e.stopPropagation() }));
+    rows.push(r); sec.append(r);
+  });
+  return sec;
+}
 const regDel = name => lsSet('mm_grp_reg', regLoad().filter(x => x.name!==name));
 function grpColorOf(name){
   const r = regLoad().find(x => x.name===name); if(r && r.color) return r.color;
@@ -5951,13 +5972,14 @@ function grpList(){
     g.nf = cnt.length ? cnt[0].date : ''; g.nt = cnt.length ? cnt.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, cnt[0].date) : '';
     g.from = g.evs.length ? g.evs[0].date : ''; g.to = g.evs.length ? g.evs.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, g.evs[0].date) : '';
     return g;
-  }).sort((a, b) => (a.total && a.done===a.total ? 1 : 0)-(b.total && b.done===b.total ? 1 : 0) || (a.from||'9999').localeCompare(b.from||'9999') || a.name.localeCompare(b.name));
+  }).sort((a, b) => { const o = gordGet(), ia = o.indexOf(a.name), ib = o.indexOf(b.name); return (ia<0 ? 1e6 : ia)-(ib<0 ? 1e6 : ib) || (a.total && a.done===a.total ? 1 : 0)-(b.total && b.done===b.total ? 1 : 0) || (a.from||'9999').localeCompare(b.from||'9999') || a.name.localeCompare(b.name); });
 }
 function nextGrpColor(){ const used = new Set(grpList().map(g => g.color)), pool = EV_COLORS.slice(1); return pool.find(c => !used.has(c)) || pool[grpList().length % pool.length]; }
 function grpEnsure(name){ let c = grpColorOf(name); if(!c){ c = nextGrpColor(); } if(!regLoad().some(x => x.name===name)) regSet(name, c); return c; }
 function grpEdit(name, newName, color){
   newName = (newName||'').trim().slice(0,40) || name;
   const col = color || grpColorOf(name) || EV_COLORS[0];
+  if(newName!==name){ const oo = gordGet(), k = oo.indexOf(name); if(k>=0){ oo[k] = newName; gordSet(oo); } }
   if(newName!==name){ const ex = grpColorOf(newName); if(ex && !color) color = ex; }
   Object.values(data.events).forEach(ev => { if(ev.grp===name){ ev.grp = newName; ev.gcol = color||col; } });
   const orefs = regLoad().find(x => x.name===name); regDel(name); regSet(newName, color||col); if(orefs && (orefs.refs || orefs.memo || orefs.urls)){ const a2 = regLoad(), t = a2.find(x => x.name===newName); if(t){ if(orefs.refs) t.refs = orefs.refs; if(orefs.memo) t.memo = orefs.memo; if(orefs.urls) t.urls = orefs.urls; lsSet('mm_grp_reg', a2); } }
@@ -7238,6 +7260,7 @@ function calAgenda(ds){
   const box = h('div',{class:'agenda'},
     h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('span',{class:'hbtns'}, ordToggle(), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정'))));
   if(cal.rord){
+    { const gs0 = gordSection(); if(gs0) box.append(gs0); }
     if(!evs.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
     evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:true })));
     return box;
