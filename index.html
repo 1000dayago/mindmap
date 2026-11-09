@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611090907">
+<meta name="app-version" content="202611090942">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1238,11 +1238,10 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
-.gordsec{margin:4px 0 10px;padding:6px 8px;border-radius:14px;background:var(--accent-soft)}
-.gordh{display:flex;align-items:center;gap:8px;padding:2px 2px 6px}.gordh small{color:var(--sub);font-size:11.5px}.gordh .sp{flex:1}
-.gordh .gab{padding:4px 11px;border-radius:999px;background:var(--bg,#fff);color:var(--accent);font-size:12px;font-weight:800}
-.gordrow{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;border-radius:12px;background:var(--bg,#fff);border-left:4px solid var(--gc)}
-.gordrow .gd{width:9px;height:9px;border-radius:50%;background:var(--gc);flex:none}.gordrow b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}.gordrow small{color:var(--sub);font-size:11.5px;flex:none}
+.gordbtn{display:inline-flex!important;align-items:center;justify-content:center;padding:5px 9px!important}
+.gordbtn.on{background:var(--accent)!important;color:#fff!important}
+.solohead{display:flex;align-items:center;gap:6px;margin:2px 0 4px}.solohead .lbl{margin:4px 2px}.solohead .sp{flex:1}
+.gordm .ghead .hideye,.gordm .ghead .gedit,.gordm .ghead .gnode,.gordm .ghead .gm{display:none!important}
 .gmemo{font-size:12px;color:var(--sub);white-space:pre-wrap;line-height:1.35;margin:0 8px 6px 24px;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;word-break:break-word}
 #sheetWrap.evtbl #sheet{width:min(1000px,97vw);height:min(88dvh,820px);max-height:96dvh}
 .evtbhead{display:flex;align-items:center;gap:10px;margin:0 0 6px;flex:none}.evtbhead small{color:var(--sub);font-size:11.5px}
@@ -3381,7 +3380,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611090907';
+const APP_VER = '202611090942';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5936,21 +5935,8 @@ const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catc
 const regLoad = () => { const a = lsGet('mm_grp_reg', []); return Array.isArray(a) ? a.filter(x => x && x.name) : []; };
 const regSet = (name, color) => { const o = regLoad().find(x => x.name===name), a = regLoad().filter(x => x.name!==name), r = { name, color }; if(o && o.refs) r.refs = o.refs; if(o && o.memo) r.memo = o.memo; if(o && o.urls) r.urls = o.urls; a.push(r); lsSet('mm_grp_reg', a); };
 const gordGet = () => { const a = lsGet('mm_grp_ord', []); return Array.isArray(a) ? a.filter(x => typeof x==='string') : []; };
-const gordSet = a => { lsSet('mm_grp_ord', a); };
-function gordSection(){   // 순서 바꾸기 모드: 그룹을 위아래로 끌어서 정렬
-  const gs_ = grpList(); if(gs_.length<2) return null;
-  const rows = [], names = gs_.map(g => g.name);
-  const sec = h('div',{ class:'gordsec' },
-    h('div',{ class:'gordh' }, h('b',{}, '그룹 순서'), h('small',{}, '위쪽 그룹이 먼저 보여요'), h('span',{ class:'sp' }),
-      gordGet().length ? h('button',{ type:'button', class:'gab', title:'직접 정한 순서를 지우고 기본 순서(일정 날짜순)로 되돌려요', onclick:e => { e.stopPropagation(); gordSet([]); renderCal(); toast('그룹을 기본 순서로 되돌렸어요'); } }, '기본순서') : null));
-  gs_.forEach((g, i) => {
-    const r = h('div',{ class:'gordrow', style:gv(g.color) }, h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음')),
-      h('span',{ class:'ordgrip', title:'끌어서 그룹 순서 바꾸기', 'aria-label':'끌어서 그룹 순서 바꾸기', html:ic('grip',20),
-        onpointerdown:e => vDragRows(e, rows, i, (from, to) => { const a = names.slice(), x = a.splice(from, 1)[0]; a.splice(to, 0, x); gordSet(a); renderCal(); toast('그룹 순서를 바꿨어요'); }), onclick:e => e.stopPropagation() }));
-    rows.push(r); sec.append(r);
-  });
-  return sec;
-}
+const gordSet = a => { lsSet('mm_grp_ord', a); try{ saveSoon(); }catch(_){} };
+const gordIc = (cls, tip, on, fn) => h('button',{ type:'button', class:'gab gordbtn '+cls+(on ? ' on' : ''), title:tip, 'aria-label':tip, html:ic('sort',15), onclick:e => { e.stopPropagation(); fn(); } });
 const regDel = name => lsSet('mm_grp_reg', regLoad().filter(x => x.name!==name));
 function grpColorOf(name){
   const r = regLoad().find(x => x.name===name); if(r && r.color) return r.color;
@@ -6052,10 +6038,10 @@ function hidBar(){
   hidInit(); const n = hidCount(), all = HID.mode==='all' && n===0, keep = lsGet('mm_hide_keep', false);
   const chip = (t, on, tip, fn) => h('button',{ type:'button', class:'hb'+(on ? ' on' : ''), title:tip, onclick:fn }, t);
   return h('div',{ class:'hidbar' },
-    h('span',{ class:'hideye', title:'보기 필터 — 그룹·단독 일정을 골라서 봐요', html:ic('eye', 16), style:'cursor:default' }),
+    h('span',{ class:'hideye', title:'보기 필터 — 그룹·일반 일정을 골라서 봐요', html:ic('eye', 16), style:'cursor:default' }),
     chip('전체', all, '숨긴 것과 필터를 모두 풀고 전부 보기', hidAll),
     chip('그룹만', HID.mode==='grp', '그룹 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='grp' ? 'all' : 'grp'; hidSave(); renderCal(); }),
-    chip('단독만', HID.mode==='solo', '단독 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='solo' ? 'all' : 'solo'; hidSave(); renderCal(); }),
+    chip('일반만', HID.mode==='solo', '일반 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='solo' ? 'all' : 'solo'; hidSave(); renderCal(); }),
     n ? chip('숨김 '+n+'개 · 모두 보기', false, '눈 아이콘으로 숨긴 그룹·일정을 모두 다시 보여요', hidClearItems) : null,
     (n || HID.mode!=='all') ? chip(keep ? '유지 ✓' : '유지', !!keep, '켜면 앱을 다시 열어도 숨김 상태를 기억해요 (끄면 열 때마다 전체 보기)', () => { lsSet('mm_hide_keep', !keep); hidSave(); renderCal(); }) : null);
 }
@@ -6063,18 +6049,21 @@ function gfoldSet(k, on){ const s = gfold(); on ? s.add(k) : s.delete(k); lsSet(
 /* ---- 일정 목록 위 그룹 영역 ---- */
 function grpArea(){
   const gs_ = grpList(), fold = gfold(), area = fold.has('*');
-  const wrap = h('div',{ class:'garea' });
+  const wrap = h('div',{ class:'garea'+(cal.gord ? ' gordm' : '') });
   wrap.append(h('div',{ class:'gahead' },
     h('button',{ type:'button', class:'gtog', 'aria-label':'그룹 영역 접기·펴기', onclick:() => { gfoldSet('*', !area); renderCal(); } }, area ? '▸' : '▾'),
     h('b',{}, '그룹'), h('small',{}, gs_.length ? String(gs_.length) : ''), h('span',{ class:'sp' }),
+    (cal.gord && gordGet().length) ? h('button',{ type:'button', class:'gab', title:'직접 정한 순서를 지우고 기본 순서로 되돌려요', onclick:() => { gordSet([]); renderCal(); toast('그룹을 기본 순서로 되돌렸어요'); } }, '기본순서') : null,
+    gordIc('gg', cal.gord ? '순서 바꾸기 끝내기' : '그룹 순서 바꾸기 (왼쪽 달력의 그룹 막대 순서가 바뀌어요)', !!cal.gord, () => { cal.gord = !cal.gord; renderCal(); }),
     h('button',{ type:'button', class:'gab', onclick:() => openGroupNew() }, '+ 그룹'),
     h('button',{ type:'button', class:'gab', onclick:() => openTplList() }, '템플릿')));
   if(area) return wrap;
   if(!gs_.length) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
-  const pkIds = pickIds(), pkG = pickGroups();
+  const pkIds = pickIds(), pkG = pickGroups(), gboxes = [], gvis = gs_.filter(g => !pkG.has(g.name)).length;
+  if(cal.gord && gvis>1) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 6px' }, '오른쪽 ⠿ 손잡이를 끌어서 그룹을 위아래로 옮기세요. 위쪽 그룹이 달력에 먼저 보여요.'));
   gs_.forEach(g => {
     if(pkG.has(g.name)) return;   // 선택한 그룹은 맨 위 「선택한 일정」으로 옮겨 보여준다
-    const hid = HID.g.has(g.name), closed = fold.has(g.name) || hid;
+    const hid = HID.g.has(g.name), closed = fold.has(g.name) || hid || !!cal.gord;
     const box = h('div',{ class:'ggrp'+(hid ? ' ghid' : '')+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:gv(g.color) });
     box.append(h('div',{ class:'ghead' },
       h('button',{ type:'button', class:'gtog', 'aria-label':'접기·펴기', onclick:() => { gfoldSet(g.name, !closed); renderCal(); } }, closed ? '▸' : '▾'),
@@ -6085,7 +6074,9 @@ function grpArea(){
       hidEye('g', g.name, hid, g.name),
       h('button',{ type:'button', class:'hideye', title:'이 그룹에 일정 추가 (보고 있는 날짜로 열려요)', 'aria-label':'그룹내 일정 추가', html:ic('plus', 16), onclick:e => { e.stopPropagation(); openEventEditor(null,{ grp:g.name, ds:cal.sel||todayStr() }); } }),
       h('button',{ type:'button', class:'gedit', title:'그룹 편집 (이름·색·템플릿)', 'aria-label':'그룹 편집', onclick:() => openGroupDetail(g.name) }, '✎'),
-      trashBtn('그룹 삭제 (안의 일정도 함께, 한 번 물어봐요)', () => grpDelete(g))));
+      trashBtn('그룹 삭제 (안의 일정도 함께, 한 번 물어봐요)', () => grpDelete(g)),
+      (cal.gord && gvis>1) ? h('span',{ class:'ordgrip', title:'끌어서 그룹 순서 바꾸기', 'aria-label':'끌어서 그룹 순서 바꾸기', html:ic('grip',20), onpointerdown:e => vDragRows(e, gboxes, gboxes.indexOf(box), (from, to) => { const nm = gboxes.map(b2 => b2.dataset.g), x = nm.splice(from, 1)[0]; nm.splice(to, 0, x); gordSet(nm.concat(gordGet().filter(n => !nm.includes(n)))); renderCal(); toast('그룹 순서를 바꿨어요'); }), onclick:e => e.stopPropagation() }) : null));
+    gboxes.push(box);
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
@@ -7258,9 +7249,8 @@ function evRow0(ev, ds, o){
 function calAgenda(ds){
   const evs = eventsOn(ds, true);
   const box = h('div',{class:'agenda'},
-    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('span',{class:'hbtns'}, ordToggle(), h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정'))));
-  if(cal.rord){
-    { const gs0 = gordSection(); if(gs0) box.append(gs0); }
+    h('div',{class:'ahead'}, h('b',{}, fmtMD(ds)+(krHoliday(ds) ? ' · '+krHoliday(ds) : '')+' · '+isoWeek(addDays(ds, 4-dow(ds)))+'주'), h('span',{class:'hbtns'}, h('button',{class:'chipbtn',onclick:() => openEventEditor(null,{ ds })}, '+ 일정'))));
+  if(false){
     if(!evs.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},'일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
     evs.forEach((ev, i) => box.append(evRow(ev, ds, { memo:true, ord:true })));
     return box;
@@ -7270,11 +7260,11 @@ function calAgenda(ds){
   if(HID.mode!=='solo') box.append(grpArea());
   const pks = pickIds(), solo0 = evs.filter(ev => !ev.grp && !pks.has(ev.id) && !evHidden(ev)), hsolo = HID.mode==='grp' ? [] : evs.filter(ev => !ev.grp && !pks.has(ev.id) && HID.e.has(ev.id)), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
   const ind = h('div',{ class:'indep' });
-  if(hasG) ind.append(h('div',{ class:'lbl' }, '단독 일정'));
-  if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 단독 일정이 없어요.' : evs.length ? '이 날의 단독 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
-  { const rb = solo.length>1 ? ordResetBtn(solo) : null; if(rb) ind.append(h('div',{ style:'text-align:right;margin:-2px 0 4px' }, rb)); }
-  solo.forEach(ev => { const r = evRow(ev, ds, { memo:true, grip: solo.length>1 ? solo : null }); r.append(hidEye('e', ev.id, false, ev.title), trashBtn('일정 삭제 (한 번 물어봐요)', () => soloDelete(ev))); ind.append(r); });
-  hsolo.forEach(ev => ind.append(h('div',{ class:'hidrow', title:'숨긴 단독 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, (ev.time && !ev.allDay ? ev.time+' ' : '')+ev.title), hidEye('e', ev.id, true, ev.title))));
+  { const rb0 = solo.length>1 ? ordResetBtn(solo) : null;
+    if(hasG || solo.length>1) ind.append(h('div',{ class:'solohead' }, hasG ? h('div',{ class:'lbl' }, '일반 일정') : h('span',{}), h('span',{ class:'sp' }), rb0, solo.length>1 ? gordIc('ss', cal.sord ? '순서 바꾸기 끝내기' : '일정 순서 바꾸기 (누르면 손잡이가 나와요)', !!cal.sord, () => { cal.sord = !cal.sord; renderCal(); }) : null)); }
+  if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 일반 일정이 없어요.' : evs.length ? '이 날의 일반 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
+  solo.forEach(ev => { const r = evRow(ev, ds, { memo:true, grip: (cal.sord && solo.length>1) ? solo : null }); r.append(hidEye('e', ev.id, false, ev.title), trashBtn('일정 삭제 (한 번 물어봐요)', () => soloDelete(ev))); ind.append(r); });
+  hsolo.forEach(ev => ind.append(h('div',{ class:'hidrow', title:'숨긴 일반 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, (ev.time && !ev.allDay ? ev.time+' ' : '')+ev.title), hidEye('e', ev.id, true, ev.title))));
   if(HID.mode!=='grp') box.append(ind);
   if(fin.length){
     const fold = gfold().has('#done');
@@ -7776,7 +7766,7 @@ function openEventEditor(id, o){
     const gdraw = () => {
       grpRow.innerHTML = '';
       const chip = (label, val, col, extra) => h('button',{type:'button',class:'gpc'+((grpSel.value===val) ? ' on' : '')+(extra||''),style:col ? gv(col) : '',onclick:() => { grpSel.value = val; grpNew.classList.toggle('hidden', val!=='__new'); if(val==='__new') grpNew.focus(); gdraw(); }}, label);
-      grpRow.append(chip('단독 일정', '', ''));
+      grpRow.append(chip('일반 일정', '', ''));
       gl.forEach(g => grpRow.append(chip(g.name, g.name, g.color)));
       if(curG && !gl.some(g => g.name===curG)) grpRow.append(chip(curG, curG, ''));
       grpRow.append(chip('+ 새 그룹', '__new', '', ' add'));
@@ -9520,11 +9510,11 @@ function draftGet(){ try{ return JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}
 const syncOn = () => !!(syncCfg.url && syncCfg.token);
 const fmtDT = ms => { if(!ms) return '-'; const d = new Date(ms); return (d.getMonth()+1)+'월 '+d.getDate()+'일 '+pad(d.getHours())+':'+pad(d.getMinutes()); };
 
-function syncPayload(){ return { app:'mindmap', version:1, maps:data.order.map(id => data.maps[id]), events:Object.values(data.events), current:data.current }; }
+function syncPayload(){ return { app:'mindmap', version:1, maps:data.order.map(id => data.maps[id]), events:Object.values(data.events), groups:{ ord:gordGet(), reg:regLoad() }, current:data.current }; }
 // 기기마다 달라지는 값(노드 크기 w/h, 수정시각)은 변경 여부 판단에서 제외
 const sigRep = (k,v) => (k==='w' || k==='h' || k==='updated' || (k && k[0]==='_')) ? undefined : v;
 function sigOf(p){
-  const s = JSON.stringify({ m:p.maps, e:p.events }, sigRep);
+  const s = JSON.stringify({ m:p.maps, e:p.events, g:p.groups }, sigRep);
   let a = 5381, b = 52711;
   for(let i=0;i<s.length;i++){ const c = s.charCodeAt(i); a = ((a<<5)+a+c)|0; b = ((b<<5)+b)^c; b |= 0; }
   return (a>>>0).toString(36)+(b>>>0).toString(36)+s.length.toString(36);
@@ -9571,7 +9561,7 @@ function backupLocal(){ try{ localStorage.setItem(PRESYNC_KEY, JSON.stringify(Ob
 function parseRemote(d){
   const maps = {}, order = [];
   ((d && d.maps) || []).forEach(raw => { const m = normalizeMap(raw, true); if(m){ maps[m.id] = m; order.push(m.id); } });
-  return { maps, order, events:loadEvents(d && d.events), current:d && d.current };
+  return { maps, order, events:loadEvents(d && d.events), groups:(d && d.groups && typeof d.groups==='object') ? d.groups : null, current:d && d.current };
 }
 function mapSig(m){ return JSON.stringify({ n:m.nodes, g:m.groups, l:m.links, r:m.rootId, name:m.name }, sigRep); }
 function mergeBoth(remote){
@@ -9587,6 +9577,19 @@ function mergeBoth(remote){
   });
   return { maps, order, events };
 }
+function groupsApply(g, how){
+  if(!g) return;   // 예전 버전이 올린 데이터에는 그룹 정보가 없다 — 이 기기 것을 그대로 둔다
+  const rr = (Array.isArray(g.reg) ? g.reg : []).filter(x => x && x.name), ro = (Array.isArray(g.ord) ? g.ord : []).filter(x => typeof x==='string');
+  let reg, ord;
+  if(how==='both'){
+    const lr = regLoad(), lo = gordGet(); reg = [];
+    rr.forEach(e => { const l = lr.find(x => x.name===e.name), n = Object.assign({}, e); if(l){ ['color','memo','urls','refs'].forEach(k => { const v = l[k]; if(v && (!Array.isArray(v) || v.length)) n[k] = v; }); } reg.push(n); });
+    lr.forEach(l => { if(!reg.some(x => x.name===l.name)) reg.push(l); });
+    ord = (lo.length ? lo : ro); ro.forEach(n => { if(!ord.includes(n)) ord = ord.concat([n]); });
+  }else{ reg = rr; ord = ro; }
+  lsSet('mm_grp_reg', reg); lsSet('mm_grp_ord', ord);
+  try{ evnSoon(); }catch(_){}
+}
 function applyRemote(r, how){
   const rem = parseRemote(r.data);
   if(!rem.order.length) throw gsErr('서버 데이터에 맵이 없어요','srv');
@@ -9594,6 +9597,7 @@ function applyRemote(r, how){
   const res = how==='both' ? mergeBoth(rem) : rem;
   const keepCur = data.current;
   data.maps = res.maps; data.order = res.order; data.events = res.events;
+  groupsApply(rem.groups, how);
   data.current = res.maps[keepCur] ? keepCur : (res.maps[rem.current] ? rem.current : res.order[0]);
   for(const k in hist) delete hist[k];
   data.order.forEach(id => refitAll(data.maps[id]));
