@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611090942">
+<meta name="app-version" content="202611090950">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1238,7 +1238,7 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
-.gordbtn{display:inline-flex!important;align-items:center;justify-content:center;padding:5px 9px!important}
+.gordbtn{display:inline-flex!important;align-items:center;justify-content:center;padding:5px 11px!important;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;width:auto;height:auto}
 .gordbtn.on{background:var(--accent)!important;color:#fff!important}
 .solohead{display:flex;align-items:center;gap:6px;margin:2px 0 4px}.solohead .lbl{margin:4px 2px}.solohead .sp{flex:1}
 .gordm .ghead .hideye,.gordm .ghead .gedit,.gordm .ghead .gnode,.gordm .ghead .gm{display:none!important}
@@ -3380,7 +3380,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611090942';
+const APP_VER = '202611090950';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -7261,7 +7261,7 @@ function calAgenda(ds){
   const pks = pickIds(), solo0 = evs.filter(ev => !ev.grp && !pks.has(ev.id) && !evHidden(ev)), hsolo = HID.mode==='grp' ? [] : evs.filter(ev => !ev.grp && !pks.has(ev.id) && HID.e.has(ev.id)), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
   const ind = h('div',{ class:'indep' });
   { const rb0 = solo.length>1 ? ordResetBtn(solo) : null;
-    if(hasG || solo.length>1) ind.append(h('div',{ class:'solohead' }, hasG ? h('div',{ class:'lbl' }, '일반 일정') : h('span',{}), h('span',{ class:'sp' }), rb0, solo.length>1 ? gordIc('ss', cal.sord ? '순서 바꾸기 끝내기' : '일정 순서 바꾸기 (누르면 손잡이가 나와요)', !!cal.sord, () => { cal.sord = !cal.sord; renderCal(); }) : null)); }
+    if(hasG || solo.length>1) ind.append(h('div',{ class:'solohead' }, hasG ? h('div',{ class:'lbl' }, '일반 일정') : h('span',{}), h('span',{ class:'sp' }), solo.length>1 ? gordIc('ss', cal.sord ? '순서 바꾸기 끝내기' : '일정 순서 바꾸기 (누르면 손잡이가 나와요)', !!cal.sord, () => { cal.sord = !cal.sord; renderCal(); }) : null, rb0)); }
   if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 일반 일정이 없어요.' : evs.length ? '이 날의 일반 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
   solo.forEach(ev => { const r = evRow(ev, ds, { memo:true, grip: (cal.sord && solo.length>1) ? solo : null }); r.append(hidEye('e', ev.id, false, ev.title), trashBtn('일정 삭제 (한 번 물어봐요)', () => soloDelete(ev))); ind.append(r); });
   hsolo.forEach(ev => ind.append(h('div',{ class:'hidrow', title:'숨긴 일반 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, (ev.time && !ev.allDay ? ev.time+' ' : '')+ev.title), hidEye('e', ev.id, true, ev.title))));
