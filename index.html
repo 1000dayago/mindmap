@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611101123">
+<meta name="app-version" content="202611101217">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1238,6 +1238,10 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
+.hidbar .hbsep{width:1px;height:16px;background:var(--line);margin:0 3px;flex:none}
+.hidbar .hb.td .tdc{display:inline-block;width:9px;height:9px;border:1.8px solid currentColor;border-radius:50%;flex:none}
+.hidbar .hb.td.on{background:var(--accent,#5b6cff)}
+.latesec{margin:4px 0 8px}.evrow.late .tm{color:var(--danger,#e5484d)}
 .cbar.gbar.gfin{opacity:.4}
 .gck{flex:none;width:22px;height:22px;margin:0 2px 0 0}
 .gordm .ghead .gck{display:none!important}
@@ -3390,7 +3394,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611101123';
+const APP_VER = '202611101217';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6029,8 +6033,21 @@ const gexp = () => new Set(lsGet('mm_grp_exp', []));
 function gexpToggle(k){ const s = gexp(); s.has(k) ? s.delete(k) : s.add(k); lsSet('mm_grp_exp', [...s]); }
 const gfold = () => new Set(lsGet('mm_grp_fold', []));
 /* ---- 눈 아이콘: 보기 전용 숨김 (오늘 할 일 · 내보내기에는 영향 없음) ---- */
-const HID = { mode:'all', g:new Set(), e:new Set(), init:false };
-function hidInit(){ if(HID.init) return; HID.init = true; try{ if(lsGet('mm_hide_keep', false)){ const o = lsGet('mm_hide', null); if(o){ HID.mode = o.mode||'all'; HID.g = new Set(o.g||[]); HID.e = new Set(o.e||[]); } } }catch(_){} }
+const HID = { mode:'all', g:new Set(), e:new Set(), init:false, todo:false };
+let TODO_DS = '';
+const todoCount = ds => eventsOn(ds, true).filter(ev => !evHidden(ev) && !HID.e.has(ev.id) && !doneOf(ev, ds)).length;
+function todoLate(ds){
+  if(!HID.todo) return null;
+  const out = Object.values(data.events).filter(ev => !isRep(ev) && (ev.endDate||ev.date) < ds && !doneOf(ev, ev.date) && !evHidden(ev) && !HID.e.has(ev.id))
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''));
+  if(!out.length) return null;
+  const open = !!cal.late;
+  const sec = h('div',{ class:'donesec latesec' }, h('button',{ type:'button', class:'dhead', title:'날짜가 지났는데 아직 끝내지 않은 일정이에요', onclick:() => { cal.late = !cal.late; renderCal(); } }, h('span',{ class:'gtog' }, open ? '▾' : '▸'), h('b',{}, '지난 미완료'), h('small',{}, String(out.length))));
+  if(open){ out.slice(0, 60).forEach(ev => { const r = evRow(ev, ev.date, { showDate:true, memo:false }); r.classList.add('late'); sec.append(r); }); if(out.length>60) sec.append(h('p',{ class:'note', style:'padding:4px 8px' }, '오래된 순으로 60개까지만 보여요.')); }
+  return sec;
+}
+function hidInit(){ if(HID.init) return; HID.init = true; try{ HID.todo = !!lsGet('mm_todo', false); }catch(_){}
+  try{ if(lsGet('mm_hide_keep', false)){ const o = lsGet('mm_hide', null); if(o){ HID.mode = o.mode||'all'; HID.g = new Set(o.g||[]); HID.e = new Set(o.e||[]); } } }catch(_){} }
 function hidSave(){ try{ if(lsGet('mm_hide_keep', false)) lsSet('mm_hide', { mode:HID.mode, g:[...HID.g], e:[...HID.e] }); }catch(_){} }
 function evHidden(ev){ hidInit(); if(HID.mode==='grp' && !ev.grp) return true; if(HID.mode==='solo' && ev.grp) return true; return HID.e.has(ev.id) || (ev.grp ? HID.g.has(ev.grp) : false); }
 function hidCount(){ hidInit(); let n = 0; const gs = new Set(grpList().map(g => g.name)); HID.g.forEach(g => { if(gs.has(g)) n++; }); HID.e.forEach(id => { if(data.events[id]) n++; }); return n; }
@@ -6069,8 +6086,10 @@ function hidBar(){
   return h('div',{ class:'hidbar' },
     h('span',{ class:'hideye', title:'보기 필터 — 그룹·일반 일정을 골라서 봐요', html:ic('eye', 16), style:'cursor:default' }),
     chip('전체', all, '숨긴 것과 필터를 모두 풀고 전부 보기', hidAll),
-    chip('그룹만', HID.mode==='grp', '그룹 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='grp' ? 'all' : 'grp'; hidSave(); renderCal(); }),
-    chip('일반만', HID.mode==='solo', '일반 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='solo' ? 'all' : 'solo'; hidSave(); renderCal(); }),
+    chip('그룹', HID.mode==='grp', '그룹 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='grp' ? 'all' : 'grp'; hidSave(); renderCal(); }),
+    chip('일반', HID.mode==='solo', '일반 일정만 보기 (한 번 더 누르면 해제)', () => { HID.mode = HID.mode==='solo' ? 'all' : 'solo'; hidSave(); renderCal(); }),
+    h('span',{ class:'hbsep' }),
+    h('button',{ type:'button', class:'hb td'+(HID.todo ? ' on' : ''), title:'켜면 달력에서 선택한 날짜의 미완료 일정만 보여요 (그룹 안 일정도 접혀 있어도 펼쳐서 보여요)', onclick:() => { HID.todo = !HID.todo; lsSet('mm_todo', HID.todo); renderCal(); } }, h('i',{ class:'tdc' }), '미완료'+(HID.todo ? ' '+todoCount(cal.sel||todayStr()) : '')),
     n ? chip('숨김 '+n+'개 · 모두 보기', false, '눈 아이콘으로 숨긴 그룹·일정을 모두 다시 보여요', hidClearItems) : null,
     (n || HID.mode!=='all') ? chip(keep ? '유지 ✓' : '유지', !!keep, '켜면 앱을 다시 열어도 숨김 상태를 기억해요 (끄면 열 때마다 전체 보기)', () => { lsSet('mm_hide_keep', !keep); hidSave(); renderCal(); }) : null);
 }
@@ -6087,13 +6106,15 @@ function grpArea(){
     gordIc('gg', cal.gord ? '순서 바꾸기 끝내기' : '그룹 순서 바꾸기 (왼쪽 달력의 그룹 막대 순서가 바뀌어요)', !!cal.gord, () => { cal.gord = !cal.gord; renderCal(); }),
     h('button',{ type:'button', class:'gab', onclick:() => openGroupNew() }, '+ 그룹'),
     h('button',{ type:'button', class:'gab', onclick:() => openTplList() }, '템플릿')));
-  if(area) return wrap;
-  if(!gs_.length) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, nFin ? '진행 중인 그룹이 없어요. 완료한 그룹 '+nFin+'개는 「완료」 탭에 있어요.' : '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
+  if(area && !HID.todo) return wrap;
+  const tdSet = HID.todo ? new Set(eventsOn(TODO_DS || cal.sel || todayStr(), true).filter(ev => ev.grp && !HID.e.has(ev.id) && !doneOf(ev, TODO_DS || cal.sel || todayStr())).map(ev => ev.id)) : null;
+  if(!gs_.length || (tdSet && !gs_.some(g => g.evs.some(ev => tdSet.has(ev.id))))) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, tdSet && gs_.length ? '이 날 미완료 그룹 일정이 없어요.' : nFin ? '진행 중인 그룹이 없어요. 완료한 그룹 '+nFin+'개는 「완료」 탭에 있어요.' : '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
   const pkIds = pickIds(), pkG = pickGroups(), gboxes = [], gvis = gs_.filter(g => !pkG.has(g.name)).length;
   if(cal.gord && gvis>1) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 6px' }, '오른쪽 ⠿ 손잡이를 끌어서 그룹을 위아래로 옮기세요. 위쪽 그룹이 달력에 먼저 보여요.'));
   gs_.forEach(g => {
     if(pkG.has(g.name)) return;   // 선택한 그룹은 맨 위 「선택한 일정」으로 옮겨 보여준다
-    const hid = HID.g.has(g.name), closed = fold.has(g.name) || hid || !!cal.gord;
+    if(tdSet && !g.evs.some(ev => tdSet.has(ev.id))) return;   // 미완료 보기: 그날 할 일이 없는 그룹은 뺀다
+    const hid = HID.g.has(g.name), closed = (!HID.todo && fold.has(g.name)) || hid || !!cal.gord;
     const box = h('div',{ class:'ggrp'+(hid ? ' ghid' : '')+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:gv(g.color) });
     box.append(h('div',{ class:'ghead' },
       h('button',{ type:'button', class:'gtog', 'aria-label':'접기·펴기', onclick:() => { gfoldSet(g.name, !closed); renderCal(); } }, closed ? '▸' : '▾'),
@@ -6111,7 +6132,7 @@ function grpArea(){
     if(!closed){
       if(!g.evs.length) box.append(h('p',{ class:'ghint' }, '일정을 여기로 끌어다 놓으세요'));
       const dn = ev => !isRep(ev) && doneOf(ev, ev.date);
-      const vis = g.evs.filter(ev => !pkIds.has(ev.id)), dEvs = vis.filter(ev => !isRep(ev) && !doneOf(ev, ev.date) && !HID.e.has(ev.id)), dRows = [];
+      const vis = g.evs.filter(ev => !pkIds.has(ev.id) && (!tdSet || tdSet.has(ev.id))), dEvs = vis.filter(ev => !isRep(ev) && !doneOf(ev, ev.date) && !HID.e.has(ev.id)), dRows = [];
       vis.filter(ev => !dn(ev)).concat(vis.filter(dn)).forEach(ev => {
         if(HID.e.has(ev.id)){ box.append(h('div',{ class:'hidrow', title:'숨긴 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, fmtMD(ev.date)+' '+ev.title), hidEye('e', ev.id, true, ev.title))); return; }
         const row = evRow(ev, ev.date, { showDate:true, memo:true });
@@ -7301,17 +7322,19 @@ function calAgenda(ds){
     return box;
   }
   box.append(hidBar());
-  { const ps = pickSection(); if(ps){ box.append(ps); return box; } }   // 선택 중에는 선택한 일정만 보여준다
+  TODO_DS = ds;
+  { const ps = pickSection(); if(ps){ box.append(ps); return box; } }
+  { const od = todoLate(ds); if(od) box.append(od); }   // 선택 중에는 선택한 일정만 보여준다
   if(HID.mode!=='solo') box.append(grpArea());
   const pks = pickIds(), solo0 = evs.filter(ev => !ev.grp && !pks.has(ev.id) && !evHidden(ev)), hsolo = HID.mode==='grp' ? [] : evs.filter(ev => !ev.grp && !pks.has(ev.id) && HID.e.has(ev.id)), solo = solo0.filter(ev => !doneOf(ev, ds)), fin = solo0.filter(ev => doneOf(ev, ds)), hasG = grpList().length>0;
   const ind = h('div',{ class:'indep' });
   { const rb0 = solo.length>1 ? ordResetBtn(solo) : null;
     if(hasG || solo.length>1) ind.append(h('div',{ class:'solohead' }, hasG ? h('div',{ class:'lbl' }, '일반 일정') : h('span',{}), h('span',{ class:'sp' }), solo.length>1 ? gordIc('ss', cal.sord ? '순서 바꾸기 끝내기' : '일정 순서 바꾸기 (누르면 손잡이가 나와요)', !!cal.sord, () => { cal.sord = !cal.sord; renderCal(); }) : null, rb0)); }
-  if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, fin.length ? '진행할 일반 일정이 없어요.' : evs.length ? '이 날의 일반 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
+  if(!solo.length) ind.append(h('p',{class:'note',style:'padding:8px 4px'}, HID.todo ? '이 날 미완료 일반 일정이 없어요.' : fin.length ? '진행할 일반 일정이 없어요.' : evs.length ? '이 날의 일반 일정이 없어요. (그룹 일정은 위 그룹에 있어요)' : '일정이 없어요. 날짜를 두 번 누르거나 + 버튼으로 추가하세요.'));
   solo.forEach(ev => { const r = evRow(ev, ds, { memo:true, grip: (cal.sord && solo.length>1) ? solo : null }); r.append(hidEye('e', ev.id, false, ev.title), trashBtn('일정 삭제 (한 번 물어봐요)', () => soloDelete(ev))); ind.append(r); });
   hsolo.forEach(ev => ind.append(h('div',{ class:'hidrow', title:'숨긴 일반 일정 — 눈을 누르면 다시 보여요' }, h('span',{ class:'t' }, (ev.time && !ev.allDay ? ev.time+' ' : '')+ev.title), hidEye('e', ev.id, true, ev.title))));
   if(HID.mode!=='grp') box.append(ind);
-  if(fin.length){
+  if(fin.length && !HID.todo){
     const fold = gfold().has('#done');
     box.append(h('div',{ class:'donesec' },
       h('button',{ type:'button', class:'dhead', onclick:() => { gfoldSet('#done', !fold); renderCal(); } }, h('span',{ class:'gtog' }, fold ? '▸' : '▾'), h('b',{}, '완료 일정'), h('small',{}, String(fin.length))),
