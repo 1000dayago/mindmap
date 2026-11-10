@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611090950">
+<meta name="app-version" content="202611101123">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1238,6 +1238,16 @@ button.gchip{cursor:pointer}
 .hideye{flex:none;border:0;background:none;color:var(--sub);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:6px}
 .hideye.off{color:var(--danger,#e5484d)}
 .ggrp.ghid{opacity:.55}
+.cbar.gbar.gfin{opacity:.4}
+.gck{flex:none;width:22px;height:22px;margin:0 2px 0 0}
+.gordm .ghead .gck{display:none!important}
+.gfinchip{background:#d6f2e1!important;color:#14532d!important}
+.gfinrow{display:flex;align-items:center;gap:8px;padding:7px 10px;margin:4px 0;border-radius:12px;background:var(--g16,var(--accent-soft));border-left:4px solid var(--gc,var(--accent));opacity:.9}
+.gfinrow .gab{padding:5px 11px;border-radius:999px;background:var(--bg,#fff);color:var(--accent);font-size:12px;font-weight:800;flex:none}
+.gfinrow .gd{width:9px;height:9px;border-radius:50%;background:var(--gc,var(--accent));flex:none}
+.gfinrow .gfn{flex:1;min-width:0;text-align:left;display:flex;flex-direction:column;gap:1px;background:none;border:0;padding:0;color:inherit;cursor:pointer}
+.gfinrow .gfn b{font-size:13.5px;text-decoration:line-through;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gfinrow .gfn small{color:var(--sub);font-size:11.5px}
 .gordbtn{display:inline-flex!important;align-items:center;justify-content:center;padding:5px 11px!important;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;width:auto;height:auto}
 .gordbtn.on{background:var(--accent)!important;color:#fff!important}
 .solohead{display:flex;align-items:center;gap:6px;margin:2px 0 4px}.solohead .lbl{margin:4px 2px}.solohead .sp{flex:1}
@@ -1657,7 +1667,7 @@ function normalizeMap(raw, keepId){
       tag:TAG_IDS.includes(r.tag)?r.tag:'', mk:(r.mk==='check'||r.mk==='clock')?r.mk:'', mv:Math.max(0, Math.min(4, parseInt(r.mv,10)||0)), bold:!!r.bold, fsz:(r.fsz==='s'||r.fsz==='l')?r.fsz:'', lw:(r.lw==='thin'||r.lw==='thick')?r.lw:'', ldash:!!r.ldash, es:['curve','elbow','line'].includes(r.es)?r.es:'', pin:!!r.pin, due:/^\d{4}-\d{2}-\d{2}$/.test(r.due||'')?r.due:'', inbox:!!r.inbox, val:(typeof r.val==='number' && isFinite(r.val)) ? r.val : null, unit:String(r.unit||'').slice(0,8), agg:['sum','avg','max','min','cnt'].includes(r.agg)?r.agg:'',
       checks:(Array.isArray(r.checks)?r.checks:[]).slice(0,500).map(c => ({ id:String((c&&c.id)||uid()), t:String((c&&c.t)||'').slice(0,500), d:!!(c&&c.d) })),
       urls:(Array.isArray(r.urls)?r.urls:[]).slice(0,100).map(u => ({ id:String((u&&u.id)||uid()), name:String((u&&u.name)||'').slice(0,100), url:cleanUrl(u&&u.url), path:String((u&&u.path)||'').slice(0,500), k:String((u&&u.k)||'').slice(0,12) })).filter(u => u.url || u.path),
-      evId:String(r.evId||''), evRole:['root','title','date','body','evn','grp'].includes(r.evRole)?r.evRole:'', esig:String(r.esig||'').slice(0,12),
+      evId:String(r.evId||''), evRole:['root','title','date','body','evn','grp'].includes(r.evRole)?r.evRole:'', esig:String(r.esig||'').slice(0,12), fsig:String(r.fsig||'').slice(0,4),
       table:(r.table && Array.isArray(r.table.cells) && r.table.cells.length) ? (() => {
         const rows = r.table.cells.slice(0,MAXR).map(row => (Array.isArray(row)?row:[]).slice(0,MAXC).map(x => String(x==null?'':x).slice(0,2000)));
         const C = Math.max(1, ...rows.map(x => x.length));
@@ -3380,7 +3390,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611090950';
+const APP_VER = '202611101123';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -5943,9 +5953,15 @@ function grpColorOf(name){
   for(const id in data.events){ const e = data.events[id]; if(e.grp===name && e.gcol) return e.gcol; } return '';
 }
 function evColor(ev){ return (ev.grp && ev.gcol) ? ev.gcol : ev.color; }
+const gfinClr = [];
 function grpList(){
-  const m = {};
-  regLoad().forEach(r => { m[r.name] = { name:r.name, color:r.color||EV_COLORS[0], reg:true, evs:[], refs:r.refs||[], memo:r.memo||'', urls:Array.isArray(r.urls) ? r.urls : [] }; });
+  const r0 = grpList0();
+  if(gfinClr.length){ const a = regLoad(); let ch = false; gfinClr.splice(0).forEach(nm => { const x = a.find(y => y.name===nm); if(x && x.open){ delete x.open; ch = true; } }); if(ch) lsSet('mm_grp_reg', a); }
+  return r0;
+}
+function grpList0(){
+  const m = {}; gfinClr.length = 0;
+  regLoad().forEach(r => { m[r.name] = { name:r.name, color:r.color||EV_COLORS[0], reg:true, evs:[], refs:r.refs||[], memo:r.memo||'', urls:Array.isArray(r.urls) ? r.urls : [], rfin:r.fin===true, ropen:r.open===true }; });
   Object.values(data.events).forEach(ev => {
     if(!ev.grp) return;
     const g = m[ev.grp] || (m[ev.grp] = { name:ev.grp, color:ev.gcol||EV_COLORS[0], evs:[] });
@@ -5955,10 +5971,23 @@ function grpList(){
     g.evs.sort((a, b) => a.date.localeCompare(b.date) || (a.ord==null ? 1e15 : a.ord)-(b.ord==null ? 1e15 : b.ord) || (a.time||'').localeCompare(b.time||'') || a.title.localeCompare(b.title));
     const cnt = g.evs.filter(e => !isRep(e));
     g.total = cnt.length; g.done = cnt.filter(e => doneOf(e, e.date)).length;
+    { const und = cnt.length>g.done, auto = g.total>0 && !und && !g.evs.some(e => isRep(e)); g.fin = (g.rfin && !und) || (auto && !g.ropen); if(g.ropen && und) gfinClr.push(g.name); }
     g.nf = cnt.length ? cnt[0].date : ''; g.nt = cnt.length ? cnt.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, cnt[0].date) : '';
     g.from = g.evs.length ? g.evs[0].date : ''; g.to = g.evs.length ? g.evs.reduce((m2, e) => { const z = e.endDate||e.date; return z>m2 ? z : m2; }, g.evs[0].date) : '';
     return g;
   }).sort((a, b) => { const o = gordGet(), ia = o.indexOf(a.name), ib = o.indexOf(b.name); return (ia<0 ? 1e6 : ia)-(ib<0 ? 1e6 : ib) || (a.total && a.done===a.total ? 1 : 0)-(b.total && b.done===b.total ? 1 : 0) || (a.from||'9999').localeCompare(b.from||'9999') || a.name.localeCompare(b.name); });
+}
+function grpFinSet(name, on, silent){
+  const g = grpList().find(x => x.name===name); if(!g) return;
+  const a = regLoad(); let r = a.find(x => x.name===name); if(!r){ r = { name, color:g.color }; a.push(r); }
+  if(on){
+    const t = g.evs.filter(e => !isRep(e) && !doneOf(e, e.date));
+    t.forEach(e => setEvDone(e, e.date, true)); r.fin = true; delete r.open; lsSet('mm_grp_reg', a); saveSoon(); refreshEvViews(); try{ evnSoon(); }catch(_){}
+    if(!silent) toast('“'+name+'” 그룹을 완료했어요 — 완료 탭으로 옮겼어요', { label:'취소', fn:() => { t.forEach(e => setEvDone(e, e.date, false)); const a2 = regLoad(), r2 = a2.find(x => x.name===name); if(r2){ r2.fin = false; if(!t.length) r2.open = true; lsSet('mm_grp_reg', a2); } saveSoon(); refreshEvViews(); try{ evnSoon(); }catch(_){} } });
+  }else{
+    r.fin = false; r.open = true; lsSet('mm_grp_reg', a); saveSoon(); refreshEvViews(); try{ evnSoon(); }catch(_){}
+    if(!silent) toast('“'+name+'” 그룹을 다시 진행 중으로 돌렸어요');
+  }
 }
 function nextGrpColor(){ const used = new Set(grpList().map(g => g.color)), pool = EV_COLORS.slice(1); return pool.find(c => !used.has(c)) || pool[grpList().length % pool.length]; }
 function grpEnsure(name){ let c = grpColorOf(name); if(!c){ c = nextGrpColor(); } if(!regLoad().some(x => x.name===name)) regSet(name, c); return c; }
@@ -5968,7 +5997,7 @@ function grpEdit(name, newName, color){
   if(newName!==name){ const oo = gordGet(), k = oo.indexOf(name); if(k>=0){ oo[k] = newName; gordSet(oo); } }
   if(newName!==name){ const ex = grpColorOf(newName); if(ex && !color) color = ex; }
   Object.values(data.events).forEach(ev => { if(ev.grp===name){ ev.grp = newName; ev.gcol = color||col; } });
-  const orefs = regLoad().find(x => x.name===name); regDel(name); regSet(newName, color||col); if(orefs && (orefs.refs || orefs.memo || orefs.urls)){ const a2 = regLoad(), t = a2.find(x => x.name===newName); if(t){ if(orefs.refs) t.refs = orefs.refs; if(orefs.memo) t.memo = orefs.memo; if(orefs.urls) t.urls = orefs.urls; lsSet('mm_grp_reg', a2); } }
+  const orefs = regLoad().find(x => x.name===name); regDel(name); regSet(newName, color||col); if(orefs && (orefs.refs || orefs.memo || orefs.urls || orefs.fin || orefs.open)){ const a2 = regLoad(), t = a2.find(x => x.name===newName); if(t){ if(orefs.refs) t.refs = orefs.refs; if(orefs.memo) t.memo = orefs.memo; if(orefs.urls) t.urls = orefs.urls; if(orefs.fin) t.fin = true; if(orefs.open) t.open = true; lsSet('mm_grp_reg', a2); } }
   if(cal.grp===name) cal.grp = newName;
   saveSoon(); refreshEvViews();
 }
@@ -6048,17 +6077,18 @@ function hidBar(){
 function gfoldSet(k, on){ const s = gfold(); on ? s.add(k) : s.delete(k); lsSet('mm_grp_fold', [...s]); }
 /* ---- 일정 목록 위 그룹 영역 ---- */
 function grpArea(){
-  const gs_ = grpList(), fold = gfold(), area = fold.has('*');
+  const gsAll = grpList(), gs_ = gsAll.filter(g => !g.fin), nFin = gsAll.length-gs_.length, fold = gfold(), area = fold.has('*');
   const wrap = h('div',{ class:'garea'+(cal.gord ? ' gordm' : '') });
   wrap.append(h('div',{ class:'gahead' },
     h('button',{ type:'button', class:'gtog', 'aria-label':'그룹 영역 접기·펴기', onclick:() => { gfoldSet('*', !area); renderCal(); } }, area ? '▸' : '▾'),
     h('b',{}, '그룹'), h('small',{}, gs_.length ? String(gs_.length) : ''), h('span',{ class:'sp' }),
+    nFin ? h('button',{ type:'button', class:'gab gfinchip', title:'완료한 그룹 보기 (완료 탭)', onclick:() => { cal.view = 'done'; cal.search = false; renderCal(); } }, '완료 '+nFin) : null,
     (cal.gord && gordGet().length) ? h('button',{ type:'button', class:'gab', title:'직접 정한 순서를 지우고 기본 순서로 되돌려요', onclick:() => { gordSet([]); renderCal(); toast('그룹을 기본 순서로 되돌렸어요'); } }, '기본순서') : null,
     gordIc('gg', cal.gord ? '순서 바꾸기 끝내기' : '그룹 순서 바꾸기 (왼쪽 달력의 그룹 막대 순서가 바뀌어요)', !!cal.gord, () => { cal.gord = !cal.gord; renderCal(); }),
     h('button',{ type:'button', class:'gab', onclick:() => openGroupNew() }, '+ 그룹'),
     h('button',{ type:'button', class:'gab', onclick:() => openTplList() }, '템플릿')));
   if(area) return wrap;
-  if(!gs_.length) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
+  if(!gs_.length) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 8px' }, nFin ? '진행 중인 그룹이 없어요. 완료한 그룹 '+nFin+'개는 「완료」 탭에 있어요.' : '「+ 그룹」으로 그룹을 만들고, 일정을 끌어다 놓으면 묶여요.'));
   const pkIds = pickIds(), pkG = pickGroups(), gboxes = [], gvis = gs_.filter(g => !pkG.has(g.name)).length;
   if(cal.gord && gvis>1) wrap.append(h('p',{ class:'note', style:'margin:2px 4px 6px' }, '오른쪽 ⠿ 손잡이를 끌어서 그룹을 위아래로 옮기세요. 위쪽 그룹이 달력에 먼저 보여요.'));
   gs_.forEach(g => {
@@ -6067,6 +6097,7 @@ function grpArea(){
     const box = h('div',{ class:'ggrp'+(hid ? ' ghid' : '')+((cal.grp && cal.grp!==g.name) ? ' gdim' : '')+(cal.grp===g.name ? ' foc' : ''), 'data-g':g.name, style:gv(g.color) });
     box.append(h('div',{ class:'ghead' },
       h('button',{ type:'button', class:'gtog', 'aria-label':'접기·펴기', onclick:() => { gfoldSet(g.name, !closed); renderCal(); } }, closed ? '▸' : '▾'),
+      h('button',{ type:'button', class:'evck gck', title:'그룹 전체 완료 — 안의 일정이 모두 완료되고 완료 탭으로 옮겨져요', 'aria-label':'그룹 전체 완료', onclick:e => { e.stopPropagation(); grpFinSet(g.name, true); } }),
       h('button',{ type:'button', class:'gname', title:'누르면 달력에서 이 그룹만 강조', onclick:() => { cal.grp = cal.grp===g.name ? '' : g.name; renderCal(); } },
         h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음'))),
       (g.refs && g.refs.length) ? h('button',{ type:'button', class:'gnode', title:'연결된 노드로 이동', 'aria-label':'연결된 노드로 이동', html:ic('mindmap',15), onclick:() => refOpen(g.refs) }) : null,
@@ -6761,6 +6792,20 @@ function evnReconcile(force){   // (ev.sn = 빠른 입력으로 만든 독립 �
             resolved.add(G.id); r.ek = r.ek || {};
             { const gm = gi.memo||'', gu = gi.urls||[], sg = (gm || gu.length) ? evnHash(JSON.stringify([gm, gu])) : '';
               if(sg && G.esig!==sg){ G.memo = gm; G.memoH = ''; G.urls = gu.map(u => ({ id:u.id||uid(), name:u.name||'', url:u.url||'', path:u.path||'', k:u.k||'' })); G.esig = sg; c = true; } }
+            { const gf = gi.fin ? 1 : 0, nd = (G.tag==='done' || mkDone(G)) ? 1 : 0, prev = G.fsig || '';
+              let ngf = gf, nnd = nd;
+              if(!prev){ if(gf && !nd){ G.tag = 'done'; nnd = 1; c = true; } }
+              else{
+                const pg = +prev[0], pn = +prev[1];
+                if(gf!==pg){
+                  if(gf && !nd){ G.tag = 'done'; nnd = 1; c = true; }
+                  else if(!gf && nd){ if(G.tag==='done') G.tag = ''; if(mkDone(G)) G.mv = 0; nnd = (G.tag==='done' || mkDone(G)) ? 1 : 0; c = true; }
+                }else if(nd!==pn){
+                  if(nd && !gf){ grpFinSet(gi.name, true, true); ngf = 1; }
+                  else if(!nd && gf){ grpFinSet(gi.name, false, true); ngf = 0; }
+                }
+              }
+              const sg2 = ngf+''+nnd; if(G.fsig!==sg2){ G.fsig = sg2; c = true; } }
             for(const ev of gi.evs){
               let n = (r.ek[ev.id] && nodes[r.ek[ev.id]] && nodes[r.ek[ev.id]].evId===ev.id) ? nodes[r.ek[ev.id]] : findChild(G, x => x.evRole==='evn' && x.evId===ev.id);
               if(!n){
@@ -7536,7 +7581,7 @@ function evLongPress(e, ev, ds0){
 function barEl(b, ds0, pos, ctx){
   if(b.gbar){
     const g = b.gbar, tog = () => { const k = 'g:'+g.name, pk = cal.pick||[]; if(pk.includes(k)) cal.pick = pk.filter(x => x!==k); if(!b.open || gexp().has(g.name)) gexpToggle(g.name); renderCal(); };
-    return h('div',{ class:'cbar gbar'+pickCls('g:'+g.name, false)+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
+    return h('div',{ class:'cbar gbar'+(g.fin ? ' gfin' : '')+pickCls('g:'+g.name, false)+(b.l ? ' cl' : '')+(b.r ? ' cr' : '')+(b.open ? ' open' : ''), style:'--c:'+g.color+';'+gv(g.color)+'--tc:#fff;--f:'+b.fill.toFixed(1)+'%;'+pos,
       title:g.name+(g.total ? ' · '+g.done+'/'+g.total+' 완료 ('+b.pct+'%)' : '')+' · '+fmtMD(g.nf)+(g.nt!==g.nf ? ' ~ '+fmtMD(g.nt) : '')+'\n두 번 누르면 '+(b.open ? '접기' : '펼치기')+' · 길게 누르면 이 그룹만 보기 (메뉴는 선택 후 목록의 「메뉴」)',
       onclick:e => { if(performance.now()-(grpLongPress.fired||0)<900) return; barClick('g:'+g.name, tog, () => {})(e); }, onpointerdown:grpLongPress(g.name), oncontextmenu:e => e.preventDefault(), onkeydown:e => { if(e.key==='Enter') tog(); }, tabindex:0 },
       h('i',{ class:'gcv', onclick:e => { e.stopPropagation(); tog(); } }, b.open ? '▾' : '▸'), h('span',{}, b.label));
@@ -7616,6 +7661,14 @@ function doneList(m1, m2, day){
   const list = doneItems().filter(x => { const lo = x.s<x.d ? x.s : x.d, hi = x.s<x.d ? x.d : x.s; return lo<=m2 && hi>=m1; })
     .sort((a, b) => b.d.localeCompare(a.d) || (a.ev.title||'').localeCompare(b.ev.title||''));
   const box = h('div',{class:'agenda'}, h('div',{class:'ahead'}, h('b',{}, (day ? fmtMD(m1)+' · ' : '')+'완료한 일정 '+list.length+'개')));
+  { const fg = grpList().filter(g => g.fin && (!g.from || (g.from<=m2 && (g.to||g.from)>=m1)));
+    if(fg.length){
+      box.append(h('div',{ class:'lbl' }, '완료한 그룹 '+fg.length+'개'));
+      fg.forEach(g => box.append(h('div',{ class:'gfinrow', style:gv(g.color) }, h('span',{ class:'gd' }),
+        h('button',{ type:'button', class:'gfn', title:'누르면 그룹 열기', onclick:() => openGroupDetail(g.name) }, h('b',{}, g.name), h('small',{}, (g.total ? g.done+'/'+g.total+' 완료' : '일정 없음')+(g.from ? ' · '+fmtRangeCompact(g.from, g.to) : ''))),
+        h('button',{ type:'button', class:'gab', title:'이 그룹을 다시 진행 중으로 (일정 탭의 그룹 목록으로 돌아가요)', onclick:() => grpFinSet(g.name, false) }, '다시 진행'))));
+      box.append(h('div',{ class:'lbl' }, '완료한 일정'));
+    } }
   if(!list.length) box.append(h('p',{class:'note',style:'padding:8px 4px'},(day ? '이 날 완료한 일정이 없어요.' : '이 달에는 완료한 일정이 없어요. 일정 목록의 동그라미를 누르면 완료돼요.')));
   list.slice(0,150).forEach(x => box.append(evRow(x.ev, x.s, { showDate:true, memo:false })));
   return box;
@@ -10476,6 +10529,7 @@ function showTab(t){
   try{ localStorage.setItem('mm_tab', t); }catch(e){}
   placeCtl();
   if(t==='map'){ requestAnimationFrame(ensureView); try{ refDirty(); evnReconcile(); render(); }catch(e){} }   // 일정에서 완료한 내용이 노드에 바로 반영되게
+  if(t!=='map'){ try{ evnReconcile(); }catch(e){} }   // 마인드맵에서 그룹 주제를 완료했으면 일정에도 반영
   if(t==='schedule') renderCal();
   if(t==='today') renderToday();
 }
