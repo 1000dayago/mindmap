@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611171642">
+<meta name="app-version" content="202611171733">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3417,7 +3417,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611171642';
+const APP_VER = '202611171733';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6233,15 +6233,6 @@ function openGroupDetail(name){
       }); b.append(list);
     }
     if(!g.evs.length) b.append(h('p',{ class:'note', style:'margin:10px 2px' }, '아직 일정이 없어요. 아래 「그룹내 일정 추가」나 「템플릿으로 단계 추가」로 넣어 보세요.'));
-    // 일정 조정 (다음에 할 단계부터 미루기)
-    { const nx = grpNextEv(g);
-      if(nx){
-        const later = g.evs.filter(e => !isRep(e) && !doneOf(e, e.date) && (e.date>nx.date || e===nx || (e.date===nx.date && g.evs.indexOf(e)>=g.evs.indexOf(nx))));
-        b.append(h('div',{ class:'lbl' }, '일정 조정 · 다음 단계 “'+short(nx.title||'(제목 없음)')+'”부터'));
-        b.append(h('div',{ class:'row', style:'gap:6px;margin:4px 0 6px' },
-          h('button',{ type:'button', class:'btn', style:'flex:1', onclick:() => grpShift([nx], 1, '“'+nx.title+'”을 하루 미뤘어요') }, '하루 미루기'),
-          h('button',{ type:'button', class:'btn', style:'flex:1', onclick:() => grpShift(later, 1, '이 단계부터 뒤 '+later.length+'개를 하루씩 밀었어요') }, '뒤로 전부 밀기')));
-      } }
     // 추가
     b.append(h('div',{ class:'lbl' }, '그룹내 일정 추가'));
     b.append(h('div',{ class:'row', style:'gap:6px;margin:4px 0 6px' },
