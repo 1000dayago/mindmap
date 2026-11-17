@@ -1242,7 +1242,7 @@ button.gchip{cursor:pointer}
 .shck.on{background:var(--accent,#5b6cff);border-color:var(--accent,#5b6cff)}
 .shck.part{background:var(--accent-soft,#eef);border-color:var(--accent,#5b6cff);color:var(--accent,#5b6cff)}
 .evrow.shsel{outline:2px solid var(--accent,#5b6cff);outline-offset:-2px}
-.shrm .ggrp .gck{display:none!important}
+.shrm .gck,.shrm .evck,.evrow.shsel .evck,.evrow.shrow .evck,.shrow .evck{display:none!important}
 .shrbar{position:sticky;bottom:8px;z-index:6;display:flex;align-items:center;gap:8px;margin:10px 0 0;padding:8px 10px;border-radius:16px;background:var(--bg,#fff);box-shadow:0 6px 22px rgba(0,0,0,.22);border:1px solid var(--line)}
 .shrbar b{flex:1;font-size:13.5px;min-width:0}
 .shrbar .btn{min-height:36px;padding:0 14px}
@@ -6705,19 +6705,19 @@ function shrBuildText(items, gsel, opt){
     out.push(sec.join('\n'));
   });
   solo.sort(cmp).forEach(it => { const sec = ['* '+(it.ev.title||'(제목 없음)')+dt(it)]; shrContentLines(it.ev, '   ', opt).forEach(x => sec.push(x)); out.push(sec.join('\n')); });
-  return out.join('\n\n');
+  return out.length ? '[ 일정 및 세부 내용 공유 ]\n\n'+out.join('\n\n') : '';
 }
-function shrCopy(text, quiet){
-  const done = () => toast(quiet ? '공유창을 열 수 없어 복사했어요 — 카톡·문자에 붙여넣으세요' : '복사했어요 — 카톡·문자에 붙여넣으세요');
+function shrCopy(text, quiet, cb){
+  const done = () => { if(cb) cb(); toast(quiet ? '공유창을 열 수 없어 복사했어요 — 카톡·문자에 붙여넣으세요' : '복사했어요 — 카톡·문자에 붙여넣으세요'); };
   const fb = () => { const ta = h('textarea',{ style:'position:fixed;left:-999px;top:0' }); ta.value = text; document.body.append(ta); ta.select(); try{ document.execCommand('copy'); done(); }catch(e){ toast('복사하지 못했어요 — 글을 길게 눌러 복사하세요'); } ta.remove(); };
   if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fb); else fb();
 }
-async function shrSend(text){
+async function shrSend(text, cb){
   if(!String(text).trim()){ toast('공유할 내용이 없어요'); return; }
-  if(navigator.share){ try{ await navigator.share({ text }); return; }catch(e){ if(e && e.name==='AbortError') return; } }
-  shrCopy(text, true);
+  if(navigator.share){ try{ await navigator.share({ text }); if(cb) cb(); return; }catch(e){ if(e && e.name==='AbortError') return; } }
+  shrCopy(text, true, cb);
 }
-function shrSheet(title, chips, build){
+function shrSheet(title, chips, build, onDone){
   const opt = {}; chips.forEach(c => { opt[c.k] = c.v!==false; });
   openSheet(title, b => {
     const ta = h('textarea',{ class:'field shrta', rows:12, spellcheck:'false' });
@@ -6727,8 +6727,8 @@ function shrSheet(title, chips, build){
     b.append(row, ta,
       h('p',{ class:'note', style:'margin:4px 2px 8px;font-size:11.5px' }, '위 칩을 켜고 끄면 글이 다시 만들어져요 · 글은 직접 고칠 수 있어요'),
       h('div',{ class:'row', style:'gap:8px' },
-        h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => shrCopy(ta.value) }, '복사'),
-        h('button',{ class:'btn primary', type:'button', style:'flex:2', title:'폰의 공유창이 열려요 (카톡 · 문자 선택)', onclick:() => shrSend(ta.value) }, '공유')));
+        h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => shrCopy(ta.value, false, onDone) }, '복사'),
+        h('button',{ class:'btn primary', type:'button', style:'flex:2', title:'폰의 공유창이 열려요 (카톡 · 문자 선택)', onclick:() => shrSend(ta.value, onDone) }, '공유')));
     draw();
   });
 }
@@ -6739,7 +6739,7 @@ function shrOpenSel(){
   const items = [...SHR.ev].map(([id, ds]) => ({ ev:data.events[id], ds })).filter(it => it.ev);
   const gsel = new Set(SHR.g);
   if(!items.length && !gsel.size){ toast('공유할 일정을 먼저 골라 주세요'); return; }
-  shrSheet('공유 미리보기 · '+shrCount()+'개', shrBulkChips(), opt => shrBuildText(items, gsel, opt));
+  shrSheet('공유 미리보기 · '+shrCount()+'개', shrBulkChips(), opt => shrBuildText(items, gsel, opt), () => { closeSheet(); if(SHR.on) shrToggle(); });
 }
 function shrGroupAll(g, headOnly){
   const items = headOnly ? [] : g.evs.map(ev => ({ ev, ds:undefined }));
@@ -7204,7 +7204,7 @@ function evRow(ev, ds, o){
   if(o.dbl!==false && !o.ord && ev.repeat==='none' && !doneOf(ev, ds)) evDragOn(row, ev, ds);
   if(!o.ord) evSwipeOn(row, ev, ds);
   if(SHR.on && SHR.rend && !o.ord){
-    const sel = SHR.ev.has(ev.id); row.classList.toggle('shsel', sel);
+    const sel = SHR.ev.has(ev.id); row.classList.toggle('shsel', sel); row.classList.add('shrow');
     row.insertBefore(h('span',{ class:'shck'+(sel ? ' on' : ''), 'aria-hidden':'true', html:sel ? ic('check',14) : '' }), row.firstChild);
     row.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); shrEvToggle(ev, ds); }, true);
   }
