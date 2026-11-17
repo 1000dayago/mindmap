@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611171059">
+<meta name="app-version" content="202611171642">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3417,7 +3417,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611171059';
+const APP_VER = '202611171642';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -7710,7 +7710,8 @@ function spanBars(ws, maxLanes, withSingles){
   const gitems = [], colp = new Set(), gopen = gexp();
   if(cal.view==='month') (cal.pick||[]).forEach(k => { if(k.startsWith('g:')) gopen.add(k.slice(2)); else { const pe0 = data.events[k]; if(pe0 && pe0.grp) gopen.add(pe0.grp); } });   // 선택한 그룹은 관련 일정까지 펼쳐서 보여준다
   grpList().forEach(g => {
-    if(!g.nf) return; const open = gopen.has(g.name); if(!open) colp.add(g.name);
+    if(!g.nf) return; const fz = g.fin && cal.grp!==g.name, open = !fz && gopen.has(g.name); if(!open) colp.add(g.name);
+    if(fz) return;   // 완료한 그룹은 달력에서 숨긴다 (완료 탭에서 확인)
     if(g.nf>we || g.nt<ws || HID.g.has(g.name) || HID.mode==='solo') return;
     if(cal.grp && g.name!==cal.grp) return;   // 그룹을 골라 보는 중이면 다른 그룹 막대는 숨긴다
     const pct = g.total ? Math.round(g.done*100/g.total) : 0, label = g.name+(g.total ? ' · '+pct+'%' : '');
