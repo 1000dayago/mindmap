@@ -1245,6 +1245,9 @@ button.gchip{cursor:pointer}
 .shrm .gck,.shrm .evck,.evrow.shsel .evck,.evrow.shrow .evck,.shrow .evck{display:none!important}
 .shrbar{position:sticky;bottom:8px;z-index:6;display:flex;align-items:center;gap:8px;margin:10px 0 0;padding:8px 10px;border-radius:16px;background:var(--bg,#fff);box-shadow:0 6px 22px rgba(0,0,0,.22);border:1px solid var(--line)}
 .shrbar b{flex:1;font-size:13.5px;min-width:0}
+.shrbar.empty{flex-wrap:wrap;border:2px solid var(--accent,#5b6cff)}
+.shrbar.empty b{flex:1 1 100%;color:var(--accent,#5b6cff);font-size:14px;text-align:center}
+.shrbar.empty .btn{flex:1}
 .shrbar .btn{min-height:36px;padding:0 14px}
 .shrbar .btn[disabled]{opacity:.45}
 .shrbar .btn.primary{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
@@ -6757,7 +6760,7 @@ function shrPart(kind, c, hdr){
   shrSheet({ memo:'메모 공유', check:'체크리스트 공유', link:'링크 공유', table:'표 공유' }[kind] || '공유', head ? [{ k:'head', label:'일정 제목·날짜 붙이기', v:true }] : [], opt => (opt.head ? head : '')+body);
 }
 const shrIco = (tip, fn, size) => h('button',{ type:'button', class:'shrico', title:tip, 'aria-label':tip, html:ic('share', size||14), onclick:e => { e.preventDefault(); e.stopPropagation(); fn(); } });
-function shrToggle(){ SHR.on = !SHR.on; if(!SHR.on){ SHR.ev.clear(); SHR.g.clear(); } else { cal.gord = false; cal.sord = false; toast('공유할 일정이나 그룹을 눌러서 고르세요'); } renderCal(); }
+function shrToggle(){ SHR.on = !SHR.on; if(!SHR.on){ SHR.ev.clear(); SHR.g.clear(); } else { cal.gord = false; cal.sord = false; } renderCal(); }
 function shrEvToggle(ev, ds){ if(SHR.ev.has(ev.id)) SHR.ev.delete(ev.id); else SHR.ev.set(ev.id, ds || ev.date); renderCal(); }
 function shrGrpToggle(g){
   const all = g.evs.length ? g.evs.every(e => SHR.ev.has(e.id)) : SHR.g.has(g.name);
@@ -6770,7 +6773,7 @@ function shrGrpChk(g){
 }
 function shrBar(){
   const n = shrCount();
-  return h('div',{ class:'shrbar' }, h('b',{}, n ? '선택 '+n+'개' : '일정이나 그룹을 눌러 고르세요'),
+  return h('div',{ class:'shrbar'+(n ? '' : ' empty') }, h('b',{}, n ? '선택 '+n+'개' : '👆 공유할 일정이나 그룹을 눌러 고르세요'),
     h('button',{ type:'button', class:'btn', onclick:shrToggle }, '취소'),
     h('button',{ type:'button', class:'btn primary', disabled:!n, onclick:shrOpenSel, html:ic('share',15)+' 공유'+(n ? ' ('+n+')' : '') }));
 }
