@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611171733">
+<meta name="app-version" content="202611180852">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -534,6 +534,41 @@ table.sheet input:not([readonly]){cursor:text;caret-color:auto;outline:2px solid
   --grad:linear-gradient(135deg,#ff9a70 0%,#f2603c 100%); --grad-glow:0 6px 22px rgba(242,96,60,.34);
   --shadow:0 18px 44px rgba(0,0,0,.55),0 4px 14px rgba(0,0,0,.3); --shadow-s:0 5px 16px rgba(0,0,0,.4);
 }
+
+/* ===================== 화면 스타일 : 애플 ===================== */
+:root[data-style="apple"][data-theme="light"]{
+  --bg:#f2f2f7; --panel:rgba(249,249,249,.9); --panel-solid:#ffffff; --text:#000; --sub:#8e8e93;
+  --line:rgba(60,60,67,.16); --accent:#007aff; --accent2:#ff9f0a; --accent3:#34c759; --accent-soft:rgba(0,122,255,.12);
+  --danger:#ff3b30; --canvas:#ffffff; --dot:rgba(60,60,67,.12);
+  --grad:linear-gradient(180deg,#2b8cff 0%,#007aff 100%); --grad-glow:0 3px 10px rgba(0,122,255,.28);
+  --shadow:0 12px 40px rgba(0,0,0,.14),0 2px 8px rgba(0,0,0,.05); --shadow-s:0 1px 4px rgba(0,0,0,.08);
+}
+:root[data-style="apple"][data-theme="dark"]{
+  --bg:#000; --panel:rgba(28,28,30,.92); --panel-solid:#1c1c1e; --text:#fff; --sub:#98989d;
+  --line:rgba(84,84,88,.55); --accent:#0a84ff; --accent2:#ff9f0a; --accent3:#30d158; --accent-soft:rgba(10,132,255,.2);
+  --danger:#ff453a; --canvas:#0b0b0d; --dot:rgba(255,255,255,.08);
+  --grad:linear-gradient(180deg,#3d9bff 0%,#0a84ff 100%); --grad-glow:0 3px 10px rgba(10,132,255,.35);
+  --shadow:0 12px 40px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.4); --shadow-s:0 1px 4px rgba(0,0,0,.5);
+}
+:root[data-style="apple"] body::before{background:none}
+:root[data-style="apple"] body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+:root[data-style="apple"] .seg{border-radius:10px;background:rgba(118,118,128,.12);padding:2px;gap:2px}
+:root[data-style="apple"][data-theme="dark"] .seg{background:rgba(118,118,128,.24)}
+:root[data-style="apple"] .evrow{border-radius:12px}
+:root[data-style="apple"] .ggrp{border-radius:14px;border-width:1px}
+:root[data-style="apple"][data-theme="dark"] .cday{background:#1c1c1e}
+:root[data-style="apple"][data-theme="dark"] .cday.sel{background:var(--accent-soft)}
+:root[data-style="apple"] .cday{border-radius:12px}
+:root[data-style="apple"] .btn{border-radius:12px;font-weight:600}
+:root[data-style="apple"] .btn.primary{font-weight:700}
+:root[data-style="apple"] #sheet{border-radius:14px}
+.sty-card{flex:1;border:2px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center;font-weight:700;font-size:13px;background:var(--bg)}
+.sty-card.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.sty-card i{display:block;height:34px;border-radius:8px;margin-bottom:6px}
+.acc-row{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 8px}
+.acc-dot{width:34px;height:34px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 1.5px var(--line);cursor:pointer;flex:none}
+.acc-dot.on{border-color:var(--panel-solid);box-shadow:0 0 0 2.5px var(--text)}
+.acc-dot.auto{background:conic-gradient(#ef5b36,#007aff,#34c759,#af52de,#ef5b36)}
 body::before{background:
   radial-gradient(1100px 560px at 8% -10%, rgba(255,138,92,.14), transparent 55%),
   radial-gradient(900px 480px at 100% 0%, rgba(245,158,11,.10), transparent 50%),
@@ -2087,7 +2122,7 @@ function nodeSvg(n, dark, focusSet, opt){
   const cc = nodeColors(n, dark);
   const selected = !opt.exporting && sel === n.id;
   const dim = focusSet && !focusSet.has(n.id);
-  const acc = dark ? '#ff8a65' : '#ef5b36';
+  const acc = accNow(dark);
   let s = `<g data-nid="${n.id}" transform="translate(${n.x},${n.y})" opacity="${dim?0.18:(cutSetNow && cutSetNow.has(n.id) ? 0.38 : (n.tag==='done' ? 0.62 : 1))}" style="cursor:pointer">`;
   if(!opt.exporting && dropId===n.id) s += shapeSvg(n.shape, n.w+18, n.h+18, 'rgba(34,197,94,.14)', '#22c55e', 3, true);
   if(selected) s += `<g opacity=".3">${shapeSvg(n.shape, n.w+12, n.h+12, 'none', acc, 6, false)}</g>`;
@@ -3417,7 +3452,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611171733';
+const APP_VER = '202611180852';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -3517,7 +3552,7 @@ function openGlobalSettings(){
     const sel_ = h('select',{class:'field',onchange:e=>{ S().theme = e.target.value; saveSoon(); applyTheme(); render(); }},
       h('option',{value:'auto'},'시스템 설정 따라가기'), h('option',{value:'light'},'라이트'), h('option',{value:'dark'},'다크'));
     sel_.value = S().theme; b.append(sel_);
-    b.append(h('div',{style:'height:8px'}));
+    b.append(h('div',{style:'height:8px'})); styleSettingsUI(b);
     b.append(toggleRow('편집 잠금 (실수로 고치지 않게 · 위쪽 자물쇠로도 전환)', !!S().lock, v => { S().lock = v; saveSoon(); updateLockUI(); render(); }));
     b.append(h('div',{class:'list mmenu'},
       mmSec('동기화 · 백업'),
@@ -3536,6 +3571,8 @@ function openCalOptions(){
       menuItem('cloud','구글 캘린더로 올리기', openCalUpload),
       mmSec('내보내기'),
       menuItem('dl','일정 엑셀로 내보내기', openExport),
+      mmSec('화면'),
+      menuItem('🎨','화면 스타일 · 포인트 색', () => { closeSheet(); openGlobalSettings(); }),
       mmSec('연결'),
       menuItem('cloud','동기화 · 구글 연동', openSyncSheet)));
     b.append(h('p',{class:'note',style:'margin:10px 2px 0;line-height:1.5'},'알림은 앱(브라우저)이 열려 있을 때만 울려요. 앱을 닫아도 꼭 받으려면 구글 캘린더로 올려 두세요.'));
@@ -11243,13 +11280,40 @@ function prodInit(){
 }
 
 
-/* 테마 */
+
+/* 화면 스타일 · 포인트 색 */
+const ACCENTS = { orange:['#ef5b36','#ff8a65','주황'], blue:['#007aff','#0a84ff','파랑'], green:['#34c759','#30d158','초록'], purple:['#af52de','#bf5af2','보라'], pink:['#ff2d55','#ff375f','핑크'], gray:['#636366','#98989d','회색'] };
+function accNow(dark){ const a = S().accent; if(a && ACCENTS[a]) return ACCENTS[a][dark ? 1 : 0]; return (S().style==='apple') ? (dark ? '#0a84ff' : '#007aff') : (dark ? '#ff8a65' : '#ef5b36'); }
 function applyTheme(){
-  const t = S().theme;
+  const t = S().theme, st = S().style==='apple' ? 'apple' : 'orange', root = document.documentElement;
   const dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  const mt = document.querySelector('meta[name=theme-color]'); if(mt) mt.content = dark ? '#16121a' : '#fff4ea';
+  root.dataset.theme = dark ? 'dark' : 'light'; root.dataset.style = st;
+  ['--accent','--accent-soft','--grad','--grad-glow'].forEach(k => root.style.removeProperty(k));
+  const a = S().accent;
+  if(a && ACCENTS[a]){
+    const c = ACCENTS[a][dark ? 1 : 0], n = parseInt(c.slice(1), 16), rgb = (n>>16 & 255)+','+(n>>8 & 255)+','+(n & 255);
+    root.style.setProperty('--accent', c); root.style.setProperty('--accent-soft', 'rgba('+rgb+','+(dark ? .2 : .12)+')');
+    root.style.setProperty('--grad', 'linear-gradient(135deg,color-mix(in srgb,'+c+' 80%,#fff),'+c+')');
+    root.style.setProperty('--grad-glow', '0 5px 16px rgba('+rgb+',.3)');
+  }
+  const mt = document.querySelector('meta[name=theme-color]'); if(mt) mt.content = st==='apple' ? (dark ? '#000000' : '#f2f2f7') : (dark ? '#16121a' : '#fff4ea');
 }
+function styleSettingsUI(b){
+  b.append(h('div',{class:'lbl'},'화면 스타일'));
+  const cur = S().style==='apple' ? 'apple' : 'orange';
+  const mk = (k, nm, bg, ac) => h('button',{ type:'button', class:'sty-card'+(cur===k ? ' on' : ''), onclick:() => { S().style = k; saveSoon(); applyTheme(); render(); try{ renderCal(); }catch(_){} closeSheet(); openGlobalSettings(); } },
+    h('i',{ style:'background:'+bg+';border:1px solid rgba(0,0,0,.08);position:relative' }, h('span',{ style:'position:absolute;left:8px;top:8px;width:40%;height:8px;border-radius:4px;background:'+ac }), h('span',{ style:'position:absolute;left:8px;bottom:7px;width:70%;height:6px;border-radius:3px;background:rgba(0,0,0,.12)' })), nm);
+  b.append(h('div',{ class:'row', style:'gap:8px;margin:4px 0 8px' }, mk('orange','오렌지','#fff4ea','#ef5b36'), mk('apple','애플','#f2f2f7','#007aff')));
+  b.append(h('div',{class:'lbl'},'포인트 색'));
+  const row = h('div',{ class:'acc-row' });
+  const sel = S().accent && ACCENTS[S().accent] ? S().accent : 'auto';
+  const dot = (k, bg, tip) => h('button',{ type:'button', class:'acc-dot'+(k==='auto' ? ' auto' : '')+(sel===k ? ' on' : ''), title:tip, 'aria-label':tip, style:k==='auto' ? '' : 'background:'+bg, onclick:() => { if(k==='auto') delete S().accent; else S().accent = k; saveSoon(); applyTheme(); render(); try{ renderCal(); }catch(_){} closeSheet(); openGlobalSettings(); } });
+  row.append(dot('auto','','스타일 기본색'));
+  Object.keys(ACCENTS).forEach(k => row.append(dot(k, ACCENTS[k][0], ACCENTS[k][2])));
+  b.append(row);
+  b.append(h('p',{class:'note',style:'margin:0 2px 8px;font-size:12px'},'무지개 동그라미 = 스타일 기본색(오렌지 스타일은 주황, 애플 스타일은 파랑). 그룹·일정에 고른 색은 그대로예요.'));
+}
+
 if(window.matchMedia) try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); render(); }); }catch(e){}
 
 window.addEventListener('resize', () => { if(!viewReady) ensureView(); });
