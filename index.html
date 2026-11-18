@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611180852">
+<meta name="app-version" content="202611181314">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -3452,7 +3452,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611180852';
+const APP_VER = '202611181314';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -4878,7 +4878,6 @@ function bodyMemo(body, n, io){   // io: 일정 편집창 등 노드 밖에서 �
         return;
       } }
     const t = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
-    if(io && io.onPasteTable && /\t/.test(t) && /\n/.test(t.replace(/\r?\n$/, '')) && io.onPasteTable(t)) return;   // 엑셀에서 복사한 내용이면 표로
     if(t) document.execCommand('insertText', false, t);
   });
   ed.addEventListener('drop', e => e.preventDefault());
@@ -8086,7 +8085,7 @@ function openEventEditor(id, o){
     title.addEventListener('keydown', e => { if(e.isComposing || e.keyCode===229) return; if(e.key==='Enter'){ e.preventDefault(); if(save()){ closeSheet(true); checkAlarms(); if(o.back) setTimeout(o.back, 60); } } });
     const shAll = () => { const gn = grpSel.value==='__new' ? grpNew.value.trim().slice(0,40) : grpSel.value; const ev = Object.assign(shHdr(), cu.get()); if(gn) ev.grp = gn; if(!ev.title){ toast('제목을 입력하세요'); return; } shrSheet('일정 공유', shrBulkChips(), opt => shrBuildText([{ ev, ds:o.ds }], new Set(), opt)); };
     b.append(h('div',{style:'display:flex;gap:8px;align-items:center'}, h('div',{style:'flex:1'}, title), tmic, shrIco('이 일정 전체 공유 (카톡·문자)', shAll, 18)),
-      dnRow,
+      dnRow || '',
       h('div',{class:'lbl'},'그룹 (선택 사항)'), grpRow, grpNew,
       h('div',{class:'lbl'},'날짜'), dateI, endBox, allRow, timeBox,
       h('div',{class:'lbl'},'반복'), repIcons(rep), untilBox,
