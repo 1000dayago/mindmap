@@ -7231,7 +7231,7 @@ function openNodeSched(mapId, nid){
 
 function evRow(ev, ds, o){
   o = o||{}; const row = evRow0(ev, ds, o); row.dataset.eid = ev.id;
-  if(o.dbl!==false && !o.ord && ev.repeat==='none' && !doneOf(ev, ds)) evDragOn(row, ev, ds);
+  if(o.dbl!==false && !o.ord && ev.repeat==='none') evDragOn(row, ev, ds);   // 완료한 일정도 잡아서 그룹에 넣거나 뺄 수 있다 (날짜 이동은 미완료만)
   if(!o.ord) evSwipeOn(row, ev, ds);
   if(SHR.on && SHR.rend && !o.ord){
     const sel = SHR.ev.has(ev.id); row.classList.toggle('shsel', sel); row.classList.add('shrow');
@@ -7317,7 +7317,7 @@ function clearDrop(){ document.querySelectorAll('.dropt').forEach(e => e.classLi
 function evDragOn(row, ev, ds){
   row.draggable = true;
   row.addEventListener('dragstart', e => {
-    dndCur = { id:ev.id, ds };
+    dndCur = { id:ev.id, ds, done:!!doneOf(ev, ds) };
     try{
       e.dataTransfer.setData('text/plain', ev.id+'|'+ds); e.dataTransfer.effectAllowed = 'move';
       const g = h('div',{ class:'dragghost', style:'--c:'+evColor(ev) }, ev.title||'(제목 없음)');   // 쪼그라든 모습으로 손가락에 잡힌다
@@ -7339,7 +7339,7 @@ function moveEvTo(id, from, to){
   toast('일정을 '+fmtMD(to)+'로 옮겼어요', { label:'취소', fn:() => { ev.date = orig.date; ev.endDate = orig.endDate; cal.sel = orig.sel; if(ev.link) pushEventToMap(ev); saveSoon(); refreshEvViews(); } });
 }
 function dndInit(){
-  const cellOf = e => e.target && e.target.closest ? e.target.closest('.cday[data-ds], .wkd[data-ds], .ggrp[data-g], .indep') : null;
+  const cellOf = e => e.target && e.target.closest ? e.target.closest(dndCur && dndCur.done ? '.ggrp[data-g], .indep' : '.cday[data-ds], .wkd[data-ds], .ggrp[data-g], .indep') : null;
   document.addEventListener('dragover', e => {
     if(!dndCur) return; const c = cellOf(e); clearDrop();
     if(c){ e.preventDefault(); try{ e.dataTransfer.dropEffect = 'move'; }catch(_){} c.classList.add('dropt'); }
