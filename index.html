@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611241644">
+<meta name="app-version" content="202611241650">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -1987,7 +1987,8 @@ function openProjSheet(fromToday){
       h('button',{ class:'item', style:'flex:1', type:'button', onclick:() => { closeSheet(true); projSelect(v); } },
         h('span',{ class:'ico', style:'display:flex;align-items:center;justify-content:center' }, projDot(color)), h('span',{ class:'t' }, label),
         h('span',{ class:'s' }, c ? '맵 '+c.m+' · 일정 '+c.e : ''), ((v==='' && s===null) || (v==='_' && s==='') || (v && v!=='_' && s===v)) ? h('span',{ class:'chk' }, '✓') : null),
-      edit ? h('button',{ class:'ibtn', type:'button', title:'프로젝트 편집', 'aria-label':'프로젝트 편집', html:ic('edit',18), onclick:() => { closeSheet(true); openProjEdit(v); } }) : null);
+      edit ? h('button',{ class:'ibtn', type:'button', title:v==='_' ? '이름 바꾸기' : '프로젝트 편집', 'aria-label':v==='_' ? '이름 바꾸기' : '프로젝트 편집', html:ic('edit',18), onclick:() => { closeSheet(true); openProjEdit(v); } }) : null,
+      (edit && v!=='_') ? h('button',{ class:'ibtn', type:'button', title:'프로젝트 삭제 (맵 · 일정은 남아요)', 'aria-label':'프로젝트 삭제', html:ic('trash',18), onclick:() => projDelete(v) }) : null);
     const tot = { m:data.order.length, e:Object.keys(evAllObj()).length };
     list.append(row('', '전체 프로젝트', '', tot, false));
     projs().forEach(p => list.append(row(p.id, p.name, p.color, cnt[p.id] || { m:0, e:0 }, true)));
@@ -2061,18 +2062,35 @@ function openProjEdit(id){
     };
     b.append(h('div',{ class:'row end', style:'margin-top:12px' },
       isNew ? null : h('button',{ class:'btn', type:'button', style:'color:var(--danger);margin-right:auto', onclick:() => {
-        if(!confirm('「'+p.name+'」 프로젝트를 삭제할까요?\n맵 · 그룹 · 일정은 지워지지 않고 「'+noneName()+'」(으)로 옮겨져요.')) return;
-        data.projects = projs().filter(x => x.id!==id);
-        data.order.forEach(mid => { if(data.maps[mid].proj===id) delete data.maps[mid].proj; });
-        Object.values(evAllObj()).forEach(ev => { if(ev.proj===id) delete ev.proj; });
-        { const a = regLoad(); a.forEach(r => { if(r.p===id) delete r.p; }); lsSet('mm_grp_reg', a); }
-        if(S().proj===id) S().proj = '';
-        closeSheet(true); saveSoon(); projRefresh(); toast('프로젝트를 삭제했어요');
+        projDelete(id);
       } }, '삭제'),
       h('button',{ class:'btn', type:'button', onclick:() => closeSheet() }, '취소'),
       h('button',{ class:'btn primary', type:'button', onclick:save }, isNew ? '만들기' : '저장')));
     if(isNew) setTimeout(() => nm.focus(), 120);
   });
+}
+// 프로젝트 삭제: 맵 · 그룹 · 일정은 지우지 않고 미분류로 (직후 '취소'로 되돌리기)
+function projDelete(id){
+  const p = projById(id); if(!p) return;
+  if(S().lock){ lockedMsg(); return; }
+  if(!confirm('「'+p.name+'」 프로젝트를 삭제할까요?\n맵 · 그룹 · 일정은 지워지지 않고 「'+noneName()+'」(으)로 옮겨져요.')) return;
+  const idx = projs().indexOf(p), wasSel = S().proj===id;
+  const maps = data.order.filter(mid => data.maps[mid].proj===id), evs = Object.values(evAllObj()).filter(ev => ev.proj===id).map(ev => ev.id);
+  const a = regLoad(), grps = a.filter(r => r.p===id).map(r => r.name);
+  data.projects = projs().filter(x => x.id!==id);
+  maps.forEach(mid => { delete data.maps[mid].proj; });
+  evs.forEach(eid => { delete evAllObj()[eid].proj; });
+  a.forEach(r => { if(r.p===id) delete r.p; }); lsSet('mm_grp_reg', a);
+  if(wasSel) S().proj = '';
+  closeSheet(true); saveSoon(); projRefresh();
+  toast('「'+p.name+'」 프로젝트를 삭제했어요', { label:'취소', fn:() => {
+    projs().splice(Math.min(idx, projs().length), 0, p);
+    maps.forEach(mid => { if(data.maps[mid]) data.maps[mid].proj = id; });
+    evs.forEach(eid => { const ev = evAllObj()[eid]; if(ev) ev.proj = id; });
+    grps.forEach(nm => grpSetProj(nm, id));
+    if(wasSel) S().proj = id;
+    saveSoon(); projRefresh();
+  } });
 }
 // 맵·그룹을 다른 프로젝트로 옮기기 (목록에서 고르기)
 function pickProj(title, curId, fn){
@@ -3735,7 +3753,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611241644';
+const APP_VER = '202611241650';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
