@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611241627">
+<meta name="app-version" content="202611241644">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -259,14 +259,20 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .cgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;flex:1}
 .cdow{text-align:center;font-size:12px;font-weight:800;color:var(--sub);padding:4px 0}
 /* 프로젝트 고르기 줄 (일정 탭 · 오늘 탭 위) */
-.projbar{display:flex;align-items:center;gap:6px;padding:0 12px 6px;flex:none;flex-wrap:wrap}
-.pjchip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 10px 5px 9px;border-radius:999px;border:1.5px solid var(--line);background:var(--bg);font-size:12.5px;color:var(--text)}
+.pjslot{display:flex;align-items:center;flex:0 1 auto;min-width:0;margin-right:2px}
+.pjslot:empty{display:none}
+.pjchip{display:inline-flex;align-items:center;gap:6px;max-width:220px;padding:5px 10px 5px 9px;border-radius:999px;border:1.5px solid var(--line);background:var(--bg);font-size:12.5px;color:var(--text)}
 .pjchip b{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .pjchip.on{border-color:var(--pc,var(--accent));background:var(--accent-soft)}
 .pjchip .pjv{color:var(--sub);font-size:11px}
-.pjtog{padding:5px 10px;border-radius:999px;font-size:11.5px;font-weight:700;color:var(--sub);border:1px dashed var(--line)}
-.pjtog.on{color:var(--accent);border-style:solid;border-color:var(--accent)}
 .pjhint{font-size:11px;color:var(--sub)}
+@media(max-width:820px){ .pjslot .pjchip{width:30px;height:30px;padding:0;justify-content:center;gap:0} .pjslot .pjchip b,.pjslot .pjchip .pjv{display:none} .pjslot .pjchip .pjdot{width:12px;height:12px} }
+.pjtag{display:inline-flex;align-items:center;gap:4px;max-width:120px;margin:0 4px 2px 0;padding:1px 7px 1px 5px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:10.5px;font-weight:700;color:var(--sub);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pjtag .pjdot{width:8px;height:8px;border-width:1px}
+.evrow .tt .pjtag{display:inline-flex!important;width:auto!important;max-width:120px;align-self:flex-start}
+.ggrp .evrow .pjtag{display:none!important}
+.gname .pjtag{margin:0 0 0 2px;flex:none;padding:0;border:none;background:none;font-size:0;gap:0}
+.gname .pjtag .pjdot{width:9px;height:9px}
 .mpchip{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:26vw;padding:5px 9px;border-radius:999px;border:1.5px solid var(--pc,var(--line));font-size:11.5px;font-weight:800;color:var(--text);background:var(--bg);flex:0 1 auto}
 .mpchip span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .mpchip.hidden{display:none}
@@ -1449,13 +1455,13 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
     <header id="tdTop">
       <div class="tdd"><b id="tdDate"></b><small id="tdSub"></small></div>
       <span class="sp"></span>
+      <span id="tdProj" class="pjslot"></span>
       <button class="ibtn" id="tdSearch" data-ic="zoom" data-sz="20" title="검색"></button>
       <button class="ibtn" id="tdAddEv" data-q="ev" title="일정 빠른 입력" aria-label="일정 빠른 입력"></button>
       <button class="ibtn" id="tdAddMap" data-q="map" title="노드 빠른 입력" aria-label="노드 빠른 입력"></button>
       <button class="ibtn" id="tdAddBoth" data-q="both" title="일정 + 노드 동시 저장" aria-label="일정과 노드 동시 저장"></button>
       <button class="ibtn" id="tdGear" data-ic="more" data-sz="20" title="전체 설정" aria-label="전체 설정"></button>
     </header>
-    <div id="tdProj" class="projbar"></div>
     <div id="tdBody"></div>
   </main>
 
@@ -1466,13 +1472,13 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
       <button class="ibtn" id="calNext" data-ic="chevR" data-sz="20" title="다음"></button>
       <button id="calTitle" class="caltitle" title="날짜로 이동"></button>
       <span class="sp"></span>
+      <span id="calProj" class="pjslot"></span>
       <button class="ibtn" id="calSearchBtn" data-ic="zoom" data-sz="20" title="일정 검색"></button>
       <button class="ibtn" id="calCloud" data-ic="cloud" data-sz="20" title="동기화 · 구글 연동"></button>
       <button class="ibtn" id="calGear" data-ic="more" data-sz="20" title="일정 옵션" aria-label="일정 옵션"></button>
     </header>
     <div id="calSeg" class="seg"><button data-v="year">년</button><button data-v="month">월</button><button data-v="week">주</button><button data-v="day">일</button><button data-v="done">완료</button></div>
     <div id="calSearchBar" class="hidden"><input id="calQ" class="field" type="search" placeholder="일정 검색 (제목 · 내용)"></div>
-    <div id="calProj" class="projbar"></div>
     <div id="calBody"></div>
     <button id="calAdd" class="fab" data-ic="plus" data-sz="26" title="일정 추가"></button>
   </main>
@@ -1959,20 +1965,21 @@ function moveMapDlg(id, pid){
 }
 function projRefresh(){ projBars(); mapProjBadge(); try{ refreshEvViews(); }catch(_){} }
 function projDot(color){ return h('span',{ class:'pjdot', style:'background:'+(color||'var(--sub)') }); }
-function projBars(){
-  const s = scopeId(), p = projById(s), lbl = s===null ? '전체 프로젝트' : (p ? p.name : noneName()), col = p ? p.color : '';
+function projBars(){   // 일정 탭 · 오늘 탭 오른쪽 위 (검색 버튼 왼쪽) 프로젝트 버튼
+  const s = scopeId(), p = projById(s), lbl = s===null ? '전체 프로젝트' : projName(s), col = p ? p.color : '';
   const mk = today => {
     const el = $(today ? '#tdProj' : '#calProj'); if(!el) return;
+    const showAll = today && S().todayAll && s!==null;
     el.innerHTML = '';
-    const showAll = today && S().todayAll;
-    el.append(h('button',{ type:'button', class:'pjchip'+(s!==null && !showAll ? ' on' : ''), style:col ? '--pc:'+col : '', title:'프로젝트 고르기', onclick:() => openProjSheet(today) },
-      projDot(s===null ? '' : col), h('b',{}, showAll ? '전체 프로젝트' : lbl), h('span',{ class:'pjv' }, '▾')));
-    if(today && s!==null) el.append(h('button',{ type:'button', class:'pjtog'+(showAll ? ' on' : ''), title:'오늘 탭에서 모든 프로젝트를 볼지, 고른 프로젝트만 볼지',
-      onclick:() => { S().todayAll = !S().todayAll; saveSoon(); projRefresh(); } }, showAll ? '모두 보는 중 · '+lbl+'만 보기' : '전체 보기'));
-    if(!projs().length) el.append(h('small',{ class:'pjhint' }, '프로젝트를 만들면 맵과 일정을 나눠 볼 수 있어요'));
+    el.append(h('button',{ type:'button', class:'pjchip'+(s!==null && !showAll ? ' on' : ''), style:col && !showAll ? '--pc:'+col : '',
+      title:'프로젝트: '+(showAll ? '전체 (오늘 탭은 모든 프로젝트 보기)' : lbl)+' · 눌러서 고르기', 'aria-label':'프로젝트 고르기 · 지금 '+(showAll ? '전체' : lbl), onclick:() => openProjSheet(today) },
+      projDot(s===null || showAll ? '' : col), h('b',{}, showAll ? '전체' : lbl), h('span',{ class:'pjv' }, '▾')));
   };
   mk(false); mk(true);
 }
+// 일정 옆 프로젝트 꼬리표 ('전체 프로젝트'로 볼 때만)
+function pjTag(pid){ const p = projById(pid); return h('span',{ class:'pjtag', title:'프로젝트: '+projName(pid) }, projDot(p ? p.color : ''), projName(pid)); }
+const pjTagOn = () => PSCOPE===null && projs().length>0;
 function openProjSheet(fromToday){
   openSheet('프로젝트', b => {
     const s = scopeId(), cnt = projCounts(), list = h('div',{ class:'list' });
@@ -3728,7 +3735,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611241627';
+const APP_VER = '202611241644';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -6459,7 +6466,7 @@ function grpArea(){
       h('button',{ type:'button', class:'gtog', 'aria-label':'접기·펴기', onclick:() => { gfoldSet(g.name, !closed); renderCal(); } }, closed ? '▸' : '▾'),
       h('button',{ type:'button', class:'evck gck', title:'그룹 전체 완료 — 안의 일정이 모두 완료되고 완료 탭으로 옮겨져요', 'aria-label':'그룹 전체 완료', onclick:e => { e.stopPropagation(); grpFinSet(g.name, true); } }),
       h('button',{ type:'button', class:'gname', title:'누르면 달력에서 이 그룹만 강조', onclick:() => { cal.grp = cal.grp===g.name ? '' : g.name; renderCal(); } },
-        h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음'))),
+        h('span',{ class:'gd' }), h('b',{}, g.name), h('small',{}, g.total ? g.done+'/'+g.total+' 완료' : (g.evs.length ? g.evs.length+'개' : '비어 있음')), pjTagOn() ? pjTag(grpProj(g.name)) : null),
       (g.refs && g.refs.length) ? h('button',{ type:'button', class:'gnode', title:'연결된 노드로 이동', 'aria-label':'연결된 노드로 이동', html:ic('mindmap',15), onclick:() => refOpen(g.refs) }) : null,
       gMemoIcon(g),
       hidEye('g', g.name, hid, g.name),
@@ -7523,6 +7530,7 @@ function evRow(ev, ds, o){
   if(ev.table && ev.table.cells){ const tt0 = row.querySelector('.tt'); if(tt0) tt0.append(h('span',{ class:'tbmark', title:'표가 들어 있는 일정', html:'▦' })); }
   if(ev.grp){ const tt = row.querySelector('.tt'); if(tt) tt.insertBefore(grpChip(ev, o.dbl!==false), tt.firstChild); if(cal.grp && cal.grp!==ev.grp) row.classList.add('gdim'); }
   else if(cal.grp && o.dbl!==false) row.classList.add('gdim');
+  if(pjTagOn()){ const tt = row.querySelector('.tt'); if(tt) tt.insertBefore(pjTag(evProj(ev)), tt.firstChild); }
   return row;
 }
 /* ===================== 일정 목록에서 꾹 눌러 잡아 달력 날짜에 놓기 ===================== */
