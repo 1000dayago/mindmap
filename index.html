@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>마인드맵</title>
-<meta name="app-version" content="202611241603">
+<meta name="app-version" content="202611241627">
 <style>
 :root{
   --bg:#e8ecf8;
@@ -267,6 +267,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .pjtog{padding:5px 10px;border-radius:999px;font-size:11.5px;font-weight:700;color:var(--sub);border:1px dashed var(--line)}
 .pjtog.on{color:var(--accent);border-style:solid;border-color:var(--accent)}
 .pjhint{font-size:11px;color:var(--sub)}
+.mpchip{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:26vw;padding:5px 9px;border-radius:999px;border:1.5px solid var(--pc,var(--line));font-size:11.5px;font-weight:800;color:var(--text);background:var(--bg);flex:0 1 auto}
+.mpchip span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mpchip.hidden{display:none}
+@media(max-width:820px){ .mpchip{padding:0;width:26px;height:26px;justify-content:center;max-width:none;flex:none} .mpchip span:last-child{display:none} .mpchip .pjdot{width:12px;height:12px} }
 .pjdot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none;border:1.5px solid rgba(0,0,0,.08)}
 .lbl.pjsec{display:flex;align-items:center;gap:6px;margin-top:10px}.lbl.pjsec small{font-weight:600;color:var(--sub)}.lbl.pjsec.dim{opacity:.6}
 /* 달력 요일 줄: 아래로 스크롤해도 맨 위에 붙어 있다 (엑셀 틀 고정처럼). 칸 사이 틈까지 덮어서 날짜가 비쳐 보이지 않게 한다 */
@@ -1476,6 +1480,7 @@ body:has(#inlBar:not(.hidden)) #nbPlus{display:none !important}
   <main id="pageMap" class="page">
     <header id="topbar">
       <button id="mapName" class="namebtn"><span data-ic="folder" data-sz="18"></span><span id="mapNameText">내 마인드맵</span><span data-ic="chev" data-sz="16"></span></button>
+      <button id="mapProj" class="mpchip hidden" type="button"></button>
       <span class="sp"></span>
       <button class="ibtn" id="searchBtn" data-ic="zoom" title="검색 (Ctrl+F)"></button>
       <button class="ibtn" id="lockBtn" data-ic="unlock" title="편집 잠금"></button>
@@ -1816,7 +1821,7 @@ function loadData(){
       const maps = {}, order = [];
       (d.order||[]).forEach(id => { const m = normalizeMap(d.maps&&d.maps[id], true); if(m){ m.id = id; maps[id]=m; order.push(id); } });
       if(order.length){
-        return { maps, order, current: maps[d.current]?d.current:order[0], settings:Object.assign(defaultSettings(), d.settings||{}), events:loadEvents(d.events), projects:normProjects(d.projects), alarmSeen:(d.alarmSeen && typeof d.alarmSeen==='object') ? d.alarmSeen : {} , trash:validTrash(d.trash) };
+        return { maps, order, current: maps[d.current]?d.current:order[0], settings:Object.assign(defaultSettings(), d.settings||{}), events:loadEvents(d.events), projects:normProjects(d.projects), pjNone:typeof d.pjNone==='string' ? d.pjNone.slice(0, 40) : '', alarmSeen:(d.alarmSeen && typeof d.alarmSeen==='object') ? d.alarmSeen : {} , trash:validTrash(d.trash) };
       }
     }
   }catch(e){ try{ const rb = localStorage.getItem(STORE_KEY); if(rb && !localStorage.getItem(STORE_KEY+'_broken')) localStorage.setItem(STORE_KEY+'_broken', rb); }catch(_){} }
@@ -1843,7 +1848,8 @@ function projById(id){ return id ? projs().find(p => p.id===id) || null : null; 
 function validProj(id){ return projById(id) ? id : ''; }
 function scopeId(){ const v = S().proj||''; if(!v) return null; if(v==='_') return ''; return projById(v) ? v : null; }   // null = 전체
 function projNewId(){ const s = scopeId(); return s || ''; }                     // 새로 만드는 맵·그룹·일정이 들어갈 프로젝트
-function projName(id){ const p = projById(id); return p ? p.name : '미분류'; }
+function noneName(){ return (typeof data.pjNone==='string' && data.pjNone.trim()) ? data.pjNone.trim() : '미분류'; }   // '미분류' 칸의 이름 (바꿀 수 있음)
+function projName(id){ const p = projById(id); return p ? p.name : noneName(); }
 function mapProj(mid){ const m = data.maps[mid]; return m ? validProj(m.proj) : ''; }
 function grpProjMap(){ const o = {}; regLoad().forEach(r => { o[r.name] = validProj(r.p); }); return o; }
 function grpProj(name){ return grpProjMap()[name] || ''; }
@@ -1876,11 +1882,85 @@ function projCounts(){
   Object.values(evAllObj()).forEach(ev => add(evProj(ev, gm), 'e'));
   return c;
 }
-function projSelect(v){ S().proj = v; saveSoon(); projRefresh(); }
-function projRefresh(){ projBars(); try{ refreshEvViews(); }catch(_){} }
+function projSelect(v){ S().proj = v; saveSoon(); projRefresh(); projFollowMap(); }
+// 맵 이름이 겹치지 않게: base → base-2 → base-3 … (빈 번호)
+function uniqMapName(base, exceptId){
+  const names = new Set(data.order.filter(id => id!==exceptId).map(id => data.maps[id].name));
+  if(!names.has(base)) return base.slice(0, 60);
+  let n = 2; while(names.has(base+'-'+n)) n++;
+  return (base+'-'+n).slice(0, 60);
+}
+function newMapName(pid){ const p = projById(pid); return p ? uniqMapName(p.name) : '새 마인드맵'; }   // 프로젝트 안: 신제품 → 신제품-2 → 신제품-3
+function makeMapIn(pid, name, go){
+  const m = newMap(name); if(pid) m.proj = pid; data.maps[m.id] = m; data.order.push(m.id); refitAll(m);
+  if(go) switchMap(m.id); else saveSoon();
+  return m;
+}
+// 3. 프로젝트를 고르면 마인드맵 탭도 그 프로젝트의 맵으로 (마지막에 본 맵 → 목록의 첫 맵)
+function projFollowMap(){
+  const sid = scopeId(); if(sid===null || mapProj(data.current)===sid) { mapProjBadge(); return; }
+  const last = (S().pjLast||{})[sid||'_'];
+  const id = (last && data.maps[last] && mapProj(last)===sid) ? last : data.order.find(x => mapProj(x)===sid);
+  if(id){ switchMap(id); return; }
+  mapProjBadge();
+  toast('「'+projName(sid)+'」에는 마인드맵이 없어요', { label:'만들기', fn:() => createMap() });
+}
+// 5. 마인드맵 탭 위 프로젝트 표시
+function mapProjBadge(){
+  const el = $('#mapProj'); if(!el) return;
+  const m = cur(); if(!m || !projs().length){ el.classList.add('hidden'); return; }
+  const pid = mapProj(m.id), pp = projById(pid);
+  el.classList.remove('hidden'); el.innerHTML = '';
+  el.style.setProperty('--pc', pp ? pp.color : 'var(--sub)');
+  el.title = '이 맵의 프로젝트: '+projName(pid)+' (눌러서 옮기기 · 떼기)';
+  el.append(projDot(pp ? pp.color : ''), h('span',{}, projName(pid)));
+}
+function openMapProjMenu(id){
+  const m = data.maps[id]; if(!m) return; const pid = mapProj(id);
+  openSheet('「'+m.name+'」 맵의 프로젝트', b => {
+    b.append(h('p',{ class:'note', style:'margin:0 2px 8px' }, '지금: '+projName(pid)));
+    b.append(h('div',{ class:'list' },
+      menuItem('folder', '다른 프로젝트로 옮기기', () => pickProj('「'+m.name+'」 맵을 옮길 프로젝트', pid, np => moveMapDlg(id, np))),
+      pid ? menuItem('minus', '프로젝트에서 떼기 (「'+noneName()+'」로)', () => moveMapDlg(id, '')) : null,
+      menuItem('folderOpen', '같은 프로젝트의 맵 보기', () => openMapList())));
+  });
+}
+// 6. 맵 옮기기 (편입 · 이동 · 떼기): 이름 확인 창 + 연결된 일정 안내 + 되돌리기
+function mapBaseName(m){   // 앱이 붙인 꼬리말(_프로젝트이름 또는 _프로젝트이름-2)을 뺀 이름
+  const p = projById(mapProj(m.id)); if(!p) return m.name;
+  const tail = '_'+p.name, re = new RegExp(tail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')+'(-\\d+)?$');
+  const b0 = m.name.replace(re, '');
+  return b0 && b0!==m.name ? b0 : m.name;
+}
+function moveMapDlg(id, pid){
+  const m = data.maps[id]; if(!m) return;
+  if(S().lock){ lockedMsg(); return; }
+  const from = mapProj(id); pid = validProj(pid);
+  if(from===pid){ toast('이미 「'+projName(pid)+'」에 있어요'); return; }
+  const np = projById(pid), base = mapBaseName(m);
+  const sug = np ? uniqMapName(base+'_'+np.name, id) : uniqMapName(base, id);
+  const gm = grpProjMap(), linked = Object.values(data.events).filter(ev => ev.link && ev.link.mapId===id && !ev.grp).length;
+  openSheet(np ? (from ? '다른 프로젝트로 옮기기' : '프로젝트로 편입') : '프로젝트에서 떼기', b => {
+    const nm = h('input',{ class:'field', type:'text', maxlength:60, value:sug });
+    b.append(h('p',{ class:'note', style:'margin:0 2px 8px' }, '「'+m.name+'」: '+projName(from)+' → '+projName(pid)));
+    b.append(h('div',{ class:'lbl' }, '맵 이름'), nm,
+      h('div',{ class:'row', style:'margin-top:6px' }, h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => { nm.value = m.name; } }, '지금 이름 그대로 두기 ('+(m.name.length>14 ? m.name.slice(0,14)+'…' : m.name)+')')));
+    if(linked) b.append(h('p',{ class:'note', style:'margin:8px 2px 0' }, '이 맵과 연결된 일정 '+linked+'개도 함께 「'+projName(pid)+'」(으)로 옮겨가요. (그룹에 든 일정은 그룹의 프로젝트를 따라요)'));
+    b.append(h('div',{ class:'row end', style:'margin-top:12px' },
+      h('button',{ class:'btn', type:'button', onclick:() => closeSheet() }, '취소'),
+      h('button',{ class:'btn primary', type:'button', onclick:() => {
+        const name = nm.value.trim().slice(0, 60) || m.name, old = { proj:m.proj, name:m.name };
+        if(pid) m.proj = pid; else delete m.proj; m.name = name;
+        closeSheet(true); saveSoon(); render(); projRefresh();
+        toast('「'+name+'」 맵을 「'+projName(pid)+'」(으)로 옮겼어요', { label:'취소', fn:() => { if(old.proj) m.proj = old.proj; else delete m.proj; m.name = old.name; saveSoon(); render(); projRefresh(); } });
+      } }, '옮기기')));
+    setTimeout(() => { try{ nm.focus(); nm.select(); }catch(_){} }, 120);
+  });
+}
+function projRefresh(){ projBars(); mapProjBadge(); try{ refreshEvViews(); }catch(_){} }
 function projDot(color){ return h('span',{ class:'pjdot', style:'background:'+(color||'var(--sub)') }); }
 function projBars(){
-  const s = scopeId(), p = projById(s), lbl = s===null ? '전체 프로젝트' : (p ? p.name : '미분류'), col = p ? p.color : '';
+  const s = scopeId(), p = projById(s), lbl = s===null ? '전체 프로젝트' : (p ? p.name : noneName()), col = p ? p.color : '';
   const mk = today => {
     const el = $(today ? '#tdProj' : '#calProj'); if(!el) return;
     el.innerHTML = '';
@@ -1904,7 +1984,7 @@ function openProjSheet(fromToday){
     const tot = { m:data.order.length, e:Object.keys(evAllObj()).length };
     list.append(row('', '전체 프로젝트', '', tot, false));
     projs().forEach(p => list.append(row(p.id, p.name, p.color, cnt[p.id] || { m:0, e:0 }, true)));
-    list.append(row('_', '미분류', '', cnt[''] || { m:0, e:0 }, false));
+    list.append(row('_', noneName(), '', cnt[''] || { m:0, e:0 }, true));
     b.append(list);
     b.append(h('div',{ class:'row' }, h('button',{ class:'btn primary', style:'flex:1', type:'button', onclick:() => { closeSheet(true); openProjEdit(null); } }, '＋ 새 프로젝트')));
     b.append(h('div',{ class:'lbl', style:'margin-top:12px' }, '오늘 탭'));
@@ -1913,6 +1993,12 @@ function openProjSheet(fromToday){
   });
 }
 function openProjEdit(id){
+  if(id==='_'){   // '미분류' 칸: 이름만 바꾼다 (역할은 그대로 · 비우면 '미분류')
+    askText({ title:'「미분류」 칸 이름 (비우면 미분류)', value:noneName()==='미분류' ? '' : noneName(), placeholder:'예: 개인 · 일상', onOk: v => {
+      const t = v.trim().slice(0, 40); data.pjNone = (t==='미분류') ? '' : t; saveSoon(); projRefresh(); toast('「'+noneName()+'」(으)로 바꿨어요');
+    } });
+    return;
+  }
   const p = projById(id), isNew = !p;
   openSheet(isNew ? '새 프로젝트' : '프로젝트 편집', b => {
     let col = p ? p.color : EV_COLORS[projs().length % EV_COLORS.length];
@@ -1920,6 +2006,10 @@ function openProjEdit(id){
     const sw = h('div',{ class:'grid sw', style:'grid-template-columns:repeat(8,1fr)' });
     EV_COLORS.forEach(c => { const bt = h('button',{ class:'swatch'+(c===col ? ' on' : ''), type:'button', style:'background:'+c+';min-height:30px', 'aria-label':c, onclick:() => { col = c; [...sw.children].forEach(x => x.classList.remove('on')); bt.classList.add('on'); } }); sw.append(bt); });
     b.append(h('div',{ class:'lbl' }, '이름'), nm, h('div',{ class:'lbl' }, '색'), sw);
+    let mkMap = true;
+    if(isNew) b.append(toggleRow('같은 이름의 마인드맵도 만들기', true, v => { mkMap = v; }));
+    else b.append(h('div',{ class:'row', style:'margin-top:8px' }, h('button',{ class:'btn', type:'button', style:'flex:1', onclick:() => {
+      closeSheet(true); const nmv = newMapName(p.id); askText({ title:'「'+p.name+'」의 새 마인드맵 이름', value:nmv, onOk: v => { makeMapIn(p.id, v.trim()||nmv, true); S().proj = p.id; saveSoon(); projRefresh(); showTab('map'); toast('「'+p.name+'」에 마인드맵을 만들었어요'); } }); } }, '＋ 이 프로젝트의 마인드맵 만들기')));
     // 구글 캘린더 연결
     const gbox = h('div',{ class:'mmbox', style:'margin-top:10px' });
     let pk = null;
@@ -1953,7 +2043,10 @@ function openProjEdit(id){
       if(projs().some(x => x.name===name && x.id!==id)){ toast('같은 이름의 프로젝트가 이미 있어요'); return; }
       if(isNew){
         const np = { id:'p'+uid(), name, color:col, cal:pk ? pk.get() : '' }; projs().push(np);
-        closeSheet(true); S().proj = np.id; saveSoon(); projRefresh(); toast('「'+name+'」 프로젝트를 만들고 골랐어요');
+        closeSheet(true); S().proj = np.id;
+        if(mkMap){ makeMapIn(np.id, uniqMapName(name), true); }
+        saveSoon(); projRefresh(); if(!mkMap) projFollowMap();
+        toast(mkMap ? '「'+name+'」 프로젝트와 같은 이름의 마인드맵을 만들었어요' : '「'+name+'」 프로젝트를 만들고 골랐어요');
       }else{
         p.name = name; p.color = col; if(pk) p.cal = pk.get();
         closeSheet(true); saveSoon(); projRefresh(); toast('저장했어요');
@@ -1961,7 +2054,7 @@ function openProjEdit(id){
     };
     b.append(h('div',{ class:'row end', style:'margin-top:12px' },
       isNew ? null : h('button',{ class:'btn', type:'button', style:'color:var(--danger);margin-right:auto', onclick:() => {
-        if(!confirm('「'+p.name+'」 프로젝트를 삭제할까요?\n맵 · 그룹 · 일정은 지워지지 않고 「미분류」로 옮겨져요.')) return;
+        if(!confirm('「'+p.name+'」 프로젝트를 삭제할까요?\n맵 · 그룹 · 일정은 지워지지 않고 「'+noneName()+'」(으)로 옮겨져요.')) return;
         data.projects = projs().filter(x => x.id!==id);
         data.order.forEach(mid => { if(data.maps[mid].proj===id) delete data.maps[mid].proj; });
         Object.values(evAllObj()).forEach(ev => { if(ev.proj===id) delete ev.proj; });
@@ -1978,7 +2071,7 @@ function openProjEdit(id){
 function pickProj(title, curId, fn){
   openSheet(title, b => {
     const list = h('div',{ class:'list' });
-    [{ id:'', name:'미분류', color:'' }].concat(projs()).forEach(p => list.append(h('button',{ class:'item', type:'button', onclick:() => { closeSheet(true); fn(p.id); } },
+    [{ id:'', name:noneName(), color:'' }].concat(projs()).forEach(p => list.append(h('button',{ class:'item', type:'button', onclick:() => { closeSheet(true); fn(p.id); } },
       h('span',{ class:'ico', style:'display:flex;align-items:center;justify-content:center' }, projDot(p.color)), h('span',{ class:'t' }, p.name), (curId||'')===p.id ? h('span',{ class:'chk' }, '✓') : null)));
     b.append(list);
     if(!projs().length) b.append(h('p',{ class:'note', style:'margin:6px 2px' }, '아직 프로젝트가 없어요. 일정 탭 위의 「프로젝트」 버튼에서 만들 수 있어요.'));
@@ -2354,6 +2447,7 @@ function render(){
   if(selLink && !m.links[selLink]) selLink = null;
   world.innerHTML = buildWorld({});
   $('#mapNameText').textContent = m.name;
+  try{ mapProjBadge(); }catch(_){}
   $('#hint').textContent = (Object.keys(m.nodes).length<=1) ? '노드를 탭해 선택하고, 아래쪽 + 버튼으로 하위 노드를 추가해 보세요.' : '';
   updateUI();
   if(pn){
@@ -3536,14 +3630,15 @@ function openViewSheet(){
 function switchMap(id){
   saveNow(); closePanel(); mode = null; selLink = null; $('#modebar').classList.add('hidden');
   data.current = id; sel = null; focusId = null; viewStack = [];
+  try{ const pj = (S().pjLast && typeof S().pjLast==='object') ? S().pjLast : (S().pjLast = {}); pj[mapProj(id)||'_'] = id; }catch(_){}
   refitAll(cur()); render(); viewReady = false; ensureView(); saveNow();
 }
 function openMapList(){
   openSheet('내 마인드맵', b => {
     const list = h('div',{class:'list'});
-    const sid = scopeId(), hasP = projs().length>0;
-    const secs = hasP ? projs().map(p => ({ id:p.id, name:p.name, color:p.color })).concat([{ id:'', name:'미분류', color:'' }]) : [{ id:null }];
-    if(sid!==null){ const k = secs.findIndex(x => x.id===sid); if(k>0) secs.unshift(secs.splice(k, 1)[0]); }   // 고른 프로젝트를 맨 위로
+    const hasP = projs().length>0, sid = hasP ? mapProj(data.current) : null;   // 지금 보는 맵의 프로젝트를 맨 위에
+    const secs = hasP ? projs().map(p => ({ id:p.id, name:p.name, color:p.color })).concat([{ id:'', name:noneName(), color:'' }]) : [{ id:null }];
+    if(sid!==null){ const k = secs.findIndex(x => x.id===sid); if(k>0) secs.unshift(secs.splice(k, 1)[0]); }
     secs.forEach(sec => {
      const ids = data.order.filter(id => sec.id===null || mapProj(id)===sec.id);
      if(sec.id!==null){ if(!ids.length && sec.id==='') return; list.append(h('div',{ class:'lbl pjsec'+(sid!==null && sid!==sec.id ? ' dim' : '') }, projDot(sec.color), sec.name, h('small',{}, ids.length ? ' '+ids.length : ' 비어 있음'))); }
@@ -3552,18 +3647,17 @@ function openMapList(){
       list.append(h('div',{style:'display:flex;align-items:center;gap:2px'+(sid!==null && sec.id!==null && sid!==sec.id ? ';opacity:.6' : '')},
         h('button',{class:'item',style:'flex:1',onclick:()=>{ closeSheet(true); if(id!==data.current) switchMap(id); }},
           h('span',{class:'ico',html:ic(id===data.current?'folderOpen':'folder',20)}), h('span',{class:'t'}, m.name), h('span',{class:'s'}, Object.keys(m.nodes).length+'개')),
-        hasP ? h('button',{class:'ibtn',title:'프로젝트 옮기기','aria-label':'프로젝트 옮기기',html:ic('folder',18),onclick:()=>{ pickProj('「'+m.name+'」 맵을 옮길 프로젝트', mapProj(id), pid => { if(pid) m.proj = pid; else delete m.proj; saveSoon(); projRefresh(); toast('「'+projName(pid)+'」(으)로 옮겼어요 · 이 맵과 연결된 일정도 함께 옮겨가요'); setTimeout(openMapList, 60); }); }}) : null,
+        hasP ? h('button',{class:'ibtn',title:'프로젝트 옮기기','aria-label':'프로젝트 옮기기',html:ic('folder',18),onclick:()=>{ pickProj('「'+m.name+'」 맵을 옮길 프로젝트', mapProj(id), pid => setTimeout(() => moveMapDlg(id, pid), 60)); }}) : null,
         h('button',{class:'ibtn',title:'이름 변경',html:ic('edit',18),onclick:()=>{ closeSheet(true); renameMap(id); }}),
         h('button',{class:'ibtn',title:'삭제',html:ic('trash',18),onclick:()=>{ closeSheet(true); deleteMap(id); }})));
      });
     });
-    b.append(list, h('div',{class:'row'}, h('button',{class:'btn primary',style:'flex:1',onclick:()=>{ closeSheet(true); createMap(); }},'＋ 새 맵')));
+    b.append(list, h('div',{class:'row'}, h('button',{class:'btn primary',style:'flex:1',onclick:()=>{ closeSheet(true); createMap(); }}, projNewId() ? '＋ 「'+projName(projNewId())+'」에 새 맵' : '＋ 새 맵')));
   });
 }
 function createMap(){
-  askText({ title:'새 맵 이름', value:'새 마인드맵', onOk: v => {
-    const m = newMap(v.trim()||'새 마인드맵'); { const np = projNewId(); if(np) m.proj = np; } data.maps[m.id] = m; data.order.push(m.id); refitAll(m); switchMap(m.id);
-  }});
+  const pid = projNewId(), sug = newMapName(pid);
+  askText({ title:pid ? '「'+projName(pid)+'」의 새 맵 이름' : '새 맵 이름', value:sug, onOk: v => { makeMapIn(pid, v.trim()||sug, true); }});
 }
 function renameMap(id){
   const m = data.maps[id];
@@ -3634,7 +3728,7 @@ function exportPNG(){
 }
 
 /* ===================== 새 버전 알림 (PC: 다운로드 · 폰/웹: 새로고침) ===================== */
-const APP_VER = '202611241603';
+const APP_VER = '202611241627';
 const PAGES_URL = 'https://1000dayago.github.io/mindmap/index.html';
 function verFmt(v){ return v.length===12 ? v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10) : v; }
 function verBar(remote, text){
@@ -8225,7 +8319,7 @@ function openEventEditor(id, o){
     const pjdraw = () => {
       pjRow.innerHTML = '';
       if(pjLinked){ pjRow.append(h('p',{ class:'note', style:'margin:2px' }, '마인드맵 「'+data.maps[ex.link.mapId].name+'」과 연결된 일정이라 그 맵의 프로젝트(「'+projName(pjSel.value)+'」)를 따라가요.')); return; }
-      [{ id:'', name:'미분류', color:'' }].concat(projs()).forEach(p => pjRow.append(h('button',{ type:'button', class:'gpc'+(pjSel.value===p.id ? ' on' : ''), style:p.color ? gv(p.color) : '', onclick:() => {
+      [{ id:'', name:noneName(), color:'' }].concat(projs()).forEach(p => pjRow.append(h('button',{ type:'button', class:'gpc'+(pjSel.value===p.id ? ' on' : ''), style:p.color ? gv(p.color) : '', onclick:() => {
         pjSel.value = p.id; if(grpSel.value && grpSel.value!=='__new' && (gpm[grpSel.value]||'')!==p.id) grpSel.value = '';   // 다른 프로젝트의 그룹은 풀어 준다
         pjdraw(); gdraw(); } }, p.name)));
     };
@@ -9984,11 +10078,11 @@ function draftGet(){ try{ return JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}
 const syncOn = () => !!(syncCfg.url && syncCfg.token);
 const fmtDT = ms => { if(!ms) return '-'; const d = new Date(ms); return (d.getMonth()+1)+'월 '+d.getDate()+'일 '+pad(d.getHours())+':'+pad(d.getMinutes()); };
 
-function syncPayload(){ return { app:'mindmap', version:1, maps:data.order.map(id => data.maps[id]), events:Object.values(evAllObj()), groups:{ ord:gordGet(), reg:regLoad() }, projects:projs(), current:data.current }; }
+function syncPayload(){ return { app:'mindmap', version:1, maps:data.order.map(id => data.maps[id]), events:Object.values(evAllObj()), groups:{ ord:gordGet(), reg:regLoad() }, projects:projs(), pjNone:data.pjNone||'', current:data.current }; }
 // 기기마다 달라지는 값(노드 크기 w/h, 수정시각)은 변경 여부 판단에서 제외
 const sigRep = (k,v) => (k==='w' || k==='h' || k==='updated' || (k && k[0]==='_')) ? undefined : v;
 function sigOf(p){
-  const s = JSON.stringify((p.projects && p.projects.length) ? { m:p.maps, e:p.events, g:p.groups, p:p.projects } : { m:p.maps, e:p.events, g:p.groups }, sigRep);
+  const s = JSON.stringify((p.projects && p.projects.length) || p.pjNone ? { m:p.maps, e:p.events, g:p.groups, p:p.projects, pn:p.pjNone||'' } : { m:p.maps, e:p.events, g:p.groups }, sigRep);
   let a = 5381, b = 52711;
   for(let i=0;i<s.length;i++){ const c = s.charCodeAt(i); a = ((a<<5)+a+c)|0; b = ((b<<5)+b)^c; b |= 0; }
   return (a>>>0).toString(36)+(b>>>0).toString(36)+s.length.toString(36);
@@ -10035,7 +10129,7 @@ function backupLocal(){ try{ localStorage.setItem(PRESYNC_KEY, JSON.stringify(Ob
 function parseRemote(d){
   const maps = {}, order = [];
   ((d && d.maps) || []).forEach(raw => { const m = normalizeMap(raw, true); if(m){ maps[m.id] = m; order.push(m.id); } });
-  return { maps, order, events:loadEvents(d && d.events), groups:(d && d.groups && typeof d.groups==='object') ? d.groups : null, projects:(d && Array.isArray(d.projects)) ? normProjects(d.projects) : null, current:d && d.current };
+  return { maps, order, events:loadEvents(d && d.events), groups:(d && d.groups && typeof d.groups==='object') ? d.groups : null, projects:(d && Array.isArray(d.projects)) ? normProjects(d.projects) : null, pjNone:(d && typeof d.pjNone==='string') ? d.pjNone.slice(0, 40) : null, current:d && d.current };
 }
 function mapSig(m){ return JSON.stringify({ n:m.nodes, g:m.groups, l:m.links, r:m.rootId, name:m.name }, sigRep); }
 function mergeBoth(remote){
@@ -10076,6 +10170,7 @@ function applyRemote(r, how){
     if(how==='both'){ const a = rem.projects.slice(); projs().forEach(lp => { if(!a.some(x => x.id===lp.id)) a.push(lp); }); data.projects = a; }
     else data.projects = rem.projects;
   }
+  if(rem.pjNone!==null && (how!=='both' || rem.pjNone)) data.pjNone = rem.pjNone;
   data.current = res.maps[keepCur] ? keepCur : (res.maps[rem.current] ? rem.current : res.order[0]);
   for(const k in hist) delete hist[k];
   data.order.forEach(id => refitAll(data.maps[id]));
@@ -10422,7 +10517,7 @@ function openSyncSheet(){
               if(!confirm('동기화 직전의 이 기기 상태로 되돌릴까요?\n(지금 내용은 사라져요)')) return;
               try{
                 const o = JSON.parse(localStorage.getItem(PRESYNC_KEY)); const rem = parseRemote(o); if(!rem.order.length) throw new Error('백업이 비어 있어요');
-                data.maps = rem.maps; data.order = rem.order; data.events = rem.events; if(rem.projects) data.projects = rem.projects; data.current = rem.maps[data.current] ? data.current : rem.order[0];
+                data.maps = rem.maps; data.order = rem.order; data.events = rem.events; if(rem.projects) data.projects = rem.projects; if(rem.pjNone!==null) data.pjNone = rem.pjNone; data.current = rem.maps[data.current] ? data.current : rem.order[0];
                 for(const k in hist) delete hist[k]; data.order.forEach(id => refitAll(data.maps[id])); closeSheet(true); closePanel(); sel = null; saveNow(); render(); renderCal(); toast('직전 상태로 되돌렸어요 ('+fmtDT(o.at)+' 기준)'); refreshSyncUI();
               }catch(e){ toast('복원 실패: '+e.message); }
             }) : null),
@@ -10895,6 +10990,7 @@ $('#fitAll').addEventListener('click', fitAll);
 $('#viewMenu').addEventListener('click', openViewSheet);
 $('#moreMenu').addEventListener('click', openMore);
 $('#mapName').addEventListener('click', openMapList);
+$('#mapProj').addEventListener('click', () => openMapProjMenu(data.current));
 ['undo','redo','fitAll','viewMenu','moreMenu'].forEach(id => $('#'+id).addEventListener('mousedown', e => e.preventDefault()));
 
 document.addEventListener('keydown', e => {
